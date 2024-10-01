@@ -10,7 +10,7 @@ if os.name == "nt":  # Windows
 
     colorama.init()
 
-from . import __appname__
+__appname__ = "labelme"
 
 COLORS = {
     "WARNING": "yellow",

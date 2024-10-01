@@ -6,7 +6,8 @@ import os.path as osp
 
 import PIL.Image
 
-from labelme import PY3
+import sys
+PY3 = sys.version[0] == "3.12.4"
 from labelme import QT4
 from labelme import __version__
 from labelme import utils

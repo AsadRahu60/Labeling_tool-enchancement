@@ -11,7 +11,7 @@ from qtpy import QtWidgets
 
 
 #from . import __version__
-from app import MainWindow
+from labelme.app import MainWindow
 from labelme.config import get_config
 from labelme.logger import logger
 from labelme.utils import newIcon
