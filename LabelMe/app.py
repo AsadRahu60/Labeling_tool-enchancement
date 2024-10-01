@@ -11,6 +11,8 @@ import os
 import os.path as osp
 import re
 import webbrowser
+import sys
+PY3 = sys.version[0] == "3.12.4"
 
 import imgviz
 import natsort
@@ -20,13 +22,12 @@ from qtpy import QtGui
 from qtpy import QtWidgets
 from qtpy.QtCore import Qt
 
-from labelme import PY3
 
 from labelme.ai import MODELS
 from labelme.config import get_config
-from . import LabelFile
-from .label_file import LabelFileError
-from .logger import logger
+from labelme.label_file import LabelFile
+from labelme.label_file import LabelFileError
+from labelme.logger import logger
 from labelme.shape import Shape
 from labelme.widgets import ai_prompt_widget
 from labelme.widgets import BrightnessContrastDialog
@@ -1895,7 +1896,7 @@ class MainWindow(QtWidgets.QMainWindow):
         filters = self.tr("Image & Label files (%s)") % " ".join(
             formats + ["*%s" % LabelFile.suffix]
         )
-        filters = self.tr("Image, Video & Label files (*.mp4 *.avi *.mov *.mkv *.jpg *.png *.json)")
+        filters = self.tr("Image, Video,Label files (*.mp4 *.avi *.mov *.mkv *.jpg *.png *.json)")
         fileDialog = FileDialogPreview(self)
         fileDialog.setFileMode(FileDialogPreview.ExistingFile)
         fileDialog.setNameFilter(filters)
