@@ -3,7 +3,7 @@
 
 
 import cv2
-import torch
+
 import functools
 import html
 import math
@@ -41,6 +41,12 @@ from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
 import json
 from labelme import utils
+import torch
+import torch.nn as nn
+from torchvision.models import resnet50, ResNet50_Weights
+from torchvision import transforms
+from ultralytics import YOLO
+
 
 # FIXME
 # - [medium] Set max zoom value to something big enough for FitWidth/Window
@@ -65,6 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #custom_option=False,
     ):
         super(MainWindow, self).__init__()
+          
         
         #self.custom_option = custom_option
         
@@ -73,8 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_frame = 0      # Current frame number
         self.total_frames = 0       # Total number of frames in the video
         
-         # Load the Person ReID model
-        self.reid_model = self.load_reid_model()
+        
         
         self.person_tracks = {}# Dictionary to store tracks for each person
         
@@ -82,12 +88,10 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
 
-        # If custom_option is set, you can handle it accordingly
-        if self.custom_option:
-            print("Custom option is enabled!")
         
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
+            
             if output_file is None:
                 output_file = output
 
@@ -96,23 +100,35 @@ class MainWindow(QtWidgets.QMainWindow):
             config = get_config()
         self._config = config
         
-        # Add UI elements for frame navigation
-        self.prevFrameButton = QtWidgets.QPushButton(self.tr("Previous Frame"))
-        self.nextFrameButton = QtWidgets.QPushButton(self.tr("Next Frame"))
-        self.frameNumberInput = QtWidgets.QLineEdit(self.tr("Enter Frame #"))
+         # Add buttons for video navigation
+        self.prevFrameButton = QtWidgets.QPushButton(self.tr("Previous Frame"), self)
+        self.nextFrameButton = QtWidgets.QPushButton(self.tr("Next Frame"), self)
+        self.annotateVideoButton = QtWidgets.QPushButton(self.tr("Annotate Video"), self)
 
         # Connect buttons to frame navigation
         self.prevFrameButton.clicked.connect(self.openPrevFrame)
         self.nextFrameButton.clicked.connect(self.openNextFrame)
+        self.annotateVideoButton.clicked.connect(self.annotateVideo)
 
         # Layout changes to add the buttons
         frameControlLayout = QtWidgets.QHBoxLayout()
         frameControlLayout.addWidget(self.prevFrameButton)
         frameControlLayout.addWidget(self.frameNumberInput)
         frameControlLayout.addWidget(self.nextFrameButton)
+        videoControlLayout.addWidget(self.annotateVideoButton)
+        self.videoControlWidget = QtWidgets.QWidget()
+        self.videoControlWidget.setLayout(videoControlLayout)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.videoControlWidget)
+
         self.frameControlWidget = QtWidgets.QWidget()
         self.frameControlWidget.setLayout(frameControlLayout)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.frameControlWidget)
+
+        # Wrap the QWidget inside a QDockWidget
+        frameControlDock = QtWidgets.QDockWidget(self.tr("Frame Control"), self)
+        frameControlDock.setWidget(self.frameControlWidget)
+
+        self.addDockWidget(Qt.BottomDockWidgetArea, frameControlDock)
+
 
         # set default shape colors
         Shape.line_color = QtGui.QColor(*self._config["shape"]["line_color"])
@@ -154,6 +170,8 @@ class MainWindow(QtWidgets.QMainWindow):
             flags=self._config["label_flags"],
         )
 
+        #Load ReID model
+        self.reid_model = self.load_reid_model()
         self.labelList = LabelListWidget()
         self.lastOpenDir = None
 
@@ -705,6 +723,8 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomActions=zoomActions,
             openNextImg=openNextImg,
             openPrevImg=openPrevImg,
+            openPrevFrame=openPrevFrame,
+            openNextFrame=openNextFrame,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
@@ -775,6 +795,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 open_,
                 openNextImg,
                 openPrevImg,
+                openPrevFrame,
+                openNextFrame,
                 opendir,
                 self.menus.recentFiles,
                 save,
@@ -862,6 +884,8 @@ class MainWindow(QtWidgets.QMainWindow):
             opendir,
             openPrevImg,
             openNextImg,
+            openPrevFrame,
+            openNextFrame,
             save,
             deleteFile,
             None,
@@ -1912,90 +1936,131 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.loadVideo(fileName)
             else:
                     self.loadFile(fileName)
-    def loadFrame(self, frame_number):
-        """Load a specific frame from the video."""
-        if self.video_capture is None:
-            return
+    
+    def loadVideo(self, video_path):
+        
+        """Loads the video file and initializes video processing."""
+        self.video_capture = cv2.VideoCapture(video_path)
+        self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.current_frame = 0  # Start from the first frame
+        self.loadFrame(self.current_frame)
 
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+def loadFrame(self, frame_number):
+    
+    """Load a specific frame from the video."""
+    if self.video_capture is None:
+        return
+    
+    self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+    ret, frame = self.video_capture.read()
+    if ret:
+        # Convert frame to RGB and display it
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width, channel = rgb_frame.shape
+        bytes_per_line = channel * width
+        q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame in the canvas
+        self.current_frame = frame_number  # Update the current frame
+        self.setClean()  # Mark as not dirty (no unsaved changes)
+    else:
+        self.errorMessage(self.tr("Error reading frame"), self.tr(f"Cannot read frame {frame_number}"))
+
+def openNextFrame(self):
+    """Go to the next frame."""
+    if self.current_frame + 1 < self.total_frames:
+        self.loadFrame(self.current_frame + 1)
+
+def openPrevFrame(self):
+    """Go to the previous frame."""
+    if self.current_frame - 1 >= 0:
+        self.loadFrame(self.current_frame - 1)
+
+def closeVideo(self):
+    """Close video file."""
+    if self.video_capture:
+        self.video_capture.release()
+        self.video_capture = None
+
+def load_reid_model(self):
+    # Load a pretrained ReID model (ResNet50).
+    reid_model=resnet50(weights=ResNet50_Weights.DEFAULT)
+    reid_model.fc=nn.Linear(reid_model.fc.in_features,128)
+    reid_model.eval()# Set to evaluateion mode
+    return reid_model
+    
+
+def extract_reid_features(self, frame, boxes):
+    """Extract ReID features for the detected persons in the frame."""
+    features = []
+    for box in boxes:
+        x1, y1, x2, y2 = box  # Get bounding box coordinates
+        person_img = frame[y1:y2, x1:x2]  # Crop the person's image
+        person_tensor = self.transform(person_img).unsqueeze(0)  # Preprocess image for model input
+        with torch.no_grad():
+            feature = self.reid_model(person_tensor)  # Extract ReID feature
+        features.append(feature)
+    return features
+
+def run_reid_on_frame(self, frame):
+    """Run Person ReID model on the frame and update tracking."""
+    results = self.reid_model.detect(frame)  # Run ReID model
+    for result in results:
+        person_id = result['id']
+        if person_id not in self.person_tracks:
+            self.person_tracks[person_id] = []
+        self.person_tracks[person_id].append(result['bbox'])  # Update person's track
+    return results
+
+def display_reid_detections(self, detections):
+    """Display bounding boxes and IDs on the frame."""
+    for detection in detections:
+        box = detection['bbox']
+        person_id = detection['id']
+        self.canvas.drawRectangle(box, label=str(person_id))  # Drawing bounding box with person ID
+        
+def annotateVideo(self):
+    """Annotate the current video using YOLO for person detection and ReID."""
+    while self.video_capture.isOpened():
         ret, frame = self.video_capture.read()
-        if ret:
-            image = QtGui.QImage(frame.data, frame.shape[1], frame.shape[0], frame.strides[0], QtGui.QImage.Format_RGB888)
-            self.image = image
-            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
-            self.current_frame = frame_number
-            self.setClean()
-        else:
-            self.errorMessage(self.tr("Error reading frame"), self.tr("Cannot read frame %d") % frame_number)
+        if not ret:
+            break
+        # Detect persons using YOLO
+        results = self.model(frame)
+        boxes = []  # Store bounding boxes
+        annotated_frame = frame.copy()
 
-    def openNextFrame(self):
-        """Go to the next frame."""
-        if self.current_frame + 1 < self.total_frames:
-            self.loadFrame(self.current_frame + 1)
+        if results:
+            # For each detection, draw the bounding box
+            for result in results:
+                x1, y1, x2, y2 = map(int, result.xyxy[0])  # Get bounding box
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                boxes.append((x1, y1, x2, y2))
+        
+        # Extract ReID features and update tracking
+        features = self.extract_reid_features(frame, boxes)
+        self.update_display(annotated_frame)  # Show the annotated frame
+        
+def update_display(self, frame):
+    """Update the displayed frame with annotations."""
+    height, width, channel = frame.shape
+    bytes_per_line = channel * width
+    q_img = QtGui.QImage(frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+    self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the annotated frame
 
-    def openPrevFrame(self):
-        """Go to the previous frame."""
-        if self.current_frame - 1 >= 0:
-            self.loadFrame(self.current_frame - 1)
 
-    def closeVideo(self):
-        """Close video file."""
-        if self.video_capture:
-            self.video_capture.release()
-            self.video_capture = None
-    
-    def load_reid_model(self):
-        """Load a pre-trained Person ReID model."""
-        model = torch.hub.load('path/to/reid/model', 'model_name')  # Load model
-        model.eval()  # Set to evaluation mode
-        return model
 
-    def run_reid_on_frame(self, frame):
-        """Run Person ReID model on the current frame and get bounding boxes with IDs."""
-        results = self.reid_model.detect(frame)  # This assumes a detect method for bounding boxes
-        return results  # Return bounding boxes with person IDs
+def saveVideoAnnotations(self, filename):
+    """Save annotations with frame and person ID information."""
+    annotations = []
+    for person_id, track in self.person_tracks.items():
+        for bbox in track:
+            annotations.append({
+                'person_id': person_id,
+                'bbox': bbox
+            })
 
-    def loadFrame(self, frame_number):
-        """Load frame and apply ReID model."""
-        super().loadFrame(frame_number)
-        if self.video_capture:
-            ret, frame = self.video_capture.read()
-            if ret:
-                # Apply ReID model on the frame
-                detections = self.run_reid_on_frame(frame)
-                self.display_reid_detections(detections)
-
-    def display_reid_detections(self, detections):
-        """Display bounding boxes and IDs on the frame."""
-        for detection in detections:
-            box = detection['bbox']
-            person_id = detection['id']
-            self.canvas.drawRectangle(box, label=str(person_id))
-            
-    def run_reid_on_frame(self, frame):
-        """Run Person ReID model on the frame and update tracking."""
-        results = self.reid_model.detect(frame)  # Run ReID model
-        # Update tracking
-        for result in results:
-            person_id = result['id']
-            if person_id not in self.person_tracks:
-                self.person_tracks[person_id] = []
-            self.person_tracks[person_id].append(result['bbox'])  # Update person's track
-        return results
-    
-    def saveVideoAnnotations(self, filename):
-        """Save annotations with frame and person ID information."""
-        annotations = []
-        for person_id, track in self.person_tracks.items():
-            for frame_num, bbox in track:
-                annotations.append({
-                    'frame': frame_num,
-                    'person_id': person_id,
-                    'bbox': bbox
-                })
-
-        with open(filename, 'w') as f:
-             json.dump(annotations, f)
+    with open(filename, 'w') as f:
+        json.dump(annotations, f)
 
 
     def changeOutputDirDialog(self, _value=False):
