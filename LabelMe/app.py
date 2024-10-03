@@ -83,11 +83,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
         self.person_tracks = {}# Dictionary to store tracks for each person
+        # Example check if the loaded file is a video (you need to set this flag somewhere)
+        self.is_video = False  # This flag will be set to True when loading a video
         
-        
-        
-        
-
         
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
@@ -100,34 +98,55 @@ class MainWindow(QtWidgets.QMainWindow):
             config = get_config()
         self._config = config
         
+        # new_code for the PrevFrame    
          # Add buttons for video navigation
         self.prevFrameButton = QtWidgets.QPushButton(self.tr("Previous Frame"), self)
         self.nextFrameButton = QtWidgets.QPushButton(self.tr("Next Frame"), self)
         self.annotateVideoButton = QtWidgets.QPushButton(self.tr("Annotate Video"), self)
+        
+        if self.is_video:  # Assuming you have a flag to check if it's a video
+            print("Video mode: Connecting video frame navigation buttons")
+            self.prevFrameButton.clicked.connect(self.openPrevFrame)
+            self.nextFrameButton.clicked.connect(self.openNextFrame)
+        else:  # For image navigation
+            print("Image mode: Connecting image navigation buttons")
+            self.prevFrameButton.clicked.connect(self.openPrevImg)
+            self.nextFrameButton.clicked.connect(self.openNextImg)
 
         # Connect buttons to frame navigation
-        self.prevFrameButton.clicked.connect(self.openPrevFrame)
-        self.nextFrameButton.clicked.connect(self.openNextFrame)
         self.annotateVideoButton.clicked.connect(self.annotateVideo)
 
-        # Layout changes to add the buttons
+        # Create a layout for video control (fix for videoControlLayout)
+        frameControlLayout = QtWidgets.QHBoxLayout()
+        videoControlLayout.addWidget(self.annotateVideoButton)
+        
+        # Create a layout for frame control
         frameControlLayout = QtWidgets.QHBoxLayout()
         frameControlLayout.addWidget(self.prevFrameButton)
         frameControlLayout.addWidget(self.frameNumberInput)
         frameControlLayout.addWidget(self.nextFrameButton)
-        videoControlLayout.addWidget(self.annotateVideoButton)
-        self.videoControlWidget = QtWidgets.QWidget()
-        self.videoControlWidget.setLayout(videoControlLayout)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self.videoControlWidget)
-
+        
+        # Frame control widget with a layout
         self.frameControlWidget = QtWidgets.QWidget()
         self.frameControlWidget.setLayout(frameControlLayout)
-
-        # Wrap the QWidget inside a QDockWidget
+        
+        # Wrap the QWidget inside a QDockWidget for frame controls
         frameControlDock = QtWidgets.QDockWidget(self.tr("Frame Control"), self)
         frameControlDock.setWidget(self.frameControlWidget)
-
         self.addDockWidget(Qt.BottomDockWidgetArea, frameControlDock)
+        
+        # Video control widget for annotation button
+        self.videoControlWidget = QtWidgets.QWidget()
+        self.videoControlWidget.setLayout(videoControlLayout)
+        videoControlDock = QtWidgets.QDockWidget(self.tr("Video Control"), self)
+        videoControlDock.setWidget(self.videoControlWidget)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.videoControlWidget)
+
+        
+
+        
+        
+        
 
 
         # set default shape colors
@@ -344,6 +363,16 @@ class MainWindow(QtWidgets.QMainWindow):
             icon="open",
             tip=self.tr("Change where annotations are loaded/saved"),
         )
+        
+        saveReIDAnnotationsAction = action(
+            self.tr("Save ReID Annotations"),
+            self.saveVideoAnnotations,
+            None,  # No shortcut
+            "save_annotations",
+            self.tr("Save video annotations with ReID results"),
+            enabled=False
+        )
+
 
         saveAuto = action(
             text=self.tr("Save &Automatically"),
@@ -459,6 +488,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.canvas.createMode == "ai_mask"
             else None
         )
+        
+        
         editMode = action(
             self.tr("Edit Polygons"),
             self.setEditMode,
@@ -550,6 +581,24 @@ class MainWindow(QtWidgets.QMainWindow):
             tip=self.tr("Toggle all polygons"),
             enabled=False,
         )
+        openPrevFrameAction = action(
+            self.tr("Previous Frame"),
+            self.openPrevFrame,
+            None,  # No shortcut
+            "prev_frame",
+            self.tr("Go to the previous video frame"),
+            enabled=False
+        )
+
+        openNextFrameAction = action(
+            self.tr("Next Frame"),
+            self.openNextFrame,
+            None,  # No shortcut
+            "next_frame",
+            self.tr("Go to the next video frame"),
+            enabled=False
+        )
+
 
         help = action(
             self.tr("&Tutorial"),
@@ -723,8 +772,10 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomActions=zoomActions,
             openNextImg=openNextImg,
             openPrevImg=openPrevImg,
-            openPrevFrame=openPrevFrame,
-            openNextFrame=openNextFrame,
+            openVideo=openVideoAction,
+            openPrevFrame=openPrevFrameAction,
+            openNextFrame=openNextFrameAction,
+            saveReIDAnnotations=saveReIDAnnotationsAction,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
@@ -884,8 +935,9 @@ class MainWindow(QtWidgets.QMainWindow):
             opendir,
             openPrevImg,
             openNextImg,
-            openPrevFrame,
-            openNextFrame,
+            openPrevFrameAction,
+            openNextFrameAction,
+            saveReIDAnnotationsAction,
             save,
             deleteFile,
             None,
@@ -1943,6 +1995,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.video_capture = cv2.VideoCapture(video_path)
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.current_frame = 0  # Start from the first frame
+        self.is_video = True  # Set the flag to indicate it's a video
         self.loadFrame(self.current_frame)
 
 def loadFrame(self, frame_number):
@@ -1954,16 +2007,21 @@ def loadFrame(self, frame_number):
     self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
     ret, frame = self.video_capture.read()
     if ret:
-        # Convert frame to RGB and display it
+        # Convert the frame to QImage for display
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         height, width, channel = rgb_frame.shape
         bytes_per_line = channel * width
         q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame in the canvas
-        self.current_frame = frame_number  # Update the current frame
-        self.setClean()  # Mark as not dirty (no unsaved changes)
+        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
+        
+        # Run the ReID model on this frame
+        detections = self.run_reid_on_frame(frame)
+        self.display_reid_detections(detections)  # Display ReID results on the frame
+
+        self.current_frame = frame_number  # Update the current frame number
+        self.setClean()  # Mark as not dirty
     else:
-        self.errorMessage(self.tr("Error reading frame"), self.tr(f"Cannot read frame {frame_number}"))
+        self.errorMessage(self.tr("Error loading frame"), self.tr("Cannot load frame %d") % frame_number)
 
 def openNextFrame(self):
     """Go to the next frame."""
