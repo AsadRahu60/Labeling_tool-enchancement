@@ -1,0 +1,10 @@
+""" ISSUES
+"""
+
+1.Incorrect order of widget initialization: The layout (frameControlLayout) is being set before initializing the frameControlWidget, which leads to a logical issue.
+
+2.Redundant layout declaration: In your code, frameControlLayout is being defined twice.
+
+3.Video control layout definition error: You try to add a widget (self.annotateVideoButton) to a layout (videoControlLayout) before initializing the layout itself.
+
+4.self.videoControlWidget not being added as a dock widget properly: You define videoControlDock, but you try to add self.videoControlWidget instead of videoControlDock.
