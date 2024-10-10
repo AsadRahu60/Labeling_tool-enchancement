@@ -44,8 +44,9 @@ from labelme import utils
 import torch
 import torch.nn as nn
 from torchvision.models import resnet50, ResNet50_Weights
-from torchvision import transforms
+from torchvision.transforms import transforms
 from ultralytics import YOLO
+yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 
 
 # FIXME
@@ -84,7 +85,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_video = False  # This flag will be set to True when loading a video
         
         self.reid_model=self.load_reid_model()
-        
+        # Define the image transformation pipeline for the ReID model
+        self.transform = self.get_transform()
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
             if output_file is None:
@@ -739,6 +741,15 @@ class MainWindow(QtWidgets.QMainWindow):
             checkable=True,
             enabled=True,
         )
+        
+        openVideoAction = action(
+            self.tr("&Open Video"),
+            self.openVideo,
+            shortcuts.get("open_video", "Ctrl+O"),
+            "open",
+            self.tr("Open a video file for annotation")
+        )
+        
         if self._config["canvas"]["fill_drawing"]:
             fill_drawing.trigger()
 
@@ -749,14 +760,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.labelList.customContextMenuRequested.connect(self.popLabelListMenu)
         
         # Assuming you have a menu or toolbar where you want to add "Open Video" functionality
-        self.openVideoAction = QtWidgets.QAction(self.tr("&Open Video"), self)
-        self.openVideoAction.setShortcut("Ctrl+V")
-        self.openVideoAction.setStatusTip(self.tr("Open a video file"))
-        self.openVideoAction.triggered.connect(self.openVideo)
+        #self.openVideoAction = QtWidgets.QAction(self.tr("&Open Video"), self)
+        #self.openVideoAction.setShortcut("Ctrl+V")
+        #self.openVideoAction.setStatusTip(self.tr("Open a video file"))
+        #self.openVideoAction.triggered.connect(self.openVideo)
         
-        self.menu.file.addAction(openVideoAction)
+        #self.menu.file.addAction(openVideoAction)
 
-        self.toolbar.addAction(self.openVideoAction)
+        #self.toolbar.addAction(self.openVideoAction)
         
         
 
@@ -799,7 +810,7 @@ class MainWindow(QtWidgets.QMainWindow):
             zoomActions=zoomActions,
             openNextImg=openNextImg,
             openPrevImg=openPrevImg,
-            openVideo=openVideoAction,
+            openVideoAction=openVideoAction,
             openPrevFrame=openPrevFrameAction,
             openNextFrame=openNextFrameAction,
             saveReIDAnnotations=saveReIDAnnotationsAction,
@@ -873,8 +884,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 open_,
                 openNextImg,
                 openPrevImg,
-                openPrevFrame,
-                openNextFrame,
+                openPrevFrameAction,
+                openNextFrameAction,
                 opendir,
                 openVideoAction,
                 self.menus.recentFiles,
@@ -889,6 +900,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 quit,
             ),
         )
+        #self.menu.file.addAction(openVideoAction)
         utils.addActions(self.menus.help, (help,))
         utils.addActions(
             self.menus.view,
@@ -965,6 +977,7 @@ class MainWindow(QtWidgets.QMainWindow):
             openNextImg,
             openPrevFrameAction,
             openNextFrameAction,
+            openVideoAction,
             saveReIDAnnotationsAction,
             save,
             deleteFile,
@@ -981,6 +994,7 @@ class MainWindow(QtWidgets.QMainWindow):
             None,
             selectAiModel,
         )
+        #self.toolbar.addAction(self.openVideoAction)
 
         self.statusBar().showMessage(str(self.tr("%s started.")) % __appname__)
         self.statusBar().show()
@@ -2034,6 +2048,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         """Loads the video file and initializes video processing."""
         self.video_capture = cv2.VideoCapture(video_path)
+        
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.current_frame = 0  # Start from the first frame
         self.is_video = True  # Set the flag to indicate it's a video
@@ -2056,13 +2071,40 @@ class MainWindow(QtWidgets.QMainWindow):
             self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
             
             # Run the ReID model on this frame
-            detections = self.run_reid_on_frame(frame)
-            self.display_reid_detections(detections)  # Display ReID results on the frame
+            detections = self.run_yolo_detection(frame)
+            if detections:
+                reid_results = self.run_reid_on_frame(frame, detections)
+                self.display_reid_detections(reid_results)
+                
+            #self.display_reid_detections(detections)  # Display ReID results on the frame
 
             self.current_frame = frame_number  # Update the current frame number
             self.setClean()  # Mark as not dirty
         else:
             self.errorMessage(self.tr("Error loading frame"), self.tr("Cannot load frame %d") % frame_number)
+    
+    def get_transform(self):
+        """Create a transformation pipeline for person ReID model input."""
+        return transforms.Compose([
+            transforms.ToPILImage(),                # Convert from NumPy array to PIL image
+            transforms.Resize((128, 256)),          # Resize to a standard size suitable for the model
+            transforms.ToTensor(),                  # Convert PIL image to Tensor
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
+        ])
+    
+    
+    
+    def run_yolo_detection(self, frame):
+        """Run YOLO model to detect people in the frame."""
+        # Run YOLO model on the given frame
+        results = yolo_model(frame)
+        detections = []
+        for detection in results.xyxy[0]:
+            # YOLO outputs: [x1, y1, x2, y2, confidence, class]
+            x1, y1, x2, y2, conf, cls = detection
+            if int(cls) == 0:  # Class '0' corresponds to 'person' in YOLO model
+                detections.append((int(x1), int(y1), int(x2), int(y2)))
+        return detections        
 
     def openNextFrame(self):
         """Go to the next frame."""
@@ -2103,22 +2145,68 @@ class MainWindow(QtWidgets.QMainWindow):
             features.append(feature)
         return features
 
-    def run_reid_on_frame(self, frame):
-        """Run Person ReID model on the frame and update tracking."""
-        results = self.reid_model.detect(frame)  # Run ReID model
-        for result in results:
-            person_id = result['id']
+    def run_reid_on_frame(self, frame,detections):
+        """Run Person ReID model on the frame and update tracking."""  
+        features = []
+
+    # Iterate over each detection to extract features
+        for detection in detections:
+            x1, y1, x2, y2 = detection
+            # Crop the person region from the frame
+            person_img = frame[y1:y2, x1:x2]
+            
+            # Preprocess the image for the ReID model
+            person_tensor = self.transform(person_img).unsqueeze(0)  # Assuming self.transform exists
+
+            # Extract features using the ReID model
+            with torch.no_grad(), torch.amp.autocast("cuda"):
+             # Assuming mixed precision for efficiency
+                feature = self.reid_model(person_tensor)
+            features.append(feature)
+
+        # Update person tracks using extracted features
+        for i, feature in enumerate(features):
+            # Here, we assume some logic to assign IDs to people based on extracted features.
+            # For simplicity, we can just generate unique IDs if no tracker is being used.
+            person_id = f"person_{i + 1}"  # Generate unique IDs for each person in the frame
+
+            # Update the person's track
             if person_id not in self.person_tracks:
                 self.person_tracks[person_id] = []
-            self.person_tracks[person_id].append(result['bbox'])  # Update person's track
-        return results
+            self.person_tracks[person_id].append(detections[i])  # Update person's track with the bounding box
 
+        return features
+
+    
+    
+    
     def display_reid_detections(self, detections):
-        """Display bounding boxes and IDs on the frame."""
+        """Display ReID detections on the frame."""
         for detection in detections:
-            box = detection['bbox']
-            person_id = detection['id']
-            self.canvas.drawRectangle(box, label=str(person_id))  # Drawing bounding box with person ID
+            # Ensure detection has the required number of elements (e.g., [x1, y1, x2, y2, confidence, class_id])
+            if isinstance(detection, torch.Tensor):
+                # Convert to a list and ensure there are at least 4 elements
+                detection_list = detection.tolist()
+                if len(detection_list) >= 4:
+                    # Assuming YOLO returns [x1, y1, x2, y2, confidence, class_id]
+                    x1, y1, x2, y2 = map(int, detection_list[:4])
+                else:
+                    # If not enough values, skip this detection
+                    continue
+            elif isinstance(detection, dict) and 'bbox' in detection:
+                x1, y1, x2, y2 = map(int, detection['bbox'])
+            else:
+                # Handle unexpected data types if needed
+                continue
+
+            # Draw the bounding box on the frame
+            painter = QtGui.QPainter(self.canvas.pixmap())
+            painter.setPen(QtGui.QPen(QtGui.QColor(0, 255, 0), 2))
+            painter.drawRect(x1, y1, x2 - x1, y2 - y1)
+            painter.end()
+
+        self.canvas.update()  # Refresh the canvas to show updated annotations
+  # Refresh the canvas to show updated annotations
         
     def annotateVideo(self):
         """Annotate the current video using YOLO for person detection and ReID."""
