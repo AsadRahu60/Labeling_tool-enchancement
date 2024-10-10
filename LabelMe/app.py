@@ -2002,6 +2002,16 @@ class MainWindow(QtWidgets.QMainWindow):
             self.loadFile(self.filename)
 
         self._config["keep_prev"] = keep_prev
+        
+    def openNextFrame(self):
+        """Go to the next frame."""
+        if self.current_frame + 1 < self.total_frames:
+            self.loadFrame(self.current_frame + 1)
+
+    def openPrevFrame(self):
+        """Go to the previous frame."""
+        if self.current_frame - 1 >= 0:
+            self.loadFrame(self.current_frame - 1)
 
     def openFile(self, _value=False):
         if not self.mayContinue():
@@ -2054,6 +2064,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_video = True  # Set the flag to indicate it's a video
         self.loadFrame(self.current_frame)
 
+        # Enable navigation buttons
+        self.prevFrameButton.setEnabled(True)
+        self.nextFrameButton.setEnabled(True)
+        self.loadFrame(self.current_frame)
+        
+        
+        
     def loadFrame(self, frame_number):
     
         """Load a specific frame from the video."""
@@ -2069,6 +2086,17 @@ class MainWindow(QtWidgets.QMainWindow):
             bytes_per_line = channel * width
             q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
             self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
+           
+            # Check if canvas exists and update it properly
+            if hasattr(self, 'canvas'):
+                self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
+                self.current_frame = frame_number  # Update the current frame number
+                self.setClean()  # Mark as not dirty
+            else:
+                self.errorMessage(self.tr("Error"), self.tr("Canvas not available to display frame"))
+            
+            
+            
             
             # Run the ReID model on this frame
             detections = self.run_yolo_detection(frame)
