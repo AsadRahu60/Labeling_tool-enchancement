@@ -103,14 +103,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.nextFrameButton = QtWidgets.QPushButton(self.tr("Next Frame"), self)
         self.annotateVideoButton = QtWidgets.QPushButton(self.tr("Annotate Video"), self)
         
-        if self.is_video:  # Assuming you have a flag to check if it's a video
-            print("Video mode: Connecting video frame navigation buttons")
-            self.prevFrameButton.clicked.connect(self.openPrevFrame)
-            self.nextFrameButton.clicked.connect(self.openNextFrame)
-        else:  # For image navigation
-            print("Image mode: Connecting image navigation buttons")
-            self.prevFrameButton.clicked.connect(self.openPrevImg)
-            self.nextFrameButton.clicked.connect(self.openNextImg)
+        
 
         # Define frameNumberInput here
         self.frameNumberInput = QtWidgets.QLineEdit(self)  # Define QLineEdit for frame input
@@ -331,6 +324,13 @@ class MainWindow(QtWidgets.QMainWindow):
             "open",
             self.tr("Open Dir"),
         )
+        openVideoAction = action(
+            self.tr("&Open Video"),
+            self.openVideo,
+            shortcuts.get("open_video", "Ctrl+O"),
+            "open",
+            self.tr("Open a video file for annotation")
+        )
         openNextImg = action(
             self.tr("&Next Image"),
             self.openNextImg,
@@ -346,6 +346,22 @@ class MainWindow(QtWidgets.QMainWindow):
             "prev",
             self.tr("Open prev (hold Ctl+Shift to copy labels)"),
             enabled=False,
+        )
+        openPrevFrame = action(
+            self.tr("Previous Frame"),
+            self.openPrevFrame,
+            None,  # No shortcut
+            "prev_frame",
+            self.tr("Go to the previous video frame"),
+            enabled=False
+        )
+        openNextFrame = action(
+            self.tr("Next Frame"),
+            self.openNextFrame,
+            None,  # No shortcut
+            "next_frame",
+            self.tr("Go to the next video frame"),
+            enabled=False
         )
         save = action(
             self.tr("&Save\n"),
@@ -598,23 +614,7 @@ class MainWindow(QtWidgets.QMainWindow):
             tip=self.tr("Toggle all polygons"),
             enabled=False,
         )
-        openPrevFrameAction = action(
-            self.tr("Previous Frame"),
-            self.openPrevFrame,
-            None,  # No shortcut
-            "prev_frame",
-            self.tr("Go to the previous video frame"),
-            enabled=False
-        )
-
-        openNextFrameAction = action(
-            self.tr("Next Frame"),
-            self.openNextFrame,
-            None,  # No shortcut
-            "next_frame",
-            self.tr("Go to the next video frame"),
-            enabled=False
-        )
+        
 
 
         help = action(
@@ -742,13 +742,7 @@ class MainWindow(QtWidgets.QMainWindow):
             enabled=True,
         )
         
-        openVideoAction = action(
-            self.tr("&Open Video"),
-            self.openVideo,
-            shortcuts.get("open_video", "Ctrl+O"),
-            "open",
-            self.tr("Open a video file for annotation")
-        )
+        
         
         if self._config["canvas"]["fill_drawing"]:
             fill_drawing.trigger()
@@ -811,8 +805,8 @@ class MainWindow(QtWidgets.QMainWindow):
             openNextImg=openNextImg,
             openPrevImg=openPrevImg,
             openVideoAction=openVideoAction,
-            openPrevFrame=openPrevFrameAction,
-            openNextFrame=openNextFrameAction,
+            openPrevFrame=openPrevFrame,
+            openNextFrame=openNextFrame,
             saveReIDAnnotations=saveReIDAnnotationsAction,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
@@ -884,8 +878,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 open_,
                 openNextImg,
                 openPrevImg,
-                openPrevFrameAction,
-                openNextFrameAction,
+                openPrevFrame,
+                openNextFrame,
                 opendir,
                 openVideoAction,
                 self.menus.recentFiles,
@@ -973,11 +967,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.tool = (
             open_,
             opendir,
+            openVideoAction,
             openPrevImg,
             openNextImg,
-            openPrevFrameAction,
-            openNextFrameAction,
-            openVideoAction,
+            openPrevFrame,
+            openNextFrame,
             saveReIDAnnotationsAction,
             save,
             deleteFile,
@@ -2003,15 +1997,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self._config["keep_prev"] = keep_prev
         
-    def openNextFrame(self):
-        """Go to the next frame."""
-        if self.current_frame + 1 < self.total_frames:
-            self.loadFrame(self.current_frame + 1)
-
-    def openPrevFrame(self):
-        """Go to the previous frame."""
-        if self.current_frame - 1 >= 0:
-            self.loadFrame(self.current_frame - 1)
+    
 
     def openFile(self, _value=False):
         if not self.mayContinue():
@@ -2042,74 +2028,106 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.loadFile(fileName)
     
     def openVideo(self):
+        """Open a video file for annotation."""
         options = QtWidgets.QFileDialog.Options()
-        fileName, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, 
-            "Open Video File", 
-            "", 
-            "Video Files (*.mp4 *.avi *.mov);;All Files (*)", 
-            options=options
+        filePath, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Open Video File", "", "Video Files (*.mp4 *.avi *.mov);;All Files (*)", options=options
         )
-        if fileName:
-            self.loadVideo(fileName)
-
+        if filePath:
+            self.loadVideo(filePath)
     
     def loadVideo(self, video_path):
-        
         """Loads the video file and initializes video processing."""
         self.video_capture = cv2.VideoCapture(video_path)
         
+        if not self.video_capture.isOpened():
+            self.errorMessage(self.tr("Error"), self.tr("Could notvideo"))
+            return
+        
+        # Successfully opened the video, set the flag
+        self.is_video = True
+        print("Video mode enabled")
+
+        # Initialize frame information
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.current_frame = 0  # Start from the first frame
-        self.is_video = True  # Set the flag to indicate it's a video
+        self.current_frame = 0
+
+        # Load the first frame to display
         self.loadFrame(self.current_frame)
 
-        # Enable navigation buttons
+        # Enable navigation buttons and ensure proper connections
+        try:
+            # Disconnect any existing connections for frame buttons to avoid conflicts
+            self.prevFrameButton.clicked.disconnect()
+            self.nextFrameButton.clicked.disconnect()
+        except TypeError:
+            # If there is no connection, simply ignore the error
+            pass
+
+        # Connect buttons for video mode
+        if self.is_video:
+            print("Video mode: Connecting video frame navigation buttons")
+            self.prevFrameButton.clicked.connect(self.openPrevFrame)
+            self.nextFrameButton.clicked.connect(self.openNextFrame)
+        
+        # Enable navigation buttons for the video
         self.prevFrameButton.setEnabled(True)
         self.nextFrameButton.setEnabled(True)
-        self.loadFrame(self.current_frame)
+
         
         
         
     def loadFrame(self, frame_number):
-    
-        """Load a specific frame from the video."""
+    #3"""Load a specific frame from the video."""
         if self.video_capture is None:
+            print("Video capture object is None")
             return
+
         
         self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+        actual_frame_number = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+        print(f"Requested frame: {frame_number}, Actual frame set by video capture: {actual_frame_number}")
         ret, frame = self.video_capture.read()
+        print(f"Successfully read frame: {ret}")
+        
         if ret:
             # Convert the frame to QImage for display
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             height, width, channel = rgb_frame.shape
             bytes_per_line = channel * width
             q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
-           
-            # Check if canvas exists and update it properly
+            self.image=q_img
+            # Display the frame on the canvas
             if hasattr(self, 'canvas'):
                 self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
                 self.current_frame = frame_number  # Update the current frame number
+                
+                # Enable the frame navigation buttons
+                self.prevFrameButton.setEnabled(self.current_frame > 0)
+                self.nextFrameButton.setEnabled(self.current_frame < self.total_frames - 1)
+                
                 self.setClean()  # Mark as not dirty
+
+                # Refresh the canvas to make sure the new frame is displayed
+                self.canvas.update()
             else:
                 self.errorMessage(self.tr("Error"), self.tr("Canvas not available to display frame"))
-            
-            
-            
-            
-            # Run the ReID model on this frame
-            detections = self.run_yolo_detection(frame)
-            if detections:
-                reid_results = self.run_reid_on_frame(frame, detections)
-                self.display_reid_detections(reid_results)
-                
-            #self.display_reid_detections(detections)  # Display ReID results on the frame
-
-            self.current_frame = frame_number  # Update the current frame number
-            self.setClean()  # Mark as not dirty
         else:
             self.errorMessage(self.tr("Error loading frame"), self.tr("Cannot load frame %d") % frame_number)
+
+    def openNextFrame(self):
+        """Go to the next frame."""
+        print("Next frame button clicked")
+        if  self.current_frame + 1 < self.total_frames:
+            self.current_frame += 1 # Increment current frame number
+            self.loadFrame(self.current_frame)
+
+    def openPrevFrame(self):
+        """Go to the previous frame."""
+        print("Previous frame button clicked")
+        if  self.current_frame - 1 >= 0:
+            self.current_frame -= 1 # Decrement current frame number
+            self.loadFrame(self.current_frame)
     
     def get_transform(self):
         """Create a transformation pipeline for person ReID model input."""
@@ -2119,6 +2137,7 @@ class MainWindow(QtWidgets.QMainWindow):
             transforms.ToTensor(),                  # Convert PIL image to Tensor
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
         ])
+    
     
     
     
@@ -2134,15 +2153,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 detections.append((int(x1), int(y1), int(x2), int(y2)))
         return detections        
 
-    def openNextFrame(self):
-        """Go to the next frame."""
+    """def openNextFrame(self):
+        #Go to the next frame
         if self.current_frame + 1 < self.total_frames:
             self.loadFrame(self.current_frame + 1)
 
     def openPrevFrame(self):
-        """Go to the previous frame."""
+        #Go to the previous frame.
         if self.current_frame - 1 >= 0:
             self.loadFrame(self.current_frame - 1)
+    """
+    
 
     def closeVideo(self):
         """Close video file."""

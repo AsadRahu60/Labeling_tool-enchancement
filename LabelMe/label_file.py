@@ -9,12 +9,12 @@ import PIL.Image
 import sys
 PY3 = sys.version[0] == "3.12.4"
 from labelme import QT4
-from labelme import __version__
+#from labelme import __version__
 from labelme import utils
 from labelme.logger import logger
 
 PIL.Image.MAX_IMAGE_PIXELS = None
-
+__version__ = "5.5.0"
 
 @contextlib.contextmanager
 def open(name, mode):
@@ -56,7 +56,7 @@ class LabelFile(object):
 
         with io.BytesIO() as f:
             ext = osp.splitext(filename)[1].lower()
-            if PY2 and QT4:
+            if PY3 and QT4:
                 format = "PNG"
             elif ext in [".jpg", ".jpeg"]:
                 format = "JPEG"

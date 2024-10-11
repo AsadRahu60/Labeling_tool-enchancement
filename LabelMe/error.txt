@@ -8,3 +8,17 @@
 3.Video control layout definition error: You try to add a widget (self.annotateVideoButton) to a layout (videoControlLayout) before initializing the layout itself.
 
 4.self.videoControlWidget not being added as a dock widget properly: You define videoControlDock, but you try to add self.videoControlWidget instead of videoControlDock.
+
+
+code
+"""_summary_# Check if canvas exists and update it properly
+                if hasattr(self, 'canvas'):
+                    # Run YOLO detection on the frame
+                    detections = self.run_yolo_detection(frame)
+                    if detections:
+                        # Run ReID on detected bounding boxes
+                        reid_results = self.run_reid_on_frame(frame, detections)
+                        # Display ReID results on the frame (draw bounding boxes and IDs)
+                        self.display_reid_detections(reid_results)
+            """
+            
