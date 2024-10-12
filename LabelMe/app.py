@@ -1518,7 +1518,7 @@ class MainWindow(QtWidgets.QMainWindow):
             data = s.other_data.copy()
             data.update(
                 dict(
-                    label=s.label.encode("utf-8") if PY2 else s.label,
+                    label=s.label.encode("utf-8") if PY3 else s.label,
                     points=[(p.x(), p.y()) for p in s.points],
                     group_id=s.group_id,
                     description=s.description,
@@ -2056,23 +2056,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.loadFrame(self.current_frame)
 
         # Enable navigation buttons and ensure proper connections
-        try:
-            # Disconnect any existing connections for frame buttons to avoid conflicts
-            self.prevFrameButton.clicked.disconnect()
-            self.nextFrameButton.clicked.disconnect()
-        except TypeError:
-            # If there is no connection, simply ignore the error
-            pass
+         # Enable or disable navigation buttons based on the current frame
+        self.prevFrameButton.setEnabled(self.current_frame > 0)
+        self.nextFrameButton.setEnabled(self.current_frame < self.total_frames - 1)
+        
+        
 
         # Connect buttons for video mode
-        if self.is_video:
-            print("Video mode: Connecting video frame navigation buttons")
-            self.prevFrameButton.clicked.connect(self.openPrevFrame)
-            self.nextFrameButton.clicked.connect(self.openNextFrame)
+        print("Video mode: Connecting video frame navigation buttons")
+        self.prevFrameButton.clicked.connect(self.openPrevFrame)
+        self.nextFrameButton.clicked.connect(self.openNextFrame)
         
-        # Enable navigation buttons for the video
-        self.prevFrameButton.setEnabled(True)
-        self.nextFrameButton.setEnabled(True)
+        
 
         
         
@@ -2153,17 +2148,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 detections.append((int(x1), int(y1), int(x2), int(y2)))
         return detections        
 
-    """def openNextFrame(self):
-        #Go to the next frame
-        if self.current_frame + 1 < self.total_frames:
-            self.loadFrame(self.current_frame + 1)
-
-    def openPrevFrame(self):
-        #Go to the previous frame.
-        if self.current_frame - 1 >= 0:
-            self.loadFrame(self.current_frame - 1)
-    """
-    
+  
 
     def closeVideo(self):
         """Close video file."""
