@@ -73,6 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
     ):
         super(MainWindow, self).__init__()
           
+        self.setWindowTitle(__appname__)
         
         #self.custom_option = custom_option
         
@@ -110,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.frameNumberInput.setPlaceholderText("Enter Frame #")  # Optional: Add placeholder text
         
         # Connect buttons to frame navigation
-        #self.annotateVideoButton.clicked.connect(self.annotateVideo)
+        self.annotateVideoButton.clicked.connect(self.annotateVideo)
 
         """
           This layout manages frame navigation buttons like "Previous Frame", "Next Frame", and the input field for entering a frame number.
@@ -121,20 +122,21 @@ class MainWindow(QtWidgets.QMainWindow):
         frameControlLayout.addWidget(self.frameNumberInput)
         frameControlLayout.addWidget(self.nextFrameButton)
         
+        
+        
         #Wrap frame Control in a widget
         self.frameControlWidget = QtWidgets.QWidget(self)
         self.frameControlWidget.setLayout(frameControlLayout)
         
         # Wrap the QWidget inside a QDockWidget for frame controls
         frameControlDock = QtWidgets.QDockWidget(self.tr("Frame Control"), self)
+        frameControlDock.setObjectName("frameControlDock")  # Set object name
         frameControlDock.setWidget(self.frameControlWidget)
         self.addDockWidget(Qt.BottomDockWidgetArea, frameControlDock)
        
-        """ This layout is added specifically for video-related buttons (in this case, the "Annotate Video" button).
+        """ This layout is added specifically for video-related buttons (in this case, the "Annotate Video" butto).
         """    
-        #Define video control layout and add the video annotation button 
-        #videoControlLayout = QtWidgets.QHBoxLayout()
-        #videoControlLayout.addWidget(self.annotateVideoButton)
+    
         
         
         """Both layouts are placed into separate widgets (frameControlWidget and videoControlWidget) and added to the QMainWindow using addDockWidget.
@@ -150,6 +152,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Wrap the QWidget inside a QDockWidget for video controls
         videoControlDock = QtWidgets.QDockWidget(self.tr("Video Control"), self)
+        videoControlDock.setObjectName("VideoControlDock")#Set object name
         videoControlDock.setWidget(self.videoControlWidget)
         self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, videoControlDock)
 
@@ -179,8 +182,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Set point size from config file
         Shape.point_size = self._config["shape"]["point_size"]
 
-        super(MainWindow, self).__init__()
-        self.setWindowTitle(__appname__)
+        
+        
 
         # Whether we need to save or not.
         self.dirty = False
@@ -350,7 +353,7 @@ class MainWindow(QtWidgets.QMainWindow):
         openPrevFrame = action(
             self.tr("Previous Frame"),
             self.openPrevFrame,
-            None,  # No shortcut
+            "Prev",  # No shortcut
             "prev_frame",
             self.tr("Go to the previous video frame"),
             enabled=False
@@ -358,10 +361,18 @@ class MainWindow(QtWidgets.QMainWindow):
         openNextFrame = action(
             self.tr("Next Frame"),
             self.openNextFrame,
-            None,  # No shortcut
+            "Next",  # No shortcut
             "next_frame",
             self.tr("Go to the next video frame"),
             enabled=False
+        )
+        AnnotateVideo= action(
+            self.tr("Annotate Video"),
+            self.annotateVideo,
+            "Ctrl+V",  # Optional shortcut
+            "annotate_video",  # Action identifier
+            self.tr("Annotate the video using YOLO and ReID models"),
+            enabled=True  # Enable the action by default
         )
         save = action(
             self.tr("&Save\n"),
@@ -807,6 +818,7 @@ class MainWindow(QtWidgets.QMainWindow):
             openVideoAction=openVideoAction,
             openPrevFrame=openPrevFrame,
             openNextFrame=openNextFrame,
+            AnnotateVideo=AnnotateVideo,
             saveReIDAnnotations=saveReIDAnnotationsAction,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
@@ -880,6 +892,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 openPrevImg,
                 openPrevFrame,
                 openNextFrame,
+                AnnotateVideo,
                 opendir,
                 openVideoAction,
                 self.menus.recentFiles,
@@ -972,6 +985,7 @@ class MainWindow(QtWidgets.QMainWindow):
             openNextImg,
             openPrevFrame,
             openNextFrame,
+            AnnotateVideo,
             saveReIDAnnotationsAction,
             save,
             deleteFile,
@@ -2105,6 +2119,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # Refresh the canvas to make sure the new frame is displayed
                 self.canvas.update()
+                self.repaint()
             else:
                 self.errorMessage(self.tr("Error"), self.tr("Canvas not available to display frame"))
         else:
@@ -2244,55 +2259,49 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def annotateVideo(self):
         """Annotate the current video using YOLO for person detection and ReID."""
+        if self.video_capture is None:
+            print("No video capture object available.")
+            return
+
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
                 break
-            
-            # Detect persons using YOLO
-            results = self.model(frame)
-            boxes = []  # Store bounding boxes
-            annotated_frame = frame.copy()
 
-            if results:
-                # Ensure results contain valid detections
-                for result in results:
-                    if result.boxes and len(result.boxes.xyxy) > 0:
-                        # Get bounding box (convert to int for drawing)
-                        x1, y1, x2, y2 = map(int, result.boxes.xyxy[0].tolist())
-                        cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        boxes.append((x1, y1, x2, y2))  # Add the detected box to the list
-                
-            # Extract ReID features and update tracking
+            # Detect persons using YOLO
+            results = yolo_model(frame)
+            boxes = []  # Store bounding boxes
+            annotated_frame = frame.copy()  # Copy frame for drawing
+
+            # Loop through detected boxes and extract them
+            if results is not None:
+                detections = results.xyxy[0]  # Extract first batch of detections
+                for detection in detections:
+                    x1, y1, x2, y2, conf, cls = detection[:6].tolist()
+                    if int(cls) == 0:  # Class '0' corresponds to 'person'
+                        # Draw bounding box on the annotated frame
+                        cv2.rectangle(annotated_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                        boxes.append((int(x1), int(y1), int(x2), int(y2)))  # Store box coordinates
+
+            # Extract ReID features for detected persons
             if boxes:
                 features = self.extract_reid_features(frame, boxes)
 
-                # Optional: You could track or associate features here for person ReID
+                # Optionally, track or associate features here (e.g., track person movements)
                 for i, feature in enumerate(features):
                     print(f"Extracted ReID feature for person {i}: {feature}")
-                    # Add tracking logic or save features if needed
+                    # You can implement tracking logic here
 
             # Update the display with the annotated frame
-            self.update_display(annotated_frame)  # Show the annotated frame
+            self.update_display(annotated_frame)
 
-            # Optional: Add a small delay if you want to slow down frame rate
+            # Optional: Add a small delay if you want to slow down frame rate for better observation
             # cv2.waitKey(1)
 
-            # Detect persons using YOLO
-            results = self.model(frame)
-            boxes = []  # Store bounding boxes
-            annotated_frame = frame.copy()
+        # After the loop, release video capture
+        self.video_capture.release()
 
-            if results:
-                # For each detection, draw the bounding box
-                for result in results:
-                    x1, y1, x2, y2 = map(int, result.xyxy[0])  # Get bounding box
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    boxes.append((x1, y1, x2, y2))
-            
-            # Extract ReID features and update tracking
-            features = self.extract_reid_features(frame, boxes)
-            self.update_display(annotated_frame)  # Show the annotated frame
+
             
     def update_display(self, frame):
         """Update the displayed frame with annotations."""
