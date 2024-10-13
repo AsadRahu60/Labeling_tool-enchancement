@@ -3,7 +3,7 @@
 
 
 
-
+import random
 import functools
 import html
 import math
@@ -2236,14 +2236,29 @@ class MainWindow(QtWidgets.QMainWindow):
         # Preprocess each person image using the segmentation mask
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             if i < len(masks):
-                mask = masks[i]
-                person_img = cv2.bitwise_and(frame[y1:y2, x1:x2], frame[y1:y2, x1:x2], mask=mask[y1:y2, x1:x2])
+                mask = masks[i].numpy()  # Convert the mask to a NumPy array if it's a tensor
+                
+                # Resize the mask to match the bounding box region
+                mask_resized = cv2.resize(mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+
+                # Ensure the mask is in the correct format for bitwise operations
+                if len(mask_resized.shape) == 2:  # If mask is single-channel
+                    mask_resized = mask_resized.astype(np.uint8)  # Ensure mask is uint8 type
+                    mask_resized = mask_resized * 255  # Convert mask to 0 and 255 range if necessary
+
+                # Apply the mask to the person image
+                person_img = cv2.bitwise_and(frame[y1:y2, x1:x2], frame[y1:y2, x1:x2], mask=mask_resized)
             else:
-                person_img = frame[y1:y2, x1:x2]  # Fallback to bounding box region if mask not available
+                # Fallback to bounding box region if mask not available
+                person_img = frame[y1:y2, x1:x2]
             
-            person_img = cv2.resize(person_img, (128, 256))  # Resize to match OSNet input size
-            person_tensor = self.transform(person_img).unsqueeze(0)  # Preprocess image for model input
+            # Resize the person image to match OSNet input size
+            person_img = cv2.resize(person_img, (128, 256))  
+            
+            # Preprocess the image for ReID model input
+            person_tensor = self.transform(person_img).unsqueeze(0)  
             person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor  # Move to GPU if available
+            
             persons.append(person_tensor)
         
         # Stack all person tensors into a batch and pass to the OSNet model
@@ -2262,10 +2277,14 @@ class MainWindow(QtWidgets.QMainWindow):
         distance = euclidean(feature1, feature2)
         return distance < threshold  # Return True if within the threshold
 
+    def get_random_color():
+        """Generate a random color in the form of (R, G, B)"""
+        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    
     def annotate_with_id(self, frame, boxes, ids):
         """Annotate the frame with bounding boxes and person IDs."""
         for (x1, y1, x2, y2), person_id in zip(boxes, ids):
-            color = get_random_color()
+            color = self.get_random_color()
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, f"ID: {person_id}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
@@ -2358,7 +2377,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
             return
 
-        person_id_map = {}  # Dictionary to store person IDs and their features
+        person_id_map = {}# Dictionary to store person IDs and their features
+        next_person_id=1
 
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
@@ -2369,23 +2389,54 @@ class MainWindow(QtWidgets.QMainWindow):
             boxes, masks = self.run_yolo_segmentation(frame)
             annotated_frame = frame.copy()  # Copy frame for drawing
 
-            # Draw bounding boxes and masks on the frame
-            for i, box in enumerate(boxes):
-                x1, y1, x2, y2 = box
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-                # Draw the segmentation mask if available
-                if i < len(masks):
-                    mask = masks[i]
-                    colored_mask = mask[:, :, None] * [0, 255, 0]  # Apply green color to the mask
-                    annotated_frame = cv2.addWeighted(annotated_frame, 1, colored_mask.astype(np.uint8), 0.5, 0)
-
-            # Extract ReID features using OSNet
+                # Extract ReID features using OSNet
             if boxes:
-                features = self.extract_reid_features(frame, boxes)
+                features = self.extract_reid_features_with_masks(frame, boxes,masks)
 
-                for i, feature in enumerate(features):
-                    print(f"Extracted ReID feature for person {i}: {feature}")
+                person_ids = []  # List to store IDs of persons in the current frame
+
+                for feature in features:
+                    matched_id = None
+                    # Compare the extracted feature with the saved features in person_id_map
+                    for person_id, saved_feature in person_id_map.items():
+                        if self.is_same_person(feature, saved_feature): # type: ignore
+                            matched_id = person_id  # Found a matching person, reuse the ID
+                            person_id_map[person_id] = feature  # Update the stored feature
+                            break
+
+                    if matched_id is None:
+                        # New person detected, assign a new ID
+                        matched_id = f"person_{next_person_id}"
+                        person_id_map[matched_id] = feature
+                        next_person_id += 1
+
+                    person_ids.append(matched_id)
+            
+            
+            
+             #Draw bounding boxes and masks on the frame
+                for i, box in enumerate(boxes):
+                    x1, y1, x2, y2 = box
+                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                    # Annotate person ID on the bounding box
+                    cv2.putText(annotated_frame, f"ID: {person_ids[i]}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+                    # Draw the segmentation mask if available
+                    if i < len(masks):
+                        mask = masks[i].cpu().numpy()  # Ensure the mask is converted to a numpy array
+                        mask = (mask > 0.5).astype(np.uint8)  # Binarize the mask (thresholding)
+
+                        # Create a colored mask (apply a green color)
+                        colored_mask = np.zeros_like(frame, dtype=np.uint8)
+                        colored_mask[:, :, 1] = mask * 255  # Apply green color on the mask
+
+                        # Blend the mask with the frame
+                        annotated_frame = cv2.addWeighted(annotated_frame, 1, colored_mask, 0.5, 0)
+
+                print(f"Extracted ReID features and assigned IDs for {len(person_ids)} persons")
+
+            
 
             # Update the display with the annotated frame
             self.update_display(annotated_frame)
