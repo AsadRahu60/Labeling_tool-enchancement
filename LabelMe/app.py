@@ -2,7 +2,7 @@
 
 
 
-import cv2
+
 
 import functools
 import html
@@ -12,11 +12,13 @@ import os.path as osp
 import re
 import webbrowser
 import sys
+print(sys.path)
+sys.path.append('c:\\users\\aasad\\appdata\\local\\programs\\python\\python312\\lib\\site-packages')
 PY3 = sys.version[0] == "3.12.4"
 
 import imgviz
 import natsort
-import numpy as np
+
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import *
@@ -39,14 +41,23 @@ from labelme.widgets import LabelListWidgetItem
 from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
-import json
 from labelme import utils
+import cv2
 import torch
-import torch.nn as nn
-from torchvision.models import resnet50, ResNet50_Weights
+import torchreid
+import json
+import numpy as np
 from torchvision.transforms import transforms
 from ultralytics import YOLO
-yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+import torch.nn.functional as F
+from scipy.spatial.distance import euclidean
+# import torch.nn as nn
+# from torchvision.models import resnet50, ResNet50_Weights
+# yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+
+
+
+
 
 
 # FIXME
@@ -84,10 +95,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.person_tracks = {}# Dictionary to store tracks for each person
         # Example check if the loaded file is a video (you need to set this flag somewhere)
         self.is_video = False  # This flag will be set to True when loading a video
-        
-        self.reid_model=self.load_reid_model()
+        # Load YOLO model
+        self.yolo_model = YOLO('yolov8s-seg.pt') # Load YOLO model
+        # self.reid_model=self.load_reid_model()
         # Define the image transformation pipeline for the ReID model
-        self.transform = self.get_transform()
+        # self.transform = self.get_transform()
+        self.person={} # track the person across the video
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
             if output_file is None:
@@ -1003,6 +1016,18 @@ class MainWindow(QtWidgets.QMainWindow):
             selectAiModel,
         )
         #self.toolbar.addAction(self.openVideoAction)
+        # Apply enhanced toolbar features here
+        self.tools.setButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
+        self.tools.addSeparator()
+        
+        # Set the visibility of the "Next Frame" action based on some condition
+        self.tools.setActionVisible(self.actions.openNextFrame, True) 
+        
+        # Enable the "Next Frame" button only when in video mode and not at the last frame
+        self.tools.setActionVisible(self.actions.openNextFrame, self.is_video and self.current_frame < self.total_frames - 1)
+
+        # Dynamically style the toolbar buttons based on the user's preference or current context
+        self.tools.setButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
 
         self.statusBar().showMessage(str(self.tr("%s started.")) % __appname__)
         self.statusBar().show()
@@ -2060,44 +2085,35 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Successfully opened the video, set the flag
         self.is_video = True
-        print("Video mode enabled")
-
+        
         # Initialize frame information
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.current_frame = 0
-
+        print("Video mode enabled")
+        
         # Load the first frame to display
         self.loadFrame(self.current_frame)
-
-        # Enable navigation buttons and ensure proper connections
-         # Enable or disable navigation buttons based on the current frame
+        # Enable video navigation buttons
         self.prevFrameButton.setEnabled(self.current_frame > 0)
         self.nextFrameButton.setEnabled(self.current_frame < self.total_frames - 1)
         
-        
-
-        # Connect buttons for video mode
+        # Connect buttons for frame navigation
         print("Video mode: Connecting video frame navigation buttons")
         self.prevFrameButton.clicked.connect(self.openPrevFrame)
         self.nextFrameButton.clicked.connect(self.openNextFrame)
         
-        
-
-        
-        
-        
     def loadFrame(self, frame_number):
-    #3"""Load a specific frame from the video."""
+        """Load a specific frame from the video."""
         if self.video_capture is None:
             print("Video capture object is None")
             return
 
         
         self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-        actual_frame_number = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
-        print(f"Requested frame: {frame_number}, Actual frame set by video capture: {actual_frame_number}")
+        #actual_frame_number = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+        #print(f"Requested frame: {frame_number}, Actual frame set by video capture: {actual_frame_number}")
         ret, frame = self.video_capture.read()
-        print(f"Successfully read frame: {ret}")
+        print(f"Requested frame: {frame_number}, Successfully read frame: {ret}")
         
         if ret:
             # Convert the frame to QImage for display
@@ -2106,18 +2122,14 @@ class MainWindow(QtWidgets.QMainWindow):
             bytes_per_line = channel * width
             q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
             self.image=q_img
-            # Display the frame on the canvas
+            
+            # Update the canvas
             if hasattr(self, 'canvas'):
-                self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the frame on canvas
-                self.current_frame = frame_number  # Update the current frame number
-                
-                # Enable the frame navigation buttons
+                self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))
+                self.current_frame = frame_number
                 self.prevFrameButton.setEnabled(self.current_frame > 0)
                 self.nextFrameButton.setEnabled(self.current_frame < self.total_frames - 1)
-                
-                self.setClean()  # Mark as not dirty
-
-                # Refresh the canvas to make sure the new frame is displayed
+                self.setClean()
                 self.canvas.update()
                 self.repaint()
             else:
@@ -2127,73 +2139,155 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def openNextFrame(self):
         """Go to the next frame."""
-        print("Next frame button clicked")
-        if  self.current_frame + 1 < self.total_frames:
-            self.current_frame += 1 # Increment current frame number
+        if self.current_frame + 1 < self.total_frames:
+            self.current_frame += 1
             self.loadFrame(self.current_frame)
+        
+        
+        # print("Next frame button clicked")
+        # if  self.current_frame + 1 < self.total_frames:
+        #     self.current_frame += 1 # Increment current frame number
+        #     self.loadFrame(self.current_frame) 
+        
+
 
     def openPrevFrame(self):
         """Go to the previous frame."""
-        print("Previous frame button clicked")
+        # print("Previous frame button clicked")
         if  self.current_frame - 1 >= 0:
             self.current_frame -= 1 # Decrement current frame number
             self.loadFrame(self.current_frame)
-    
-    def get_transform(self):
-        """Create a transformation pipeline for person ReID model input."""
-        return transforms.Compose([
-            transforms.ToPILImage(),                # Convert from NumPy array to PIL image
-            transforms.Resize((128, 256)),          # Resize to a standard size suitable for the model
-            transforms.ToTensor(),                  # Convert PIL image to Tensor
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
+
+    def load_models(self):
+        """Load the YOLO model and OSNet ReID model."""
+        
+
+        # Load OSNet model for ReID
+        self.reid_model = torchreid.models.build_model(
+            name='osnet_x1_0',    # Use 'osnet_x1_0' for a balanced model size and performance
+            num_classes=1000,     # Dummy number for classes (not used during feature extraction)
+            pretrained=True       # Load pre-trained weights
+        )
+        
+        # Move the model to GPU if available
+        self.reid_model = self.reid_model.cuda() if torch.cuda.is_available() else self.reid_model
+        self.reid_model.eval()  # Set the model to evaluation mode
+
+        # Define the transform pipeline for OSNet
+        self.transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize((256, 128)),  # Resize image to 256x128, typical for ReID models
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalization values
         ])
     
-    
-    
-    
-    def run_yolo_detection(self, frame):
-        """Run YOLO model to detect people in the frame."""
-        # Run YOLO model on the given frame
-        results = yolo_model(frame)
-        detections = []
-        for detection in results.xyxy[0]:
-            # YOLO outputs: [x1, y1, x2, y2, confidence, class]
-            x1, y1, x2, y2, conf, cls = detection
-            if int(cls) == 0:  # Class '0' corresponds to 'person' in YOLO model
-                detections.append((int(x1), int(y1), int(x2), int(y2)))
-        return detections        
+    # def run_yolo_detection(self, frame):
+    #     """Run YOLO model to detect people in the frame."""
+    #     results = yolo_model(frame)
+    #     detections = [(int(x1), int(y1), int(x2), int(y2)) for x1, y1, x2, y2, conf, cls in results.xyxy[0] if int(cls) == 0]  # Class '0' is 'person'
+    #     return detections       
 
-  
+    def run_yolo_segmentation(self, frame):
+        """Run YOLOv8 segmentation model to detect and segment people in the frame."""
+        results = self.yolo_model(frame)  # Run the YOLOv8 model on the frame
+        boxes = []
+        masks = []  # To store segmentation masks
 
-    def closeVideo(self):
-        """Close video file."""
-        if self.video_capture:
-            self.video_capture.release()
-            self.video_capture = None
+        # YOLOv8 returns a list of detections for each frame (result)
+        result = results[0]  # Assuming you are processing one frame at a time
 
-    def load_reid_model(self):
-        try: # Load a pretrained ReID model (ResNet50).
-            reid_model=resnet50(weights=ResNet50_Weights.DEFAULT)
-            reid_model.fc=nn.Linear(reid_model.fc.in_features,128)
-            reid_model.eval()# Set to evaluateion mode
-            return reid_model
-        except Exception as e:
-            logger.error(f"Error loading ")
-            return None
+        # Check if 'boxes' and 'masks' exist in the result
+        if hasattr(result, 'boxes') and hasattr(result, 'masks'):
+            # Extract bounding boxes
+            for detection in result.boxes:
+                box = detection.xyxy[0].tolist()  # Get the first element and convert to list
+                if len(box) == 4:  # Ensure we have 4 elements in the bounding box
+                    x1, y1, x2, y2 = map(int, box)  # Convert the coordinates to integers
+                    cls = int(detection.cls)  # Extract the class ID
+
+                    if cls == 0:  # Class '0' corresponds to 'person' in COCO dataset
+                        boxes.append((x1, y1, x2, y2))
+
+            # Extract segmentation masks
+            if result.masks:
+                masks = result.masks.cpu().numpy()  # Convert masks to numpy arrays if available
+
+        return boxes, masks
+
+
     
 
-    def extract_reid_features(self, frame, boxes):
-        """Extract ReID features for the detected persons in the frame."""
-        features = []
-        for box in boxes:
-            x1, y1, x2, y2 = box  # Get bounding box coordinates
-            person_img = frame[y1:y2, x1:x2]  # Crop the person's image
+    # def load_reid_model(self):
+    #     try: # Load a pretrained ReID model (ResNet50).
+    #         reid_model=resnet50(weights=ResNet50_Weights.DEFAULT)
+    #         reid_model.fc=nn.Linear(reid_model.fc.in_features,128)
+    #         reid_model.eval()# Set to evaluateion mode
+    #         return reid_model
+    #     except Exception as e:
+    #         logger.error(f"Error loading ")
+    #         return None
+    
+
+    def extract_reid_features_with_masks(self, frame, boxes, masks):
+        """Extract ReID features using OSNet for the segmented persons in the frame."""
+        
+        persons = []
+        
+        # Preprocess each person image using the segmentation mask
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            if i < len(masks):
+                mask = masks[i]
+                person_img = cv2.bitwise_and(frame[y1:y2, x1:x2], frame[y1:y2, x1:x2], mask=mask[y1:y2, x1:x2])
+            else:
+                person_img = frame[y1:y2, x1:x2]  # Fallback to bounding box region if mask not available
+            
+            person_img = cv2.resize(person_img, (128, 256))  # Resize to match OSNet input size
             person_tensor = self.transform(person_img).unsqueeze(0)  # Preprocess image for model input
+            person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor  # Move to GPU if available
+            persons.append(person_tensor)
+        
+        # Stack all person tensors into a batch and pass to the OSNet model
+        if persons:
+            person_batch = torch.cat(persons)  # Batch all person images together
             with torch.no_grad():
-                feature = self.reid_model(person_tensor)  # Extract ReID feature
-            features.append(feature)
-        return features
+                features = self.reid_model(person_batch)  # Extract ReID features using OSNet
+            return features.cpu().numpy()
+        
+        return []
 
+
+    # The new changes in the ReID which lead to the annotateVideo
+    def is_same_person(feature1, feature2, threshold=0.5):
+        """Compare two ReID feature vectors and return True if they match."""
+        distance = euclidean(feature1, feature2)
+        return distance < threshold  # Return True if within the threshold
+
+    def annotate_with_id(self, frame, boxes, ids):
+        """Annotate the frame with bounding boxes and person IDs."""
+        for (x1, y1, x2, y2), person_id in zip(boxes, ids):
+            color = get_random_color()
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, f"ID: {person_id}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+    def save_tracking_data(frame_number, boxes, features, output_file='tracking_data.json'):
+        """Save bounding boxes and ReID features for each frame."""
+        tracking_data = {
+            "frame_number": frame_number,
+            "persons": [
+                {
+                    "bounding_box": box,
+                    "reid_feature": feature.tolist()  # Convert tensor to list for JSON serialization
+                }
+                for box, feature in zip(boxes, features)
+            ]
+        }
+        
+        # Append to JSON file
+        with open(output_file, 'a') as f:
+            json.dump(tracking_data, f)
+            f.write('\n')  # Write each frame's data on a new line
+    
+    
     def run_reid_on_frame(self, frame,detections):
         """Run Person ReID model on the frame and update tracking."""  
         features = []
@@ -2258,57 +2352,70 @@ class MainWindow(QtWidgets.QMainWindow):
   # Refresh the canvas to show updated annotations
         
     def annotateVideo(self):
-        """Annotate the current video using YOLO for person detection and ReID."""
-        if self.video_capture is None:
-            print("No video capture object available.")
+        
+        """Annotate and track persons in the video using YOLOv8 segmentation for detection and OSNet for ReID."""
+        if not hasattr(self, 'video_capture'):
+            QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
             return
+
+        person_id_map = {}  # Dictionary to store person IDs and their features
 
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
                 break
 
-            # Detect persons using YOLO
-            results = yolo_model(frame)
-            boxes = []  # Store bounding boxes
+            # Detect persons using YOLOv8 segmentation
+            boxes, masks = self.run_yolo_segmentation(frame)
             annotated_frame = frame.copy()  # Copy frame for drawing
 
-            # Loop through detected boxes and extract them
-            if results is not None:
-                detections = results.xyxy[0]  # Extract first batch of detections
-                for detection in detections:
-                    x1, y1, x2, y2, conf, cls = detection[:6].tolist()
-                    if int(cls) == 0:  # Class '0' corresponds to 'person'
-                        # Draw bounding box on the annotated frame
-                        cv2.rectangle(annotated_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                        boxes.append((int(x1), int(y1), int(x2), int(y2)))  # Store box coordinates
+            # Draw bounding boxes and masks on the frame
+            for i, box in enumerate(boxes):
+                x1, y1, x2, y2 = box
+                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            # Extract ReID features for detected persons
+                # Draw the segmentation mask if available
+                if i < len(masks):
+                    mask = masks[i]
+                    colored_mask = mask[:, :, None] * [0, 255, 0]  # Apply green color to the mask
+                    annotated_frame = cv2.addWeighted(annotated_frame, 1, colored_mask.astype(np.uint8), 0.5, 0)
+
+            # Extract ReID features using OSNet
             if boxes:
                 features = self.extract_reid_features(frame, boxes)
 
-                # Optionally, track or associate features here (e.g., track person movements)
                 for i, feature in enumerate(features):
                     print(f"Extracted ReID feature for person {i}: {feature}")
-                    # You can implement tracking logic here
 
             # Update the display with the annotated frame
             self.update_display(annotated_frame)
 
-            # Optional: Add a small delay if you want to slow down frame rate for better observation
-            # cv2.waitKey(1)
+            cv2.waitKey(1)
 
         # After the loop, release video capture
-        self.video_capture.release()
+        #self.video_capture.release()
+
+
+        
 
 
             
     def update_display(self, frame):
-        """Update the displayed frame with annotations."""
-        height, width, channel = frame.shape
-        bytes_per_line = channel * width
-        q_img = QtGui.QImage(frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))  # Display the annotated frame
+    
+        
+        """Display the updated frame in the LabelMe UI."""
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        height, width, channel = rgb_frame.shape
+        bytes_per_line = 3 * width
+        q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+
+        pixmap = QtGui.QPixmap.fromImage(q_img)
+        if hasattr(self, 'canvas'):
+            self.canvas.loadPixmap(pixmap)
+        else:
+            print("Canvas not available")
+
+
 
 
 
@@ -2324,6 +2431,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         with open(filename, 'w') as f:
             json.dump(annotations, f)
+    
+    def closeVideo(self):
+        """Close video file."""
+        if self.video_capture:
+            self.video_capture.release()
+            self.video_capture = None       
+    
 
 
     def changeOutputDirDialog(self, _value=False):
@@ -2633,3 +2747,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     images.append(relativePath)
         images = natsort.os_sorted(images)
         return images
+
+# def get_transform(self):
+#         """Create a transformation pipeline for person ReID model input."""
+#         return transforms.Compose([
+#             transforms.ToPILImage(),                # Convert from NumPy array to PIL image
+#             transforms.Resize((128, 256)),          # Resize to a standard size suitable for the model
+#             transforms.ToTensor(),                  # Convert PIL image to Tensor
+#             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
+#         ])
