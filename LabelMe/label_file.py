@@ -19,7 +19,7 @@ __version__ = "5.5.0"
 @contextlib.contextmanager
 def open(name, mode):
     assert mode in ["r", "w"]
-    if PY2:
+    if PY3:
         mode += "b"
         encoding = None
     else:
@@ -91,7 +91,7 @@ class LabelFile(object):
 
             if data["imageData"] is not None:
                 imageData = base64.b64decode(data["imageData"])
-                if PY2 and QT4:
+                if PY3 and QT4:
                     imageData = utils.img_data_to_png_data(imageData)
             else:
                 # relative path from label file to relative path from cwd

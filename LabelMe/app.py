@@ -51,6 +51,7 @@ from torchvision.transforms import transforms
 from ultralytics import YOLO
 import torch.nn.functional as F
 from scipy.spatial.distance import euclidean
+from deep_sort_realtime.deepsort_tracker import DeepSort
 # import torch.nn as nn
 # from torchvision.models import resnet50, ResNet50_Weights
 # yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
@@ -216,7 +217,7 @@ class MainWindow(QtWidgets.QMainWindow):
             flags=self._config["label_flags"],
         )
 
-        
+        self.labelFile=LabelFile()
         self.labelList = LabelListWidget()
         self.lastOpenDir = None
 
@@ -2173,6 +2174,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.reid_model = self.reid_model.cuda() if torch.cuda.is_available() else self.reid_model
         self.reid_model.eval()  # Set the model to evaluation mode
 
+        # Initialize DeepSORT
+        self.deepsort = DeepSort(
+            max_age=30,  # Age for objects that are lost
+            nn_budget=100,  # Maximum items for feature storage
+            max_iou_distance=0.7,  # Maximum IOU for matches
+            n_init=3  # Number of consecutive detections before initializing
+        )
         # Define the transform pipeline for OSNet
         self.transform = transforms.Compose([
             transforms.ToPILImage(),
@@ -2189,29 +2197,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def run_yolo_segmentation(self, frame):
         """Run YOLOv8 segmentation model to detect and segment people in the frame."""
-        results = self.yolo_model(frame)  # Run the YOLOv8 model on the frame
+         
+        results = self.yolo_model(frame)
         boxes = []
-        masks = []  # To store segmentation masks
+        masks = []
 
-        # YOLOv8 returns a list of detections for each frame (result)
-        result = results[0]  # Assuming you are processing one frame at a time
+        # YOLOv8 returns a list of results
+        result = results[0]  # Process the first (and only) image
 
-        # Check if 'boxes' and 'masks' exist in the result
-        if hasattr(result, 'boxes') and hasattr(result, 'masks'):
-            # Extract bounding boxes
-            for detection in result.boxes:
-                box = detection.xyxy[0].tolist()  # Get the first element and convert to list
-                if len(box) == 4:  # Ensure we have 4 elements in the bounding box
-                    x1, y1, x2, y2 = map(int, box)  # Convert the coordinates to integers
-                    cls = int(detection.cls)  # Extract the class ID
+        if result is not None:
+            for idx, cls in enumerate(result.boxes.cls):
+                cls = int(cls)
+                if cls == 0:  # Class 'person'
+                    # Extract bounding box
+                    x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
+                    boxes.append((x1, y1, x2, y2))
 
-                    if cls == 0:  # Class '0' corresponds to 'person' in COCO dataset
-                        boxes.append((x1, y1, x2, y2))
-
-            # Extract segmentation masks
-            if result.masks:
-                masks = result.masks.cpu().numpy()  # Convert masks to numpy arrays if available
-
+                    # Extract mask
+                    if result.masks is not None and len(result.masks.data) > idx:
+                        mask = result.masks.data[idx].cpu().numpy()
+                        masks.append(mask)
+                    else:
+                        masks.append(None)
         return boxes, masks
 
 
@@ -2231,44 +2238,66 @@ class MainWindow(QtWidgets.QMainWindow):
     def extract_reid_features_with_masks(self, frame, boxes, masks):
         """Extract ReID features using OSNet for the segmented persons in the frame."""
         
+       
         persons = []
-        
-        # Preprocess each person image using the segmentation mask
-        for i, (x1, y1, x2, y2) in enumerate(boxes):
-            if i < len(masks):
-                mask = masks[i].numpy()  # Convert the mask to a NumPy array if it's a tensor
-                
-                # Resize the mask to match the bounding box region
-                mask_resized = cv2.resize(mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
 
-                # Ensure the mask is in the correct format for bitwise operations
-                if len(mask_resized.shape) == 2:  # If mask is single-channel
-                    mask_resized = mask_resized.astype(np.uint8)  # Ensure mask is uint8 type
-                    mask_resized = mask_resized * 255  # Convert mask to 0 and 255 range if necessary
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            # Crop the person image from the frame
+            person_img = frame[y1:y2, x1:x2]
+            if person_img.size == 0:
+                continue  # Skip if the crop is invalid
+
+            if masks[i] is not None:
+                mask = masks[i]
+                # Crop and resize the mask to match the person image
+                mask_cropped = mask[y1:y2, x1:x2]
+                if mask_cropped.size == 0:
+                    continue  # Skip if the mask crop is invalid
+
+                mask_resized = cv2.resize(mask_cropped, (person_img.shape[1], person_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+                # Ensure the mask is binary and in uint8 format
+                mask_resized = (mask_resized > 0.5).astype(np.uint8) * 255  # Convert to 0 or 255
+
+                # If mask is single-channel but person_img is 3-channel, adjust the mask
+                if len(mask_resized.shape) == 2 and len(person_img.shape) == 3:
+                    mask_resized = cv2.merge([mask_resized, mask_resized, mask_resized])
 
                 # Apply the mask to the person image
-                person_img = cv2.bitwise_and(frame[y1:y2, x1:x2], frame[y1:y2, x1:x2], mask=mask_resized)
+                person_img = cv2.bitwise_and(person_img, mask_resized)
             else:
-                # Fallback to bounding box region if mask not available
-                person_img = frame[y1:y2, x1:x2]
-            
-            # Resize the person image to match OSNet input size
-            person_img = cv2.resize(person_img, (128, 256))  
-            
-            # Preprocess the image for ReID model input
-            person_tensor = self.transform(person_img).unsqueeze(0)  
-            person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor  # Move to GPU if available
-            
+                # Resize the person image to OSNet input size if no mask is available
+                person_img = cv2.resize(person_img, (128, 256))
+
+            # Resize to OSNet input size
+            person_img = cv2.resize(person_img, (128, 256))
+
+            # Preprocess for OSNet
+            person_tensor = self.transform(person_img).unsqueeze(0)
+            person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor
+
             persons.append(person_tensor)
-        
-        # Stack all person tensors into a batch and pass to the OSNet model
+
+        # Stack tensors and extract features
         if persons:
-            person_batch = torch.cat(persons)  # Batch all person images together
+            person_batch = torch.cat(persons)
             with torch.no_grad():
-                features = self.reid_model(person_batch)  # Extract ReID features using OSNet
+                features = self.reid_model(person_batch)
             return features.cpu().numpy()
+        else:
+            return []
         
-        return []
+    def run_deepsort(self, frame, boxes, features):
+        xywh_boxes = [(x1, y1, x2 - x1, y2 - y1) for (x1, y1, x2, y2) in boxes]  # Convert to XYWH format
+        outputs = self.deepsort.update(xywh_boxes, features, frame)
+        
+        ids = []  # Store IDs assigned by DeepSORT
+        for output in outputs:
+            x1, y1, x2, y2, track_id = output
+            ids.append(track_id)
+        
+        return outputs  # Outputs include bounding boxes and IDs
+
 
 
     # The new changes in the ReID which lead to the annotateVideo
@@ -2281,12 +2310,19 @@ class MainWindow(QtWidgets.QMainWindow):
         """Generate a random color in the form of (R, G, B)"""
         return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
     
-    def annotate_with_id(self, frame, boxes, ids):
+    def annotate_with_id(self, frame, boxes, person_ids):
         """Annotate the frame with bounding boxes and person IDs."""
-        for (x1, y1, x2, y2), person_id in zip(boxes, ids):
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
             color = self.get_random_color()
+            # Check if there is a corresponding person ID for this bounding box
+            if i < len(person_ids):
+                person_id = person_ids[i]
+            else:
+                person_id = "Unknown"  # Fallback in case person_ids list is shorter than boxes
+            
+            # Draw the bounding box and person ID on the frame
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, f"ID: {person_id}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            cv2.putText(frame, f"ID: {person_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
     def save_tracking_data(frame_number, boxes, features, output_file='tracking_data.json'):
         """Save bounding boxes and ReID features for each frame."""
@@ -2371,14 +2407,13 @@ class MainWindow(QtWidgets.QMainWindow):
   # Refresh the canvas to show updated annotations
         
     def annotateVideo(self):
-        
         """Annotate and track persons in the video using YOLOv8 segmentation for detection and OSNet for ReID."""
         if not hasattr(self, 'video_capture'):
             QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
             return
 
-        person_id_map = {}# Dictionary to store person IDs and their features
-        next_person_id=1
+        person_id_map = {}  # Dictionary to store person IDs and their features
+        next_person_id = 1
 
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
@@ -2389,9 +2424,9 @@ class MainWindow(QtWidgets.QMainWindow):
             boxes, masks = self.run_yolo_segmentation(frame)
             annotated_frame = frame.copy()  # Copy frame for drawing
 
-                # Extract ReID features using OSNet
+            # Extract ReID features using OSNet
             if boxes:
-                features = self.extract_reid_features_with_masks(frame, boxes,masks)
+                features = self.extract_reid_features_with_masks(frame, boxes, masks)
 
                 person_ids = []  # List to store IDs of persons in the current frame
 
@@ -2399,7 +2434,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     matched_id = None
                     # Compare the extracted feature with the saved features in person_id_map
                     for person_id, saved_feature in person_id_map.items():
-                        if self.is_same_person(feature, saved_feature): # type: ignore
+                        if self.is_same_person(feature, saved_feature):  # type: ignore
                             matched_id = person_id  # Found a matching person, reuse the ID
                             person_id_map[person_id] = feature  # Update the stored feature
                             break
@@ -2411,10 +2446,15 @@ class MainWindow(QtWidgets.QMainWindow):
                         next_person_id += 1
 
                     person_ids.append(matched_id)
-            
-            
-            
-             #Draw bounding boxes and masks on the frame
+
+                # Safeguard: Ensure we don't access more person_ids than there are bounding boxes
+                if len(person_ids) > len(boxes):
+                    person_ids = person_ids[:len(boxes)]  # Truncate the IDs to match boxes
+                elif len(person_ids) < len(boxes):
+                    # If fewer IDs than boxes, append 'Unknown' for missing IDs
+                    person_ids += ['Unknown'] * (len(boxes) - len(person_ids))
+
+                # Draw bounding boxes and masks on the frame
                 for i, box in enumerate(boxes):
                     x1, y1, x2, y2 = box
                     cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -2424,19 +2464,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     # Draw the segmentation mask if available
                     if i < len(masks):
-                        mask = masks[i].cpu().numpy()  # Ensure the mask is converted to a numpy array
+                        mask = masks[i] # Ensure the mask is converted to a numpy array
                         mask = (mask > 0.5).astype(np.uint8)  # Binarize the mask (thresholding)
+                        
+                        # Resize the mask to fit the bounding box size
+                        mask_resized = cv2.resize(mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
 
                         # Create a colored mask (apply a green color)
                         colored_mask = np.zeros_like(frame, dtype=np.uint8)
-                        colored_mask[:, :, 1] = mask * 255  # Apply green color on the mask
+                        colored_mask[y1:y2, x1:x2, 1] = mask_resized * 255  # Apply green color on the mask
 
                         # Blend the mask with the frame
                         annotated_frame = cv2.addWeighted(annotated_frame, 1, colored_mask, 0.5, 0)
 
                 print(f"Extracted ReID features and assigned IDs for {len(person_ids)} persons")
-
-            
 
             # Update the display with the annotated frame
             self.update_display(annotated_frame)
@@ -2444,7 +2485,8 @@ class MainWindow(QtWidgets.QMainWindow):
             cv2.waitKey(1)
 
         # After the loop, release video capture
-        #self.video_capture.release()
+        # self.video_capture.release()
+
 
 
         
