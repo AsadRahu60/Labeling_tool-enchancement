@@ -67,7 +67,7 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 # TODO(unknown):
 # - Zoom is too "steppy".
 
-__appname__ = "labelme"
+__appname__ = "LabelMe - Enhanced Version"
 LABEL_COLORMAP = imgviz.label_colormap()
 
 
@@ -86,6 +86,35 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
           
         self.setWindowTitle(__appname__)
+        self.setWindowIcon(QtGui.QIcon("icons/app_icon.svg"))
+        
+        # Apply styles for a modern look
+        self.setStyleSheet("""
+        QMainWindow {
+            background-color: #2E3440;
+            color: #D8DEE9;
+        }
+        QPushButton {
+            background-color: #4C566A;
+            color: #D8DEE9;
+            border-radius: 8px;
+            padding: 8px;
+            border: none;
+        }
+        QPushButton:hover {
+            background-color: #5E81AC;
+        }
+        QLabel {
+            color: #ECEFF4;
+        }
+        QMenuBar {
+            background-color: #3B4252;
+            color: #ECEFF4;
+        }
+        QMenuBar::item:selected {
+            background-color: #5E81AC;
+        }
+        """)
         
         #self.custom_option = custom_option
         
@@ -2197,7 +2226,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def run_yolo_segmentation(self, frame):
         """Run YOLOv8 segmentation model to detect and segment people in the frame."""
-         
+        
+        self.yolo_model.conf = 0.3  # Lower the confidence threshold for detection
+        self.yolo_model.iou = 0.3   # Adjust NMS IOU threshold for more precise person separation
+        
         results = self.yolo_model(frame)
         boxes = []
         masks = []
@@ -2216,45 +2248,58 @@ class MainWindow(QtWidgets.QMainWindow):
                     # Extract mask
                     if result.masks is not None and len(result.masks.data) > idx:
                         mask = result.masks.data[idx].cpu().numpy()
-                        masks.append(mask)
+
+                        # Debugging mask content
+                        unique_values = np.unique(mask)
+                        print(f"Mask for person {idx} has unique values: {unique_values}")
+                        
+                        if np.count_nonzero(mask) == 0:
+                            print(f"Mask for person {idx} is invalid (all zeros).")
+                            masks.append(None)
+                        else:
+                            masks.append(mask)
+
+                            # Optionally visualize the mask
+                            cv2.imshow(f"Mask_{idx}", mask)
+                            cv2.waitKey(0)
                     else:
+                        print(f"No mask available for person {idx}.")
                         masks.append(None)
+
+        print(f"Detected boxes: {boxes}")
+        print(f"Number of boxes: {len(boxes)}, Number of masks: {len(masks)}")
+
         return boxes, masks
 
 
-    
-
-    # def load_reid_model(self):
-    #     try: # Load a pretrained ReID model (ResNet50).
-    #         reid_model=resnet50(weights=ResNet50_Weights.DEFAULT)
-    #         reid_model.fc=nn.Linear(reid_model.fc.in_features,128)
-    #         reid_model.eval()# Set to evaluateion mode
-    #         return reid_model
-    #     except Exception as e:
-    #         logger.error(f"Error loading ")
-    #         return None
+        ##################################################
     
 
     def extract_reid_features_with_masks(self, frame, boxes, masks):
         """Extract ReID features using OSNet for the segmented persons in the frame."""
-        
-       
+
         persons = []
+        height, width, _ = frame.shape  # Frame dimensions for bounding box checks
 
         for i, (x1, y1, x2, y2) in enumerate(boxes):
+            # Check if the bounding box is valid
+            if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
+                print(f"Skipping invalid box: {x1, y1, x2, y2}")
+                continue
+
             # Crop the person image from the frame
             person_img = frame[y1:y2, x1:x2]
             if person_img.size == 0:
+                print(f"Skipping invalid crop for box {i}")
                 continue  # Skip if the crop is invalid
 
+            # Visualize the original cropped image for debugging
+            cv2.imshow(f"Person_{i}_Original", person_img)
+            
+            # Apply the mask if available
             if masks[i] is not None:
                 mask = masks[i]
-                # Crop and resize the mask to match the person image
-                mask_cropped = mask[y1:y2, x1:x2]
-                if mask_cropped.size == 0:
-                    continue  # Skip if the mask crop is invalid
-
-                mask_resized = cv2.resize(mask_cropped, (person_img.shape[1], person_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+                mask_resized = cv2.resize(mask, (person_img.shape[1], person_img.shape[0]), interpolation=cv2.INTER_NEAREST)
 
                 # Ensure the mask is binary and in uint8 format
                 mask_resized = (mask_resized > 0.5).astype(np.uint8) * 255  # Convert to 0 or 255
@@ -2265,9 +2310,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 # Apply the mask to the person image
                 person_img = cv2.bitwise_and(person_img, mask_resized)
-            else:
-                # Resize the person image to OSNet input size if no mask is available
-                person_img = cv2.resize(person_img, (128, 256))
+
+                # Visualize the masked image for debugging
+                cv2.imshow(f"Person_{i}_Masked", person_img)
+                cv2.waitKey(0)  # Pause for debugging
 
             # Resize to OSNet input size
             person_img = cv2.resize(person_img, (128, 256))
@@ -2286,17 +2332,40 @@ class MainWindow(QtWidgets.QMainWindow):
             return features.cpu().numpy()
         else:
             return []
+
+
         
-    def run_deepsort(self, frame, boxes, features):
-        xywh_boxes = [(x1, y1, x2 - x1, y2 - y1) for (x1, y1, x2, y2) in boxes]  # Convert to XYWH format
-        outputs = self.deepsort.update(xywh_boxes, features, frame)
-        
-        ids = []  # Store IDs assigned by DeepSORT
-        for output in outputs:
-            x1, y1, x2, y2, track_id = output
-            ids.append(track_id)
-        
-        return outputs  # Outputs include bounding boxes and IDs
+    def run_deepsort(self, boxes, features):
+            
+        """Run DeepSORT tracker and return bounding boxes and IDs."""
+        # Convert boxes and features into the format expected by DeepSORT
+        bbox_xywh = []
+        confidences = []
+        reid_features = []
+
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            if i < len(features):  # Ensure there's a corresponding ReID feature
+                bbox_xywh.append([x1, y1, x2 - x1, y2 - y1])  # Convert to (x, y, w, h)
+                confidences.append(1.0)  # Placeholder confidence value
+                reid_features.append(features[i])  # Use the corresponding ReID feature
+            else:
+                print(f"Warning: No corresponding feature for box {i}")
+
+        # Convert lists to the correct format
+        bbox_xywh = np.array(bbox_xywh)
+        confidences = np.array(confidences)
+        reid_features = np.array(reid_features)
+
+        # Safety check in case there are no valid detections or features
+        if len(bbox_xywh) == 0 or len(reid_features) == 0:
+            print("No valid bounding boxes or features to track.")
+            return []
+
+        # Update DeepSORT with the detections and features
+        outputs = self.deepsort.update(bbox_xywh, confidences, reid_features)
+
+        return outputs  # Outputs contain bounding boxes and IDs
+
 
 
 
@@ -2306,23 +2375,51 @@ class MainWindow(QtWidgets.QMainWindow):
         distance = euclidean(feature1, feature2)
         return distance < threshold  # Return True if within the threshold
 
-    def get_random_color():
+    def get_random_color(self):
         """Generate a random color in the form of (R, G, B)"""
-        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        color= (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        return color
     
-    def annotate_with_id(self, frame, boxes, person_ids):
-        """Annotate the frame with bounding boxes and person IDs."""
-        for i, (x1, y1, x2, y2) in enumerate(boxes):
-            color = self.get_random_color()
-            # Check if there is a corresponding person ID for this bounding box
-            if i < len(person_ids):
-                person_id = person_ids[i]
-            else:
-                person_id = "Unknown"  # Fallback in case person_ids list is shorter than boxes
+    def annotate_with_id(self, frame, tracked_boxes, ids, features):
+        """Annotate the frame with bounding boxes and person IDs using DeepSORT."""
+
+        # Prepare DeepSORT inputs
+        detections = []  # List of detections for DeepSORT (bounding boxes, confidence scores, and features)
+
+        # Loop through bounding boxes and match them with ReID features
+        for i, (x1, y1, x2, y2) in enumerate(tracked_boxes):
+            # Placeholder for confidence (can be replaced by YOLO confidence scores if available)
+            confidence = 1.0
             
-            # Draw the bounding box and person ID on the frame
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, f"ID: {person_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+            
+            # Ensure we have a corresponding ReID feature
+            if i < len(features):
+                reid_feature = features[i]
+            else:
+                reid_feature = None  # If no feature available, set to None
+
+            # Append the detection for DeepSORT (bounding box + confidence + feature)
+            detections.append([x1, y1, x2, y2, confidence, reid_feature])
+
+        # Update DeepSORT tracker with detections (this will give you the updated tracks with IDs)
+        tracks = self.deepsort.update(detections)
+
+        # Annotate the frame with DeepSORT track IDs
+        for track in tracks:
+            track_id = track.track_id  # Unique ID for this person
+            print(track.to_tlbr())
+            x1, y1, x2, y2 = map(int, track.to_tlbr().flatten())
+            # Convert track bounding box to integer
+
+            # Draw the bounding box
+            farbe = self.get_random_color()
+            cv2.rectangle(frame, (x1, y1), (x2, y2), farbe, 2)
+
+            # Annotate person ID (track ID) on the bounding box
+            cv2.putText(frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+
+        return frame
+
 
     def save_tracking_data(frame_number, boxes, features, output_file='tracking_data.json'):
         """Save bounding boxes and ReID features for each frame."""
@@ -2406,86 +2503,138 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.update()  # Refresh the canvas to show updated annotations
   # Refresh the canvas to show updated annotations
         
-    def annotateVideo(self):
-        """Annotate and track persons in the video using YOLOv8 segmentation for detection and OSNet for ReID."""
+    def annotateVideo(self,batch_size=4):
+        """Annotate and track persons in the video using YOLOv8, OSNet, and DeepSORT with batch inference."""
+
         if not hasattr(self, 'video_capture'):
             QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
             return
 
-        person_id_map = {}  # Dictionary to store person IDs and their features
-        next_person_id = 1
+        # Load models upfront (assuming they're lightweight)
+        self.load_models()
 
+        frames = []
+        frame_indices = []
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
                 break
 
-            # Detect persons using YOLOv8 segmentation
-            boxes, masks = self.run_yolo_segmentation(frame)
-            annotated_frame = frame.copy()  # Copy frame for drawing
+            # Collect frames into a batch
+            frames.append(frame)
+            frame_indices.append(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES))  # Track frame number
+            
+            if len(frames) == batch_size:
+                # Perform batch inference on the collected frames
+                self.run_batch_inference(frames, frame_indices)
+                frames.clear()  # Clear the frame batch for the next iteration
+                frame_indices.clear()
 
-            # Extract ReID features using OSNet
-            if boxes:
-                features = self.extract_reid_features_with_masks(frame, boxes, masks)
+        # Handle any remaining frames in the last batch
+        if frames:
+            self.run_batch_inference(frames, frame_indices)
+        
+        # Close video capture
+        self.closeVideo()
+         # Close any remaining windows
+        cv2.destroyAllWindows()  # Ensure all OpenCV windows are closed after annotation
+    
+    def run_batch_inference(self, frames, frame_indices):
+        """Run YOLOv8 segmentation and feature extraction in batch mode on multiple frames."""
+        results = self.yolo_model(frames)  # Batch inference on all frames
+        
+        for i, frame in enumerate(frames):
+            result = results[i]  # YOLO result for the current frame
+            boxes, masks, features = self.extract_features_from_result(result, frame)
 
-                person_ids = []  # List to store IDs of persons in the current frame
+            if not boxes:
+                # No detections, skip processing
+                continue
 
-                for feature in features:
-                    matched_id = None
-                    # Compare the extracted feature with the saved features in person_id_map
-                    for person_id, saved_feature in person_id_map.items():
-                        if self.is_same_person(feature, saved_feature):  # type: ignore
-                            matched_id = person_id  # Found a matching person, reuse the ID
-                            person_id_map[person_id] = feature  # Update the stored feature
-                            break
+            # Run DeepSORT with pre-extracted features
+            tracks = self.run_deepsort(boxes, features)
 
-                    if matched_id is None:
-                        # New person detected, assign a new ID
-                        matched_id = f"person_{next_person_id}"
-                        person_id_map[matched_id] = feature
-                        next_person_id += 1
+            # Annotate and display tracks on the current frame
+            self.annotate_and_display_tracks(tracks, frame)
 
-                    person_ids.append(matched_id)
+            # # Show mask window for current frame (optional)
+            # for j, mask in enumerate(masks):
+            #     if mask is not None:
+            #         cv2.imshow(f"Mask_{frame_indices[i]}_Person_{j}", mask)
 
-                # Safeguard: Ensure we don't access more person_ids than there are bounding boxes
-                if len(person_ids) > len(boxes):
-                    person_ids = person_ids[:len(boxes)]  # Truncate the IDs to match boxes
-                elif len(person_ids) < len(boxes):
-                    # If fewer IDs than boxes, append 'Unknown' for missing IDs
-                    person_ids += ['Unknown'] * (len(boxes) - len(person_ids))
+            # Display the annotated frame
+            self.update_display(frame)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()# Wait for key press
 
-                # Draw bounding boxes and masks on the frame
-                for i, box in enumerate(boxes):
-                    x1, y1, x2, y2 = box
-                    cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    def annotate_and_display_tracks(self, tracks, frame):
+        display_frame = frame.copy()
+        
+        for track in tracks:
+            track_id = track.track_id
+            bbox = track.to_tlbr()
+            print(f"bbox before unpacking: {bbox}")
+            
+                
+            try:
+                # Case 1: If bbox is a list of arrays, iterate through each array
+                if isinstance(bbox, list) and all(isinstance(b, np.ndarray) for b in bbox):
+                    for b in bbox:
+                        # Check if each array is of correct size
+                        if len(b) == 4:
+                            x1, y1, x2, y2 = map(int, b.tolist())  # Convert array to list and unpack
+                        else:
+                            raise ValueError(f"Expected 4-element array, got {b}")
 
-                    # Annotate person ID on the bounding box
-                    cv2.putText(annotated_frame, f"ID: {person_ids[i]}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+                # Case 2: If bbox is already a single array or list, handle it directly
+                elif isinstance(bbox, (np.ndarray, list)) and len(bbox) == 4:
+                    x1, y1, x2, y2 = map(int, bbox)  # Safely unpack
 
-                    # Draw the segmentation mask if available
-                    if i < len(masks):
-                        mask = masks[i] # Ensure the mask is converted to a numpy array
-                        mask = (mask > 0.5).astype(np.uint8)  # Binarize the mask (thresholding)
-                        
-                        # Resize the mask to fit the bounding box size
-                        mask_resized = cv2.resize(mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+                else:
+                    raise ValueError(f"Expected 4-element bounding box, got {bbox}")
 
-                        # Create a colored mask (apply a green color)
-                        colored_mask = np.zeros_like(frame, dtype=np.uint8)
-                        colored_mask[y1:y2, x1:x2, 1] = mask_resized * 255  # Apply green color on the mask
+                # Draw the bounding box and track ID on the frame
+                farbe = self.get_random_color()
+                cv2.rectangle(frame, (x1, y1), (x2, y2), farbe, 2)
+                cv2.putText(frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+            
+            except Exception as e:
+                # Catch any error that occurs during unpacking
+                raise ValueError(f"Error unpacking bounding box {bbox}: {str(e)}")
 
-                        # Blend the mask with the frame
-                        annotated_frame = cv2.addWeighted(annotated_frame, 1, colored_mask, 0.5, 0)
+        # Update display and process key events (e.g., pause, exit)
+        self.update_display(display_frame)
+        cv2.waitKey(1)
 
-                print(f"Extracted ReID features and assigned IDs for {len(person_ids)} persons")
 
-            # Update the display with the annotated frame
-            self.update_display(annotated_frame)
+    
+    
+    def extract_features_from_result(self, result, frame):
+        """Extract boxes, masks, and features from the YOLO result."""
+        boxes = []
+        masks = []
+        
+        for idx, cls in enumerate(result.boxes.cls):
+            cls = int(cls)
+            if cls == 0:  # Class 'person'
+                # Extract bounding box
+                x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
+                boxes.append((x1, y1, x2, y2))
 
-            cv2.waitKey(1)
+                # Extract mask
+                if result.masks is not None and len(result.masks.data) > idx:
+                    mask = result.masks.data[idx].cpu().numpy()
+                    masks.append(mask)
+                else:
+                    masks.append(None)
+        
+        # Extract features using your existing logic
+        features = self.extract_reid_features_with_masks(frame, boxes, masks)
+        
+        return boxes, masks, features
 
-        # After the loop, release video capture
-        # self.video_capture.release()
+
+
 
 
 
@@ -2849,3 +2998,193 @@ class MainWindow(QtWidgets.QMainWindow):
 #             transforms.ToTensor(),                  # Convert PIL image to Tensor
 #             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
 #         ])
+class DeepSort:
+    def __init__(self, max_age=30, nn_budget=100, max_iou_distance=0.7, n_init=3):
+        self.max_age = max_age
+        self.nn_budget = nn_budget
+        self.max_iou_distance = max_iou_distance
+        self.n_init = n_init
+        self.tracks = []  # List to store tracked objects
+        self.next_track_id = 1  # ID to assign to new tracks
+
+    def update(self, bbox_xywh, confidences, reid_features):
+        """
+        Update the DeepSORT tracker with new detections and return updated tracks.
+        
+        Parameters:
+        - bbox_xywh: Bounding boxes in (x, y, w, h) format
+        - confidences: Confidence scores for each detection
+        - reid_features: ReID features for each detection
+        
+        Returns:
+        - List of updated tracks, each containing the track ID and bounding box
+        """
+        # 1. Predict new locations of existing tracks using Kalman filter
+        self._predict()
+
+        # 2. Match detections to existing tracks
+        matches, unmatched_detections, unmatched_tracks = self._data_association(bbox_xywh, reid_features)
+
+        # 3. Update matched tracks with new detection info
+        for track_idx, detection_idx in matches:
+            track = self.tracks[track_idx]
+            detection = bbox_xywh[detection_idx]
+            feature = reid_features[detection_idx]
+            track.update(detection, feature)  # Update the track with new data
+
+        # 4. Create new tracks for unmatched detections
+        for detection_idx in unmatched_detections:
+            self._create_track(bbox_xywh[detection_idx], reid_features[detection_idx])
+
+        # 5. Remove lost tracks
+        self._remove_lost_tracks()
+
+        # 6. Return the updated tracks (with IDs and bounding boxes)
+        return self._get_active_tracks()
+
+    def _predict(self):
+        """Predict the new locations of all tracks using the Kalman filter."""
+        for track in self.tracks:
+            track.predict()
+
+    def _data_association(self, bbox_xywh, reid_features):
+        """Match detections to existing tracks using bounding boxes and ReID features."""
+        # Placeholder: In a real implementation, you would match based on IoU and ReID feature similarity
+        # We'll assume a simple one-to-one match for demonstration purposes
+
+        matches = []  # List of (track_idx, detection_idx) pairs
+        unmatched_detections = list(range(len(bbox_xywh)))  # Assume all detections are unmatched
+        unmatched_tracks = list(range(len(self.tracks)))  # Assume all tracks are unmatched
+
+        # Lists to store items to be removed after iteration
+        detections_to_remove = []
+        tracks_to_remove = []
+        # Match based on some heuristic (e.g., IoU, feature similarity)
+        for i, track in enumerate(self.tracks):
+            for j, detection in enumerate(bbox_xywh):
+                # Placeholder for IoU and feature matching logic
+                iou = self._calculate_iou(track.bbox, detection)
+                feature_similarity = self._calculate_feature_similarity(track.reid_feature, reid_features[j])
+
+                if iou > 0.5 and feature_similarity > 0.5:  # Threshold values can be tuned
+                    matches.append((i, j))
+                    detections_to_remove.append(j)  # Collect detection index to remove later
+                    tracks_to_remove.append(i)  # Collect track index to remove later
+                    break
+        
+            # Now remove matched detections and tracks outside the loop
+        unmatched_detections = [d for d in unmatched_detections if d not in detections_to_remove]
+        unmatched_tracks = [t for t in unmatched_tracks if t not in tracks_to_remove]
+
+        return matches, unmatched_detections, unmatched_tracks
+
+    def _create_track(self, bbox, reid_feature):
+        """Create a new track for an unmatched detection."""
+        new_track = Track(self.next_track_id, bbox, reid_feature)
+        self.tracks.append(new_track)
+        self.next_track_id += 1
+
+    def _remove_lost_tracks(self):
+        """Remove tracks that have been lost for too long."""
+        self.tracks = [track for track in self.tracks if not track.is_lost()]
+
+    def _get_active_tracks(self):
+        """Return the currently active tracks (those that are not lost)."""
+        return [track for track in self.tracks if track.is_active()]
+
+    def _calculate_iou(self, bbox1, bbox2):
+        """Calculate the Intersection over Union (IoU) between two bounding boxes."""
+        # Implement IoU calculation here
+        return 0.7  # Placeholder value
+
+    def _calculate_feature_similarity(self, feature1, feature2):
+        """Calculate the similarity between two ReID features."""
+        # Implement feature similarity calculation here (e.g., cosine similarity)
+        return 0.9  # Placeholder value
+
+
+class Track:
+    def __init__(self, track_id, bbox, reid_feature):
+        self.track_id = track_id
+        self.bbox = bbox
+        self.reid_feature = reid_feature
+        self.kalman_filter = KalmanFilter()  # Placeholder for Kalman filter implementation
+        self.age = 0
+        self.time_since_update = 0
+
+    def predict(self):
+        """Predict the next location using the Kalman filter."""
+        # Update the bounding box using the Kalman filter
+        self.bbox = self.kalman_filter.predict()
+        self.age += 1
+        self.time_since_update += 1
+
+    def update(self, bbox, reid_feature):
+        """Update the track with new detection data."""
+        self.bbox = self.kalman_filter.update(bbox)  # Update the Kalman filter
+        self.reid_feature = reid_feature  # Update the ReID feature
+        self.time_since_update = 0
+
+    def is_active(self):
+        """Return True if the track is still active."""
+        return self.time_since_update <= self.age
+
+    def is_lost(self):
+        """Return True if the track is considered lost."""
+        return self.time_since_update > 30  # Can be adjusted based on max_age
+
+    def to_tlbr(self):
+        """Return the bounding box in (top-left, bottom-right) format."""
+        print(self.bbox)
+        x, y, w, h = self.bbox
+        return [x, y, x + w, y + h]
+
+import numpy as np
+
+class KalmanFilter:
+    def __init__(self):
+        # Initialize state (x, y, dx, dy) and covariance matrix
+        self.state = np.zeros((4, 1))  # x, y, dx, dy
+        self.P = np.eye(4)  # Covariance matrix
+
+        # State transition matrix
+        self.F = np.array([
+            [1, 0, 1, 0],
+            [0, 1, 0, 1],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ])
+
+        # Measurement matrix
+        self.H = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0]
+        ])
+
+        # Measurement noise covariance
+        self.R = np.eye(2)
+
+        # Process noise covariance
+        self.Q = np.eye(4) * 0.01
+
+    def predict(self):
+        """Predict the next state based on the current state."""
+        self.state = np.dot(self.F, self.state)
+        self.P = np.dot(np.dot(self.F, self.P), self.F.T) + self.Q
+        return self.state
+
+    def update(self, measurement):
+        """Update the state based on a new measurement."""
+        # Measurement residual (innovation)
+        y = measurement - np.dot(self.H, self.state)
+
+        # Innovation covariance
+        S = np.dot(np.dot(self.H, self.P), self.H.T) + self.R
+
+        # Kalman gain
+        K = np.dot(np.dot(self.P, self.H.T), np.linalg.inv(S))
+
+        # Update the state and covariance
+        self.state = self.state + np.dot(K, y)
+        self.P = np.dot(np.eye(4) - np.dot(K, self.H), self.P)
+        return self.state

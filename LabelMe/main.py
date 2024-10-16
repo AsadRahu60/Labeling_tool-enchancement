@@ -17,7 +17,7 @@ from labelme.logger import logger
 from labelme.utils import newIcon
 
 __version__ = "5.5.0"
-__appname__ = "labelme"
+__appname__ = "LabelMe - Enhanced Version"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", "-V", action="store_true", help="show version")
