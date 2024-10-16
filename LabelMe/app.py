@@ -2259,9 +2259,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         else:
                             masks.append(mask)
 
-                            # Optionally visualize the mask
-                            cv2.imshow(f"Mask_{idx}", mask)
-                            cv2.waitKey(0)
+                            # # Optionally visualize the mask
+                            # cv2.imshow(f"Mask_{idx}", mask)
+                            # cv2.waitKey(0)
                     else:
                         print(f"No mask available for person {idx}.")
                         masks.append(None)
@@ -2294,7 +2294,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 continue  # Skip if the crop is invalid
 
             # Visualize the original cropped image for debugging
-            cv2.imshow(f"Person_{i}_Original", person_img)
+            # cv2.imshow(f"Person_{i}_Original", person_img)
             
             # Apply the mask if available
             if masks[i] is not None:
@@ -2312,8 +2312,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 person_img = cv2.bitwise_and(person_img, mask_resized)
 
                 # Visualize the masked image for debugging
-                cv2.imshow(f"Person_{i}_Masked", person_img)
-                cv2.waitKey(0)  # Pause for debugging
+                # cv2.imshow(f"Person_{i}_Masked", person_img)
+                # cv2.waitKey(0)  # Pause for debugging
 
             # Resize to OSNet input size
             person_img = cv2.resize(person_img, (128, 256))
@@ -2534,10 +2534,21 @@ class MainWindow(QtWidgets.QMainWindow):
         if frames:
             self.run_batch_inference(frames, frame_indices)
         
+        cv2.destroyAllWindows()# Close any remaining windows
+          # Ensure all OpenCV windows are closed after annotation
         # Close video capture
         self.closeVideo()
-         # Close any remaining windows
-        cv2.destroyAllWindows()  # Ensure all OpenCV windows are closed after annotation
+        
+        # Define a filename to save the annotations
+        filename = "video_annotations.json"  # Example filename, adjust as needed
+
+        # Save the annotations after processing the video
+        self.saveVideoAnnotations(filename)  # Pass the filename to the method
+
+            # Display a summary or confirmation message
+        print("Video processing complete. All frames have been processed.")
+        QtWidgets.QMessageBox.information(self, "Processing Complete", "The video has been processed successfully.")
+         
     
     def run_batch_inference(self, frames, frame_indices):
         """Run YOLOv8 segmentation and feature extraction in batch mode on multiple frames."""
@@ -2643,20 +2654,35 @@ class MainWindow(QtWidgets.QMainWindow):
 
             
     def update_display(self, frame):
-    
-        
         """Display the updated frame in the LabelMe UI."""
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        height, width, channel = rgb_frame.shape
-        bytes_per_line = 3 * width
-        q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+        try:
+            # Convert from BGR (OpenCV) to RGB (Qt format)
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            height, width, channel = rgb_frame.shape
+            bytes_per_line = 3 * width
+            q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
 
-        pixmap = QtGui.QPixmap.fromImage(q_img)
-        if hasattr(self, 'canvas'):
-            self.canvas.loadPixmap(pixmap)
-        else:
-            print("Canvas not available")
+            # Convert QImage to QPixmap
+            pixmap = QtGui.QPixmap.fromImage(q_img)
 
+            # Load the pixmap into the canvas
+            if hasattr(self, 'canvas'):
+                if self.canvas:
+                    self.canvas.loadPixmap(pixmap)
+                else:
+                    print("Canvas is initialized but not available for display.")
+            else:
+                print("Canvas attribute not found. Unable to update display.")
+
+        except Exception as e:
+            print(f"Error updating display: {str(e)}")
+
+    def closeVideo(self):
+        """Release video resources."""
+        if hasattr(self, 'video_capture') and self.video_capture.isOpened():
+            self.video_capture.release()
+        print("Video capture resources released.")     
+    
 
 
 
@@ -2670,15 +2696,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     'person_id': person_id,
                     'bbox': bbox
                 })
+        print("Annotations saved successfully.")
 
         with open(filename, 'w') as f:
             json.dump(annotations, f)
     
-    def closeVideo(self):
-        """Close video file."""
-        if self.video_capture:
-            self.video_capture.release()
-            self.video_capture = None       
     
 
 
