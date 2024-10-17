@@ -2230,41 +2230,42 @@ class MainWindow(QtWidgets.QMainWindow):
         self.yolo_model.conf = 0.3  # Lower the confidence threshold for detection
         self.yolo_model.iou = 0.3   # Adjust NMS IOU threshold for more precise person separation
         
-        results = self.yolo_model(frame)
+        results = self.yolo_model(source=frame,stream=True)
         boxes = []
         masks = []
 
         # YOLOv8 returns a list of results
-        result = results[0]  # Process the first (and only) image
+          # Process the first (and only) image
+        for result in results:
+            if result is not None:
+                for idx, cls in enumerate(result.boxes.cls):
+                    cls = int(cls)
+                    if cls == 0:  # Class 'person'
+                        # Extract bounding box
+                        x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
+                        print(f"Bounding box for person {idx}: x1={x1}, y1={y1}, x2={x2}, y2={y2}")
+                        boxes.append((x1, y1, x2, y2))
 
-        if result is not None:
-            for idx, cls in enumerate(result.boxes.cls):
-                cls = int(cls)
-                if cls == 0:  # Class 'person'
-                    # Extract bounding box
-                    x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
-                    boxes.append((x1, y1, x2, y2))
+                        # Extract mask
+                        if result.masks is not None and len(result.masks.data) > idx:
+                            mask = result.masks.data[idx].cpu().numpy()
 
-                    # Extract mask
-                    if result.masks is not None and len(result.masks.data) > idx:
-                        mask = result.masks.data[idx].cpu().numpy()
+                            # Debugging mask content
+                            unique_values = np.unique(mask)
+                            print(f"Mask for person {idx} has unique values: {unique_values}")
+                            
+                            if np.count_nonzero(mask) == 0:
+                                print(f"Mask for person {idx} is invalid (all zeros).")
+                                masks.append(None)
+                            else:
+                                masks.append(mask)
 
-                        # Debugging mask content
-                        unique_values = np.unique(mask)
-                        print(f"Mask for person {idx} has unique values: {unique_values}")
-                        
-                        if np.count_nonzero(mask) == 0:
-                            print(f"Mask for person {idx} is invalid (all zeros).")
-                            masks.append(None)
+                                # # Optionally visualize the mask
+                                # cv2.imshow(f"Mask_{idx}", mask)
+                                # cv2.waitKey(0)
                         else:
-                            masks.append(mask)
-
-                            # # Optionally visualize the mask
-                            # cv2.imshow(f"Mask_{idx}", mask)
-                            # cv2.waitKey(0)
-                    else:
-                        print(f"No mask available for person {idx}.")
-                        masks.append(None)
+                            print(f"No mask available for person {idx}.")
+                            masks.append(None)
 
         print(f"Detected boxes: {boxes}")
         print(f"Number of boxes: {len(boxes)}, Number of masks: {len(masks)}")
@@ -2515,6 +2516,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         frames = []
         frame_indices = []
+        all_bboxes = []  # To store all bounding boxes
+        all_features = []  # To store all features
+        all_ids = []  # To store all detected IDs
+        
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
@@ -2526,24 +2531,35 @@ class MainWindow(QtWidgets.QMainWindow):
             
             if len(frames) == batch_size:
                 # Perform batch inference on the collected frames
-                self.run_batch_inference(frames, frame_indices)
+                bboxes, features, ids =self.run_batch_inference(frames, frame_indices)
+                
+                # Store bounding boxes, features, and ids for saving later
+                all_bboxes.extend(bboxes)
+                all_features.extend(features)
+                all_ids.extend(ids)
+                
                 frames.clear()  # Clear the frame batch for the next iteration
                 frame_indices.clear()
 
         # Handle any remaining frames in the last batch
         if frames:
-            self.run_batch_inference(frames, frame_indices)
+            bboxes, features, ids = self.run_batch_inference(frames, frame_indices)
+            all_bboxes.extend(bboxes)
+            all_features.extend(features)
+            all_ids.extend(ids)
+            
+         # Define a filename to save the annotations
+        video_name = "video_annotations.json"  # Example filename, adjust as needed
+
+        # Save the annotations after processing the video
+        self.saveVideoAnnotations(video_name, all_bboxes, all_features, all_ids)  # Pass the filename to the method
         
         cv2.destroyAllWindows()# Close any remaining windows
           # Ensure all OpenCV windows are closed after annotation
         # Close video capture
         self.closeVideo()
         
-        # Define a filename to save the annotations
-        filename = "video_annotations.json"  # Example filename, adjust as needed
-
-        # Save the annotations after processing the video
-        self.saveVideoAnnotations(filename)  # Pass the filename to the method
+        
 
             # Display a summary or confirmation message
         print("Video processing complete. All frames have been processed.")
@@ -2553,6 +2569,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def run_batch_inference(self, frames, frame_indices):
         """Run YOLOv8 segmentation and feature extraction in batch mode on multiple frames."""
         results = self.yolo_model(frames)  # Batch inference on all frames
+        
+        all_bboxes = []
+        all_features = []
+        all_ids = []  # Store IDs for each frame
         
         for i, frame in enumerate(frames):
             result = results[i]  # YOLO result for the current frame
@@ -2565,18 +2585,28 @@ class MainWindow(QtWidgets.QMainWindow):
             # Run DeepSORT with pre-extracted features
             tracks = self.run_deepsort(boxes, features)
 
+            #Collect detected track IDs
+            ids=[track.track_id for track in tracks]
+            
             # Annotate and display tracks on the current frame
             self.annotate_and_display_tracks(tracks, frame)
 
-            # # Show mask window for current frame (optional)
+            # Collect bounding boxes, features, and track IDs for saving
+            all_bboxes.extend(boxes)
+            all_features.extend(features)
+            all_ids.extend(ids)
+            
+            
+            # # # Show mask window for current frame (optional)
             # for j, mask in enumerate(masks):
             #     if mask is not None:
-            #         cv2.imshow(f"Mask_{frame_indices[i]}_Person_{j}", mask)
+            #         # cv2.imshow(f"Mask_{frame_indices[i]}_Person_{j}", mask)
 
             # Display the annotated frame
             self.update_display(frame)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()# Wait for key press
+            cv2.waitKey(1)
+        return all_bboxes,all_features,all_ids # Return bounding boxes, features, and IDs
+        
 
     def annotate_and_display_tracks(self, tracks, frame):
         display_frame = frame.copy()
@@ -2687,21 +2717,26 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-    def saveVideoAnnotations(self, filename):
-        """Save annotations with frame and person ID information."""
+    def saveVideoAnnotations(self,video_name, all_bboxes, all_features, all_ids):
         annotations = []
-        for person_id, track in self.person_tracks.items():
-            for bbox in track:
-                annotations.append({
-                    'person_id': person_id,
-                    'bbox': bbox
-                })
-        print("Annotations saved successfully.")
-
-        with open(filename, 'w') as f:
+        for i, person_id in enumerate(all_ids):
+            annotations.append({
+                "id": person_id,
+                "bbox": all_bboxes[i],
+                "features": all_features[i].tolist()  # Convert feature vector to list for saving
+            })
+        
+        # Save annotations to a JSON file
+        with open(f"{video_name}_annotations.json", "w") as f:
             json.dump(annotations, f)
+        
+        print(f"Annotations saved to {video_name}_annotation.json")
     
     
+    def load_annotations(video_name):
+        with open(f"{video_name}_annotations.json", "r") as f:
+            annotations = json.load(f)
+        return annotations
 
 
     def changeOutputDirDialog(self, _value=False):
