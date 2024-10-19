@@ -102,3 +102,5 @@ def annotateVideo(self):
                 farbe = self.get_random_color()
                 cv2.rectangle(frame, (x1, y1), (x2, y2), farbe, 2)
                 cv2.putText(frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+                
+                

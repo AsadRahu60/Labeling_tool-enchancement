@@ -132,7 +132,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.reid_model=self.load_reid_model()
         # Define the image transformation pipeline for the ReID model
         # self.transform = self.get_transform()
-        self.first_dectected_id=None
+        self.first_detected_id=None
+        self.person_id_map={}
         self.person={} # track the person across the video
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
@@ -2362,11 +2363,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Convert boxes and features into the format expected by DeepSORT
         bbox_xywh = []
         reid_features = []
-
+        
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             if i < len(features):  # Ensure there's a corresponding ReID feature
                 bbox_xywh.append([x1, y1, x2 - x1, y2 - y1])  # Convert to (x, y, w, h)
-
                 # Add the corresponding ReID feature
                 reid_features.append(features[i])
             else:
@@ -2382,14 +2382,31 @@ class MainWindow(QtWidgets.QMainWindow):
             print("No valid bounding boxes or features to track.")
             return []
 
+        # Update DeepSORT on the bounding boxes and features
+        tracks = self.deepsort.update(bbox_xywh, confidences, reid_features)
+
+        # Map track IDs to person_IDs (person_ID1, person_ID2, etc.)
+        person_tracks = []
+        for track in tracks:
+            track_id = track.track_id
+
+            # Check if track_id already has a person_ID
+            if track_id not in self.person_id_map:
+                # If the person is new, assign a new person_ID
+                person_id = f"person_ID{len(self.person_id_map) + 1}"
+                self.person_id_map[track_id] = person_id
+
+            person_tracks.append({
+                "track_id": track_id,
+                "person_id": self.person_id_map[track_id],  # Get the person_ID from the map
+                "bbox": track.to_tlbr()  # Bounding box in (x1, y1, x2, y2) format
+            })
+
         # Debugging information: Check if bbox and features are aligned
         for i, (bbox, feature) in enumerate(zip(bbox_xywh, reid_features)):
             print(f"Tracking object {i} with bbox {bbox} and feature {feature[:5]}...")  # Print first 5 elements of feature
 
-        # Update DeepSORT with the detections and features
-        outputs = self.deepsort.update(bbox_xywh, confidences, reid_features)
-
-        return outputs
+        return person_tracks  # Return tracked persons with their IDs and bounding boxes
 
 
 
@@ -2553,7 +2570,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 break
             
             # Preprocess the frame (resize, etc.)
-            processed_frame = self.preprocess_frame(frame, target_size=(640, 640))
+            processed_frame = self.preprocess_frame(frame, target_size=(640, 480))
             
             # Collect frames into a batch
             frames.append(processed_frame)
@@ -2658,7 +2675,7 @@ class MainWindow(QtWidgets.QMainWindow):
             print(f"Tracks: {tracks}")
 
             # Collect detected track IDs
-            ids = [track.track_id for track in tracks]
+            ids = [track['track_id'] for track in tracks]
 
             # Annotate and display tracks on the current frame
             self.annotate_and_display_tracks(tracks, frame)
@@ -2681,35 +2698,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
     
     def annotate_and_display_tracks(self, tracks, frame):
-        
         display_frame = frame.copy()
+        
         for track in tracks:
-            track_id = track.track_id
-            # If the first_detected_id is None, store the first detected ID
-            if self.first_detected_id is None:
-                self.first_detected_id = track_id
+            track_id = track['track_id']  # Access 'track_id' as a key in the dictionary
             
-            # Override track ID to keep it consistent across frames
-            if track_id != self.first_detected_id:
-                track_id = self.first_detected_id
-            bbox = track.to_tlbr()
+            bbox = track['bbox']  # Access 'bbox' as a key in the dictionary
             print(f"bbox before unpacking: {bbox}")
             
-                
             try:
-                # Case 1: If bbox is a list of arrays, iterate through each array
                 if isinstance(bbox, list) and all(isinstance(b, np.ndarray) for b in bbox):
                     for b in bbox:
-                        # Check if each array is of correct size
                         if len(b) == 4:
-                            x1, y1, x2, y2 = map(int, b.tolist())  # Convert array to list and unpack
+                            x1, y1, x2, y2 = map(int, b.tolist())
                         else:
                             raise ValueError(f"Expected 4-element array, got {b}")
-
-                # Case 2: If bbox is already a single array or list, handle it directly
                 elif isinstance(bbox, (np.ndarray, list)) and len(bbox) == 4:
                     x1, y1, x2, y2 = map(int, bbox)  # Safely unpack
-
                 else:
                     raise ValueError(f"Expected 4-element bounding box, got {bbox}")
 
@@ -2717,9 +2722,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 farbe = self.get_random_color()
                 cv2.rectangle(frame, (x1, y1), (x2, y2), farbe, 2)
                 cv2.putText(frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-            
+
             except Exception as e:
-                # Catch any error that occurs during unpacking
                 raise ValueError(f"Error unpacking bounding box {bbox}: {str(e)}")
 
         # Update display and process key events (e.g., pause, exit)
