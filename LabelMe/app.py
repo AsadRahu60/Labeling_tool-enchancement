@@ -10,6 +10,7 @@ import math
 import os
 import os.path as osp
 import re
+from unittest import result
 import webbrowser
 import sys
 print(sys.path)
@@ -55,6 +56,7 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 # import torch.nn as nn
 # from torchvision.models import resnet50, ResNet50_Weights
 # yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+import gc
 
 
 
@@ -130,6 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.reid_model=self.load_reid_model()
         # Define the image transformation pipeline for the ReID model
         # self.transform = self.get_transform()
+        self.first_dectected_id=None
         self.person={} # track the person across the video
         if output is not None:
             logger.warning("argument output is deprecated, use output_file instead")
@@ -2174,10 +2177,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.loadFrame(self.current_frame)
         
         
-        # print("Next frame button clicked")
-        # if  self.current_frame + 1 < self.total_frames:
-        #     self.current_frame += 1 # Increment current frame number
-        #     self.loadFrame(self.current_frame) 
+        
         
 
 
@@ -2205,9 +2205,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Initialize DeepSORT
         self.deepsort = DeepSort(
-            max_age=30,  # Age for objects that are lost
-            nn_budget=100,  # Maximum items for feature storage
-            max_iou_distance=0.7,  # Maximum IOU for matches
+            max_age=15,  # Age for objects that are lost
+            nn_budget=50,  # Maximum items for feature storage
+            max_iou_distance=0.4, # Maximum IOU for matches
             n_init=3  # Number of consecutive detections before initializing
         )
         # Define the transform pipeline for OSNet
@@ -2224,53 +2224,72 @@ class MainWindow(QtWidgets.QMainWindow):
     #     detections = [(int(x1), int(y1), int(x2), int(y2)) for x1, y1, x2, y2, conf, cls in results.xyxy[0] if int(cls) == 0]  # Class '0' is 'person'
     #     return detections       
 
-    def run_yolo_segmentation(self, frame):
+    def box_area(self,box):
+        """Calculate the area of a bounding box given as (x1, y1, x2, y2)."""
+        x1, y1, x2, y2 = box
+        area = (x2 - x1) * (y2 - y1)
+        print(f"Box: {box}, Area: {area}")
+        return area
+    
+    def run_yolo_segmentation(self, result, frame):
         """Run YOLOv8 segmentation model to detect and segment people in the frame."""
         
-        self.yolo_model.conf = 0.3  # Lower the confidence threshold for detection
-        self.yolo_model.iou = 0.3   # Adjust NMS IOU threshold for more precise person separation
+        self.yolo_model.conf = 0.25  # Lower the confidence threshold for detection
+        self.yolo_model.iou = 0.5  # Adjust NMS IOU threshold for more precise person separation
         
-        results = self.yolo_model(source=frame,stream=True)
+        # Run YOLO inference
+        results = self.yolo_model(source=frame, stream=True)
+        
         boxes = []
         masks = []
+        confidences = []  # Store confidence values
 
-        # YOLOv8 returns a list of results
-          # Process the first (and only) image
+        min_area_threshold = 500  # Adjust based on your video resolution
+        max_area_threshold =  3000000  # Adjust based on your video resolution
+        
         for result in results:
-            if result is not None:
+            if hasattr(result, 'boxes'):
                 for idx, cls in enumerate(result.boxes.cls):
                     cls = int(cls)
                     if cls == 0:  # Class 'person'
                         # Extract bounding box
                         x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
-                        print(f"Bounding box for person {idx}: x1={x1}, y1={y1}, x2={x2}, y2={y2}")
                         boxes.append((x1, y1, x2, y2))
+
+                        # Extract confidence value
+                        confidence = result.boxes.conf[idx].cpu().numpy()
+                        confidences.append(confidence)
 
                         # Extract mask
                         if result.masks is not None and len(result.masks.data) > idx:
                             mask = result.masks.data[idx].cpu().numpy()
-
-                            # Debugging mask content
-                            unique_values = np.unique(mask)
-                            print(f"Mask for person {idx} has unique values: {unique_values}")
-                            
-                            if np.count_nonzero(mask) == 0:
-                                print(f"Mask for person {idx} is invalid (all zeros).")
-                                masks.append(None)
-                            else:
-                                masks.append(mask)
-
-                                # # Optionally visualize the mask
-                                # cv2.imshow(f"Mask_{idx}", mask)
-                                # cv2.waitKey(0)
+                            masks.append(mask)
                         else:
-                            print(f"No mask available for person {idx}.")
                             masks.append(None)
+            else:
+                print(f"Unexpected 'result' object type: {type(result)}")
+                return [], [], []  # Return empty lists if 'result' is not valid
+        
+        # # Filter boxes and masks based on area
+        # for box in boxes:
+        #     area = self.box_area(box)
+        #     print(f"Box: {box}, Area: {area}")  # Print area before filtering
+        # Filter boxes and masks based on area
+        filtered_boxes = [box for box in boxes if min_area_threshold < self.box_area(box) < max_area_threshold]
+        filtered_masks = [mask for i, mask in enumerate(masks) if min_area_threshold < self.box_area(boxes[i]) < max_area_threshold]
 
-        print(f"Detected boxes: {boxes}")
-        print(f"Number of boxes: {len(boxes)}, Number of masks: {len(masks)}")
+        print(f"Filtered boxes: {filtered_boxes}")
+        print(f"Filtered masks: {filtered_masks}")
+        
+        print(f"YOLO Detected Boxes: {boxes}")
+        print(f"Number of boxes: {len(boxes)}")
+        print(f"Confidences: {confidences}")
 
-        return boxes, masks
+        return filtered_boxes, filtered_masks, confidences  # Return the filtered bounding boxes, masks, and confidences
+ # Return the bounding boxes, masks, and confidences
+
+
+
 
 
         ##################################################
@@ -2324,7 +2343,7 @@ class MainWindow(QtWidgets.QMainWindow):
             person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor
 
             persons.append(person_tensor)
-
+            torch.cuda.empty_cache()  # Clear GPU cache after processing
         # Stack tensors and extract features
         if persons:
             person_batch = torch.cat(persons)
@@ -2333,26 +2352,27 @@ class MainWindow(QtWidgets.QMainWindow):
             return features.cpu().numpy()
         else:
             return []
+        
 
 
         
-    def run_deepsort(self, boxes, features):
-            
+    def run_deepsort(self, boxes, features, confidences):
         """Run DeepSORT tracker and return bounding boxes and IDs."""
+        
         # Convert boxes and features into the format expected by DeepSORT
         bbox_xywh = []
-        confidences = []
         reid_features = []
 
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             if i < len(features):  # Ensure there's a corresponding ReID feature
                 bbox_xywh.append([x1, y1, x2 - x1, y2 - y1])  # Convert to (x, y, w, h)
-                confidences.append(1.0)  # Placeholder confidence value
-                reid_features.append(features[i])  # Use the corresponding ReID feature
+
+                # Add the corresponding ReID feature
+                reid_features.append(features[i])
             else:
                 print(f"Warning: No corresponding feature for box {i}")
 
-        # Convert lists to the correct format
+        # Convert lists to numpy arrays for DeepSORT input
         bbox_xywh = np.array(bbox_xywh)
         confidences = np.array(confidences)
         reid_features = np.array(reid_features)
@@ -2362,10 +2382,16 @@ class MainWindow(QtWidgets.QMainWindow):
             print("No valid bounding boxes or features to track.")
             return []
 
+        # Debugging information: Check if bbox and features are aligned
+        for i, (bbox, feature) in enumerate(zip(bbox_xywh, reid_features)):
+            print(f"Tracking object {i} with bbox {bbox} and feature {feature[:5]}...")  # Print first 5 elements of feature
+
         # Update DeepSORT with the detections and features
         outputs = self.deepsort.update(bbox_xywh, confidences, reid_features)
 
-        return outputs  # Outputs contain bounding boxes and IDs
+        return outputs
+
+
 
 
 
@@ -2504,7 +2530,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.update()  # Refresh the canvas to show updated annotations
   # Refresh the canvas to show updated annotations
         
-    def annotateVideo(self,batch_size=4):
+    def annotateVideo(self, batch_size=4):
         """Annotate and track persons in the video using YOLOv8, OSNet, and DeepSORT with batch inference."""
 
         if not hasattr(self, 'video_capture'):
@@ -2519,100 +2545,153 @@ class MainWindow(QtWidgets.QMainWindow):
         all_bboxes = []  # To store all bounding boxes
         all_features = []  # To store all features
         all_ids = []  # To store all detected IDs
+        all_confidences=[]
         
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
                 break
-
-            # Collect frames into a batch
-            frames.append(frame)
-            frame_indices.append(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES))  # Track frame number
             
+            # Preprocess the frame (resize, etc.)
+            processed_frame = self.preprocess_frame(frame, target_size=(640, 640))
+            
+            # Collect frames into a batch
+            frames.append(processed_frame)
+            frame_indices.append(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES))  # Track frame number
+
             if len(frames) == batch_size:
                 # Perform batch inference on the collected frames
-                bboxes, features, ids =self.run_batch_inference(frames, frame_indices)
-                
-                # Store bounding boxes, features, and ids for saving later
-                all_bboxes.extend(bboxes)
-                all_features.extend(features)
-                all_ids.extend(ids)
+                bboxes, features, ids, confidences = self.run_batch_inference(frames, frame_indices)
+
+                # Ensure all lists are in sync before saving
+                if len(bboxes) == len(features) == len(ids) == len(confidences):
+                    # Store bounding boxes, features, ids, and confidences for saving later
+                    all_bboxes.extend(bboxes)
+                    all_features.extend(features)
+                    all_ids.extend(ids)
+                    all_confidences.extend(confidences)
+                else:
+                    print("Warning: Mismatch in the number of bounding boxes, features, IDs, and confidences.")
                 
                 frames.clear()  # Clear the frame batch for the next iteration
                 frame_indices.clear()
 
         # Handle any remaining frames in the last batch
         if frames:
-            bboxes, features, ids = self.run_batch_inference(frames, frame_indices)
-            all_bboxes.extend(bboxes)
-            all_features.extend(features)
-            all_ids.extend(ids)
+            bboxes, features, ids, confidences = self.run_batch_inference(frames, frame_indices)
             
-         # Define a filename to save the annotations
-        video_name = "video_annotations.json"  # Example filename, adjust as needed
+            # Ensure all lists are in sync before saving
+            if len(bboxes) == len(features) == len(ids)==len(confidences):
+                all_bboxes.extend(bboxes)
+                all_features.extend(features)
+                all_ids.extend(ids)
+                all_confidences.extend(confidences)
+                
+            else:
+                print("Warning: Mismatch in the number of bounding boxes, features, and IDs.")
+
+        # Define a filename to save the annotations
+        video_name = "video_annotations"  # Example filename, adjust as needed
 
         # Save the annotations after processing the video
-        self.saveVideoAnnotations(video_name, all_bboxes, all_features, all_ids)  # Pass the filename to the method
-        
-        cv2.destroyAllWindows()# Close any remaining windows
-          # Ensure all OpenCV windows are closed after annotation
+        self.saveVideoAnnotations(video_name, all_bboxes, all_features, all_ids, all_confidences)
+
+
+        # Close any remaining windows
+        cv2.destroyAllWindows()  # Ensure all OpenCV windows are closed after annotation
+        frames.clear()
+        frame_indices.clear()
+        torch.cuda.empty_cache()  # If you're using a GPU
+        gc.collect()
+
         # Close video capture
         self.closeVideo()
-        
-        
 
-            # Display a summary or confirmation message
+        # Display a summary or confirmation message
         print("Video processing complete. All frames have been processed.")
         QtWidgets.QMessageBox.information(self, "Processing Complete", "The video has been processed successfully.")
-         
+
+
     
     def run_batch_inference(self, frames, frame_indices):
         """Run YOLOv8 segmentation and feature extraction in batch mode on multiple frames."""
-        results = self.yolo_model(frames)  # Batch inference on all frames
+        processed_frames = [self.preprocess_frame(frame) for frame in frames]  # Preprocess each frame
+        # results = self.run_yolo_segmentation(processed_frames)  # Batch inference on all frames
         
         all_bboxes = []
         all_features = []
         all_ids = []  # Store IDs for each frame
-        
-        for i, frame in enumerate(frames):
-            result = results[i]  # YOLO result for the current frame
-            boxes, masks, features = self.extract_features_from_result(result, frame)
+        all_confidences = []  # Store confidence scores for each detection
 
+        results = self.yolo_model(processed_frames)  # Batch inference on all frames
+        
+        min_area_threshold = 500  # Example minimum area threshold
+        max_area_threshold = 3000000  # Example maximum area threshold    
+        for i, (result,frame) in enumerate(zip(results,frames)):
+              # YOLO result for the current frame
+            boxes, masks, confidences = self.run_yolo_segmentation(result,frame)
+            
+            
+
+            print(f"Frame {i}: type={type(frame)}, shape={frame.shape if isinstance(frame, np.ndarray) else 'N/A'}")
+            print(f"YOLO Detected Boxes: {boxes}, masks: {masks}")
+            
+            
             if not boxes:
                 # No detections, skip processing
                 continue
-
-            # Run DeepSORT with pre-extracted features
-            tracks = self.run_deepsort(boxes, features)
-
-            #Collect detected track IDs
-            ids=[track.track_id for track in tracks]
+            # Filter the bounding boxes based on area
+            filtered_boxes = [box for box in boxes if min_area_threshold < self.box_area(box) < max_area_threshold]
+            filtered_masks = [mask for i, mask in enumerate(masks) if min_area_threshold < self.box_area(boxes[i]) < max_area_threshold]
             
+            print(f"Filtered Boxes: {filtered_boxes}")
+
+            # Use pre-extracted boxes and masks to extract ReID features
+            features = self.extract_reid_features_with_masks(frame, filtered_boxes, filtered_masks)
+            print(f"Extracted Features: {features}")
+            
+            if not filtered_boxes or not features.any():
+            # No valid boxes or features to track
+                continue
+            # Run DeepSORT with pre-extracted features
+            tracks = self.run_deepsort(boxes, filtered_boxes, confidences)
+            print(f"Tracks: {tracks}")
+
+            # Collect detected track IDs
+            ids = [track.track_id for track in tracks]
+
             # Annotate and display tracks on the current frame
             self.annotate_and_display_tracks(tracks, frame)
 
             # Collect bounding boxes, features, and track IDs for saving
-            all_bboxes.extend(boxes)
+            all_bboxes.extend(filtered_boxes)
             all_features.extend(features)
             all_ids.extend(ids)
-            
-            
-            # # # Show mask window for current frame (optional)
-            # for j, mask in enumerate(masks):
-            #     if mask is not None:
-            #         # cv2.imshow(f"Mask_{frame_indices[i]}_Person_{j}", mask)
+            all_confidences.extend(confidences)  # Store confidences
 
-            # Display the annotated frame
+            # Display the annotated frame and close windows after processing
             self.update_display(frame)
+            cv2.destroyAllWindows()
             cv2.waitKey(1)
-        return all_bboxes,all_features,all_ids # Return bounding boxes, features, and IDs
-        
 
+        return all_bboxes, all_features, all_ids, all_confidences  # Return bounding boxes, features, and IDs
+
+    
+     
+
+    
     def annotate_and_display_tracks(self, tracks, frame):
-        display_frame = frame.copy()
         
+        display_frame = frame.copy()
         for track in tracks:
             track_id = track.track_id
+            # If the first_detected_id is None, store the first detected ID
+            if self.first_detected_id is None:
+                self.first_detected_id = track_id
+            
+            # Override track ID to keep it consistent across frames
+            if track_id != self.first_detected_id:
+                track_id = self.first_detected_id
             bbox = track.to_tlbr()
             print(f"bbox before unpacking: {bbox}")
             
@@ -2645,6 +2724,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Update display and process key events (e.g., pause, exit)
         self.update_display(display_frame)
+        cv2.destroyAllWindows()  # Ensure that all windows are closed
         cv2.waitKey(1)
 
 
@@ -2652,6 +2732,10 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def extract_features_from_result(self, result, frame):
         """Extract boxes, masks, and features from the YOLO result."""
+        # Check the type of 'result' before proceeding
+        if not hasattr(result, 'boxes'):
+            print(f"Unexpected 'result' object type: {type(result)}")
+            return [], [], []
         boxes = []
         masks = []
         
@@ -2672,9 +2756,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # Extract features using your existing logic
         features = self.extract_reid_features_with_masks(frame, boxes, masks)
         
+        
         return boxes, masks, features
 
-
+    def preprocess_frame(self, frame, target_size=(640, 640)):
+        """Resize the frame to a target size to reduce memory usage."""
+        if isinstance(frame, np.ndarray):
+            resized_frame = cv2.resize(frame, target_size)
+            return resized_frame
+        else:
+            raise TypeError(f"Expected frame to be a numpy array, but got {type(frame)}")
 
 
 
@@ -2717,20 +2808,34 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-    def saveVideoAnnotations(self,video_name, all_bboxes, all_features, all_ids):
+    def saveVideoAnnotations(self, video_name, all_bboxes, all_features, all_ids, all_confidences):
+        """Save bounding boxes, features, IDs, and confidences into a JSON file."""
+        
+        # Debugging: Print lengths of all lists before processing
+        print(f"Number of bounding boxes: {len(all_bboxes)}")
+        print(f"Number of features: {len(all_features)}")
+        print(f"Number of IDs: {len(all_ids)}")
+        print(f"Number of confidences: {len(all_confidences)}")
+
+        if not (len(all_bboxes) == len(all_features) == len(all_ids) == len(all_confidences)):
+            raise ValueError("Mismatch in the number of bounding boxes, features, IDs, and confidences")
+
         annotations = []
         for i, person_id in enumerate(all_ids):
             annotations.append({
                 "id": person_id,
                 "bbox": all_bboxes[i],
-                "features": all_features[i].tolist()  # Convert feature vector to list for saving
+                "features": all_features[i].tolist(),  # Convert feature vector to list for saving
+                "confidence": all_confidences[i]  # Add the confidence score
             })
         
         # Save annotations to a JSON file
         with open(f"{video_name}_annotations.json", "w") as f:
             json.dump(annotations, f)
         
-        print(f"Annotations saved to {video_name}_annotation.json")
+        print(f"Annotations saved to {video_name}_annotations.json")
+
+
     
     
     def load_annotations(video_name):
