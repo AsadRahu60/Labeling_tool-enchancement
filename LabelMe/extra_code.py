@@ -103,4 +103,108 @@ def annotateVideo(self):
                 cv2.rectangle(frame, (x1, y1), (x2, y2), farbe, 2)
                 cv2.putText(frame, f"ID: {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
                 
-                
+########################################################## run_ReID function#######################333
+# def run_reid_on_frame(self, frame,detections):
+    #     """Run Person ReID model on the frame and update tracking."""  
+    #     features = []
+
+    # # Iterate over each detection to extract features
+    #     for detection in detections:
+    #         x1, y1, x2, y2 = detection
+    #         # Crop the person region from the frame
+    #         person_img = frame[y1:y2, x1:x2]
+            
+    #         # Preprocess the image for the ReID model
+    #         person_tensor = self.transform(person_img).unsqueeze(0)  # Assuming self.transform exists
+
+    #         # Extract features using the ReID model
+    #         with torch.no_grad(), torch.amp.autocast("cuda"):
+    #          # Assuming mixed precision for efficiency
+    #             feature = self.reid_model(person_tensor)
+    #         features.append(feature)
+
+    #     # Update person tracks using extracted features
+    #     for i, feature in enumerate(features):
+    #         # Here, we assume some logic to assign IDs to people based on extracted features.
+    #         # For simplicity, we can just generate unique IDs if no tracker is being used.
+    #         person_id = f"person_{i + 1}"  # Generate unique IDs for each person in the frame
+
+    #         # Update the person's track
+    #         if person_id not in self.person_tracks:
+    #             self.person_tracks[person_id] = []
+    #         self.person_tracks[person_id].append(detections[i])  # Update person's track with the bounding box
+
+    #     return features
+    
+    ################################################ Run extract_mask##############################333333
+    def extract_reid_features_with_masks(self, frame, boxes, masks):
+        
+        """Extract ReID features using OSNet for the segmented persons in the frame."""
+
+        persons = []
+        height, width, _ = frame.shape  # Frame dimensions for bounding box checks
+
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            # Check if the bounding box is valid
+            if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
+                print(f"Skipping invalid box: {x1, y1, x2, y2}")
+                continue
+
+            # Crop the person image from the frame
+            person_img = frame[y1:y2, x1:x2]
+            if person_img.size == 0:
+                print(f"Skipping invalid crop for box {i}")
+                continue  # Skip if the crop is invalid
+
+            # Visualize the original cropped image for debugging
+            # cv2.imshow(f"Person_{i}_Original", person_img)
+            
+            # Apply the mask if available
+            if masks[i] is not None:
+                mask = masks[i]
+                mask_resized = cv2.resize(mask, (person_img.shape[1], person_img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+                # Ensure the mask is binary and in uint8 format
+                mask_resized = (mask_resized > 0.5).astype(np.uint8) * 255  # Convert to 0 or 255
+
+                # If mask is single-channel but person_img is 3-channel, adjust the mask
+                if len(mask_resized.shape) == 2 and len(person_img.shape) == 3:
+                    mask_resized = cv2.merge([mask_resized, mask_resized, mask_resized])
+
+                # Apply the mask to the person image
+                person_img = cv2.bitwise_and(person_img, mask_resized)
+
+                # Visualize the masked image for debugging
+                # cv2.imshow(f"Person_{i}_Masked", person_img)
+                # cv2.waitKey(0)  # Pause for debugging
+
+            # Resize to OSNet input size
+            person_img = cv2.resize(person_img, (128, 256))
+
+            # Preprocess for OSNet
+            person_tensor = self.transform(person_img).unsqueeze(0)
+            person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor
+
+            persons.append(person_tensor)
+            torch.cuda.empty_cache()  # Clear GPU cache after processing
+        # Stack tensors and extract features
+        if persons:
+            person_batch = torch.cat(persons)
+            with torch.no_grad():
+                features = self.reid_model(person_batch)
+            return features.cpu().numpy()
+        else:
+            return []
+        
+        
+        ##############################################################################
+    ####Code for the 
+    corners = tf.constant(boxes, tf.float32)
+  boxesList = box_list.BoxList(corners)
+  boxesList.add_field('scores', tf.constant(scores))
+  iou_thresh = 0.1
+  max_output_size = 100
+  sess = tf.Session()
+  nms = box_list_ops.non_max_suppression(
+      boxesList, iou_thresh, max_output_size)
+  boxes = sess.run(nms.get())

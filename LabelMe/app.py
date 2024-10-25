@@ -46,6 +46,7 @@ from labelme import utils
 import cv2
 import torch
 import torchreid
+from torchreid import models
 import json
 import numpy as np
 from torchvision.transforms import transforms
@@ -88,7 +89,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
           
         self.setWindowTitle(__appname__)
-        self.setWindowIcon(QtGui.QIcon("icons/app_icon.svg"))
+        self.setWindowIcon(QtGui.QIcon("labelme\icons\image.png"))
         
         # Apply styles for a modern look
         self.setStyleSheet("""
@@ -97,7 +98,7 @@ class MainWindow(QtWidgets.QMainWindow):
             color: #D8DEE9;
         }
         QPushButton {
-            background-color: #4C566A;
+            background-color: #5c4c6a;
             color: #D8DEE9;
             border-radius: 8px;
             padding: 8px;
@@ -128,7 +129,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Example check if the loaded file is a video (you need to set this flag somewhere)
         self.is_video = False  # This flag will be set to True when loading a video
         # Load YOLO model
-        self.yolo_model = YOLO('yolov8s-seg.pt') # Load YOLO model
+        self.yolo_model = YOLO('yolov8s-seg.pt')# Load YOLO model
+        print(f"Model loaded  successfully {self.yolo_model}")
         # self.reid_model=self.load_reid_model()
         # Define the image transformation pipeline for the ReID model
         # self.transform = self.get_transform()
@@ -398,28 +400,30 @@ class MainWindow(QtWidgets.QMainWindow):
             enabled=False,
         )
         openPrevFrame = action(
-            self.tr("Previous Frame"),
-            self.openPrevFrame,
-            "Prev",  # No shortcut
-            "prev_frame",
-            self.tr("Go to the previous video frame"),
-            enabled=False
+            text=self.tr("Previous Frame"),
+            slot=self.openPrevFrame,
+            shortcut=None,
+            icon="prev",  # Optional: set the icon path
+            tip=self.tr("Go to the previous video frame"),
+            enabled=False,
         )
+
         openNextFrame = action(
-            self.tr("Next Frame"),
-            self.openNextFrame,
-            "Next",  # No shortcut
-            "next_frame",
-            self.tr("Go to the next video frame"),
-            enabled=False
+            text=self.tr("Next Frame"),
+            slot=self.openNextFrame,
+            shortcut=None,  # No shortcut
+            icon="next",  # Optional: set the icon path
+            tip=self.tr("Go to the next video frame"),
+            enabled=False,
         )
-        AnnotateVideo= action(
-            self.tr("Annotate Video"),
-            self.annotateVideo,
-            "Ctrl+V",  # Optional shortcut
-            "annotate_video",  # Action identifier
-            self.tr("Annotate the video using YOLO and ReID models"),
-            enabled=True  # Enable the action by default
+
+        AnnotateVideo = action(
+            text=self.tr("Annotate Video"),
+            slot=self.annotateVideo,
+            shortcut="Ctrl+V",  # Optional shortcut
+            icon="annotation",  # Optional: set the icon path
+            tip=self.tr("Annotate the video using YOLO and ReID models"),
+            enabled=False,  # Enable the action by default
         )
         save = action(
             self.tr("&Save\n"),
@@ -459,9 +463,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.tr("Save ReID Annotations"),
             self.saveVideoAnnotations,
             None,  # No shortcut
-            "save_annotations",
+            "save",
             self.tr("Save video annotations with ReID results"),
-            enabled=False
+            enabled=False,
         )
 
 
@@ -1470,7 +1474,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.duplicate.setEnabled(n_selected)
         self.actions.copy.setEnabled(n_selected)
         self.actions.edit.setEnabled(n_selected)
-
+    ##### when I would liek to add the labels on the video from the detection will sue this method###
     def addLabel(self, shape):
         if shape.group_id is None:
             text = shape.label
@@ -2099,6 +2103,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.loadVideo(fileName)
             else:
                     self.loadFile(fileName)
+            # Enable the frame navigation buttons only if the video is loaded successfully
+        if self.video_capture.isOpened():
+            self.actions.openPrevFrame.setEnabled(True)
+            self.actions.openNextFrame.setEnabled(True)
     
     def openVideo(self):
         """Open a video file for annotation."""
@@ -2108,6 +2116,11 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if filePath:
             self.loadVideo(filePath)
+            # Enable the frame navigation buttons only if the video is loaded successfully
+        if self.video_capture.isOpened():
+            self.actions.openPrevFrame.setEnabled(True)
+            self.actions.openNextFrame.setEnabled(True)
+            self.actions.AnnotateVideo.setEnabled(True)
     
     def loadVideo(self, video_path):
         """Loads the video file and initializes video processing."""
@@ -2178,10 +2191,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.loadFrame(self.current_frame)
         
         
-        
-        
-
-
     def openPrevFrame(self):
         """Go to the previous frame."""
         # print("Previous frame button clicked")
@@ -2189,6 +2198,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.current_frame -= 1 # Decrement current frame number
             self.loadFrame(self.current_frame)
 
+    
     def load_models(self):
         """Load the YOLO model and OSNet ReID model."""
         
@@ -2197,8 +2207,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.reid_model = torchreid.models.build_model(
             name='osnet_x1_0',    # Use 'osnet_x1_0' for a balanced model size and performance
             num_classes=1000,     # Dummy number for classes (not used during feature extraction)
-            pretrained=True       # Load pre-trained weights
+            pretrained=True,
+            loss='softmax'# Load pre-trained weights
         )
+        
+        
+        
+        
         
         # Move the model to GPU if available
         self.reid_model = self.reid_model.cuda() if torch.cuda.is_available() else self.reid_model
@@ -2206,8 +2221,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Initialize DeepSORT
         self.deepsort = DeepSort(
-            max_age=15,  # Age for objects that are lost
-            nn_budget=50,  # Maximum items for feature storage
+            max_age=30,  # Age for objects that are lost
+            nn_budget=100,  # Maximum items for feature storage
             max_iou_distance=0.4, # Maximum IOU for matches
             n_init=3  # Number of consecutive detections before initializing
         )
@@ -2233,11 +2248,12 @@ class MainWindow(QtWidgets.QMainWindow):
         return area
     
     def run_yolo_segmentation(self, result, frame):
+        
         """Run YOLOv8 segmentation model to detect and segment people in the frame."""
         
-        self.yolo_model.conf = 0.25  # Lower the confidence threshold for detection
-        self.yolo_model.iou = 0.5  # Adjust NMS IOU threshold for more precise person separation
-        
+        self.yolo_model.conf = 0.56  # Lower the confidence threshold for more detections
+        self.yolo_model.iou = 0.52   # Adjust NMS IOU threshold for better detection
+
         # Run YOLO inference
         results = self.yolo_model(source=frame, stream=True)
         
@@ -2246,20 +2262,26 @@ class MainWindow(QtWidgets.QMainWindow):
         confidences = []  # Store confidence values
 
         min_area_threshold = 500  # Adjust based on your video resolution
-        max_area_threshold =  3000000  # Adjust based on your video resolution
-        
+        max_area_threshold = 3000000  # Adjust based on your video resolution
+
         for result in results:
             if hasattr(result, 'boxes'):
                 for idx, cls in enumerate(result.boxes.cls):
                     cls = int(cls)
-                    if cls == 0:  # Class 'person'
+                    # Print the detected classes to verify labels
+                    print(f"Detected class: {cls}, Confidence: {result.boxes.conf[idx].item()}")
+
+                    # Assuming class '0' is 'person'
+                    if cls == 0:  
                         # Extract bounding box
                         x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
-                        boxes.append((x1, y1, x2, y2))
+                        width=x2-x1
+                        height=y2-y1
+                        boxes.append([x1, y1, width, height])  # Format as [x, y, w, h]
 
                         # Extract confidence value
                         confidence = result.boxes.conf[idx].cpu().numpy()
-                        confidences.append(confidence)
+                        confidences.append(float(confidence))
 
                         # Extract mask
                         if result.masks is not None and len(result.masks.data) > idx:
@@ -2271,13 +2293,25 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"Unexpected 'result' object type: {type(result)}")
                 return [], [], []  # Return empty lists if 'result' is not valid
         
-        # # Filter boxes and masks based on area
-        # for box in boxes:
-        #     area = self.box_area(box)
-        #     print(f"Box: {box}, Area: {area}")  # Print area before filtering
-        # Filter boxes and masks based on area
-        filtered_boxes = [box for box in boxes if min_area_threshold < self.box_area(box) < max_area_threshold]
-        filtered_masks = [mask for i, mask in enumerate(masks) if min_area_threshold < self.box_area(boxes[i]) < max_area_threshold]
+            # Apply Non-Maximum Suppression (NMS) to filter overlapping boxes
+        score_threshold = 0.5  # Define a score threshold to keep only high-confidence boxes
+        nms_threshold = 0.4  # IOU threshold for NMS (typically between 0.3 - 0.5)  
+
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold, nms_threshold)
+        
+        filtered_boxes = []
+        filtered_masks = []
+        filtered_confidences = []
+        
+        
+        if len(indices) > 0:
+            for i in indices.flatten():
+                filtered_boxes.append(boxes[i])
+                filtered_confidences.append(confidences[i])
+                if masks[i] is not None:
+                    filtered_masks.append(masks[i])
+                else:
+                    filtered_masks.append(None)
 
         print(f"Filtered boxes: {filtered_boxes}")
         print(f"Filtered masks: {filtered_masks}")
@@ -2287,21 +2321,25 @@ class MainWindow(QtWidgets.QMainWindow):
         print(f"Confidences: {confidences}")
 
         return filtered_boxes, filtered_masks, confidences  # Return the filtered bounding boxes, masks, and confidences
- # Return the bounding boxes, masks, and confidences
 
+##################################################
 
-
-
-
-        ##################################################
-    
-
-    def extract_reid_features_with_masks(self, frame, boxes, masks):
-        """Extract ReID features using OSNet for the segmented persons in the frame."""
-
+    def run_reid_with_or_without_masks(self, frame, boxes, masks=None):
+        """
+        Run Person ReID model on the frame using bounding boxes and optional masks.
+        
+        Args:
+            frame: The input frame from the video.
+            boxes: List of bounding boxes [(x1, y1, x2, y2), ...] for detected persons.
+            masks: Optional list of masks corresponding to the bounding boxes.
+        
+        Returns:
+            features: Extracted ReID features for the detected persons.
+        """
         persons = []
         height, width, _ = frame.shape  # Frame dimensions for bounding box checks
 
+        # Iterate over each detection (bounding box)
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             # Check if the bounding box is valid
             if x1 < 0 or y1 < 0 or x2 > width or y2 > height:
@@ -2314,11 +2352,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"Skipping invalid crop for box {i}")
                 continue  # Skip if the crop is invalid
 
-            # Visualize the original cropped image for debugging
-            # cv2.imshow(f"Person_{i}_Original", person_img)
-            
-            # Apply the mask if available
-            if masks[i] is not None:
+            # Step 1: Apply the mask if available
+            if masks is not None and masks[i] is not None:
                 mask = masks[i]
                 mask_resized = cv2.resize(mask, (person_img.shape[1], person_img.shape[0]), interpolation=cv2.INTER_NEAREST)
 
@@ -2332,27 +2367,34 @@ class MainWindow(QtWidgets.QMainWindow):
                 # Apply the mask to the person image
                 person_img = cv2.bitwise_and(person_img, mask_resized)
 
-                # Visualize the masked image for debugging
-                # cv2.imshow(f"Person_{i}_Masked", person_img)
-                # cv2.waitKey(0)  # Pause for debugging
-
-            # Resize to OSNet input size
+            # Step 2: Resize to ReID model input size (e.g., OSNet uses 128x256)
             person_img = cv2.resize(person_img, (128, 256))
 
-            # Preprocess for OSNet
-            person_tensor = self.transform(person_img).unsqueeze(0)
+            # Step 3: Preprocess for the ReID model
+            person_tensor = self.transform(person_img).unsqueeze(0)  # Assuming self.transform exists
             person_tensor = person_tensor.cuda() if torch.cuda.is_available() else person_tensor
 
+            # Collect the person tensor for feature extraction
             persons.append(person_tensor)
             torch.cuda.empty_cache()  # Clear GPU cache after processing
-        # Stack tensors and extract features
+
+        # Step 4: Extract ReID features using the model
         if persons:
             person_batch = torch.cat(persons)
             with torch.no_grad():
-                features = self.reid_model(person_batch)
+                features = self.reid_model(person_batch)  # Run the ReID model
             return features.cpu().numpy()
         else:
-            return []
+            return []  # Return empty list if no valid persons detected
+
+
+
+
+
+        
+    
+
+    
         
 
 
@@ -2360,53 +2402,64 @@ class MainWindow(QtWidgets.QMainWindow):
     def run_deepsort(self, boxes, features, confidences):
         """Run DeepSORT tracker and return bounding boxes and IDs."""
         
-        # Convert boxes and features into the format expected by DeepSORT
+        # Step 1: Debugging input sizes (Check the consistency in input sizes)
+        print(f"Running DeepSORT with {len(boxes)} boxes, {len(features)} features, {len(confidences)} confidences")
+
         bbox_xywh = []
         reid_features = []
         
+        # Step 2: Convert boxes and ensure there are corresponding features
         for i, (x1, y1, x2, y2) in enumerate(boxes):
             if i < len(features):  # Ensure there's a corresponding ReID feature
                 bbox_xywh.append([x1, y1, x2 - x1, y2 - y1])  # Convert to (x, y, w, h)
-                # Add the corresponding ReID feature
                 reid_features.append(features[i])
             else:
-                print(f"Warning: No corresponding feature for box {i}")
+                print(f"Warning: No corresponding feature for box {i} (box: {[x1, y1, x2, y2]})")
+        
+        # Step 3: Check the conversion results
+        print(f"Converted to DeepSORT format: {len(bbox_xywh)} bounding boxes and {len(reid_features)} features")
 
-        # Convert lists to numpy arrays for DeepSORT input
+        # Step 4: Convert lists to numpy arrays for DeepSORT input
         bbox_xywh = np.array(bbox_xywh)
         confidences = np.array(confidences)
         reid_features = np.array(reid_features)
 
-        # Safety check in case there are no valid detections or features
+        # Step 5: Check for invalid input (empty bounding boxes or features)
         if len(bbox_xywh) == 0 or len(reid_features) == 0:
             print("No valid bounding boxes or features to track.")
             return []
 
-        # Update DeepSORT on the bounding boxes and features
+        # Step 6: Pass the inputs to DeepSORT and print the output tracks
         tracks = self.deepsort.update(bbox_xywh, confidences, reid_features)
+        print(f"DeepSORT returned {len(tracks)} tracks")
 
-        # Map track IDs to person_IDs (person_ID1, person_ID2, etc.)
+        # Step 7: Debugging the track information before assigning person IDs
         person_tracks = []
         for track in tracks:
             track_id = track.track_id
+            print(f"Track ID: {track_id} | Bounding box: {track.to_tlbr()}")
 
-            # Check if track_id already has a person_ID
+            # Step 8: Assign person IDs and store them in a map
             if track_id not in self.person_id_map:
-                # If the person is new, assign a new person_ID
                 person_id = f"person_ID{len(self.person_id_map) + 1}"
                 self.person_id_map[track_id] = person_id
 
             person_tracks.append({
                 "track_id": track_id,
-                "person_id": self.person_id_map[track_id],  # Get the person_ID from the map
-                "bbox": track.to_tlbr()  # Bounding box in (x1, y1, x2, y2) format
+                "person_id": self.person_id_map[track_id],
+                "bbox": track.to_tlbr()
             })
 
-        # Debugging information: Check if bbox and features are aligned
-        for i, (bbox, feature) in enumerate(zip(bbox_xywh, reid_features)):
-            print(f"Tracking object {i} with bbox {bbox} and feature {feature[:5]}...")  # Print first 5 elements of feature
+        # Step 9: Print final mapping of person IDs to tracks
+        for pt in person_tracks:
+            print(f"Final Track -> Track ID: {pt['track_id']}, Person ID: {pt['person_id']}, BBox: {pt['bbox']}")
 
-        return person_tracks  # Return tracked persons with their IDs and bounding boxes
+        # Step 10: Additional check: Make sure the returned number of person tracks matches the input
+        if len(person_tracks) != len(bbox_xywh):
+            print(f"Warning: Returned {len(person_tracks)} person tracks but started with {len(bbox_xywh)} bounding boxes")
+
+        return person_tracks
+
 
 
 
@@ -2484,37 +2537,7 @@ class MainWindow(QtWidgets.QMainWindow):
             f.write('\n')  # Write each frame's data on a new line
     
     
-    def run_reid_on_frame(self, frame,detections):
-        """Run Person ReID model on the frame and update tracking."""  
-        features = []
-
-    # Iterate over each detection to extract features
-        for detection in detections:
-            x1, y1, x2, y2 = detection
-            # Crop the person region from the frame
-            person_img = frame[y1:y2, x1:x2]
-            
-            # Preprocess the image for the ReID model
-            person_tensor = self.transform(person_img).unsqueeze(0)  # Assuming self.transform exists
-
-            # Extract features using the ReID model
-            with torch.no_grad(), torch.amp.autocast("cuda"):
-             # Assuming mixed precision for efficiency
-                feature = self.reid_model(person_tensor)
-            features.append(feature)
-
-        # Update person tracks using extracted features
-        for i, feature in enumerate(features):
-            # Here, we assume some logic to assign IDs to people based on extracted features.
-            # For simplicity, we can just generate unique IDs if no tracker is being used.
-            person_id = f"person_{i + 1}"  # Generate unique IDs for each person in the frame
-
-            # Update the person's track
-            if person_id not in self.person_tracks:
-                self.person_tracks[person_id] = []
-            self.person_tracks[person_id].append(detections[i])  # Update person's track with the bounding box
-
-        return features
+    
 
     
     
@@ -2547,7 +2570,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.update()  # Refresh the canvas to show updated annotations
   # Refresh the canvas to show updated annotations
         
-    def annotateVideo(self, batch_size=4):
+    def annotateVideo(self, batch_size=2):
         """Annotate and track persons in the video using YOLOv8, OSNet, and DeepSORT with batch inference."""
 
         if not hasattr(self, 'video_capture'):
@@ -2570,10 +2593,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 break
             
             # Preprocess the frame (resize, etc.)
-            processed_frame = self.preprocess_frame(frame, target_size=(640, 480))
-            
+            # processed_frame = self.preprocess_frame(frame, target_size=(416, 416))
+            # cv2.imshow("Processed Frame", processed_frame)
+            # cv2.waitKey(1)
             # Collect frames into a batch
-            frames.append(processed_frame)
+            frames.append(frame)
             frame_indices.append(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES))  # Track frame number
 
             if len(frames) == batch_size:
@@ -2615,7 +2639,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
         # Close any remaining windows
-        cv2.destroyAllWindows()  # Ensure all OpenCV windows are closed after annotation
+        cv2.destroyAllWindows() 
+        cv2.waitKey(1)# Ensure all OpenCV windows are closed after annotation
         frames.clear()
         frame_indices.clear()
         torch.cuda.empty_cache()  # If you're using a GPU
@@ -2631,47 +2656,44 @@ class MainWindow(QtWidgets.QMainWindow):
 
     
     def run_batch_inference(self, frames, frame_indices):
+       
         """Run YOLOv8 segmentation and feature extraction in batch mode on multiple frames."""
-        processed_frames = [self.preprocess_frame(frame) for frame in frames]  # Preprocess each frame
-        # results = self.run_yolo_segmentation(processed_frames)  # Batch inference on all frames
-        
         all_bboxes = []
         all_features = []
-        all_ids = []  # Store IDs for each frame
-        all_confidences = []  # Store confidence scores for each detection
+        all_ids = []
+        all_confidences = []
 
-        results = self.yolo_model(processed_frames)  # Batch inference on all frames
+        results = self.yolo_model(frames)  # Batch inference on raw frames
         
         min_area_threshold = 500  # Example minimum area threshold
-        max_area_threshold = 3000000  # Example maximum area threshold    
-        for i, (result,frame) in enumerate(zip(results,frames)):
-              # YOLO result for the current frame
-            boxes, masks, confidences = self.run_yolo_segmentation(result,frame)
-            
-            
+        max_area_threshold = 3000000  # Example maximum area threshold
 
-            print(f"Frame {i}: type={type(frame)}, shape={frame.shape if isinstance(frame, np.ndarray) else 'N/A'}")
-            print(f"YOLO Detected Boxes: {boxes}, masks: {masks}")
+        for i, (result, frame) in enumerate(zip(results, frames)):
+            # YOLO result for the current frame
+            boxes, masks, confidences = self.run_yolo_segmentation(result, frame)
             
-            
+            print(f"YOLO Detected Boxes: {boxes}, Masks: {masks}")
+
             if not boxes:
                 # No detections, skip processing
                 continue
-            # Filter the bounding boxes based on area
+
+            # Filter the bounding boxes and masks based on area
             filtered_boxes = [box for box in boxes if min_area_threshold < self.box_area(box) < max_area_threshold]
             filtered_masks = [mask for i, mask in enumerate(masks) if min_area_threshold < self.box_area(boxes[i]) < max_area_threshold]
-            
+
             print(f"Filtered Boxes: {filtered_boxes}")
 
-            # Use pre-extracted boxes and masks to extract ReID features
-            features = self.extract_reid_features_with_masks(frame, filtered_boxes, filtered_masks)
+            # Extract ReID features
+            features = self.run_reid_with_or_without_masks(frame, filtered_boxes, filtered_masks)
             print(f"Extracted Features: {features}")
-            
+
+            # Ensure both boxes and features are present
             if not filtered_boxes or not features.any():
-            # No valid boxes or features to track
-                continue
+                continue  # Skip if there are no valid boxes or features
+
             # Run DeepSORT with pre-extracted features
-            tracks = self.run_deepsort(boxes, filtered_boxes, confidences)
+            tracks = self.run_deepsort(filtered_boxes, features, confidences)
             print(f"Tracks: {tracks}")
 
             # Collect detected track IDs
@@ -2680,7 +2702,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Annotate and display tracks on the current frame
             self.annotate_and_display_tracks(tracks, frame)
 
-            # Collect bounding boxes, features, and track IDs for saving
+            # Collect bounding boxes, features, track IDs, and confidences for saving
             all_bboxes.extend(filtered_boxes)
             all_features.extend(features)
             all_ids.extend(ids)
@@ -2691,7 +2713,8 @@ class MainWindow(QtWidgets.QMainWindow):
             cv2.destroyAllWindows()
             cv2.waitKey(1)
 
-        return all_bboxes, all_features, all_ids, all_confidences  # Return bounding boxes, features, and IDs
+        return all_bboxes, all_features, all_ids, all_confidences
+
 
     
      
@@ -2763,10 +2786,16 @@ class MainWindow(QtWidgets.QMainWindow):
         
         return boxes, masks, features
 
-    def preprocess_frame(self, frame, target_size=(640, 640)):
-        """Resize the frame to a target size to reduce memory usage."""
+    def preprocess_frame(self, frame, target_size=(416, 416)):
+        """Resize the frame to the target size for consistent inference."""
         if isinstance(frame, np.ndarray):
+            # Resize the frame
             resized_frame = cv2.resize(frame, target_size)
+
+            # Optional: Normalize the frame (e.g., to [0, 1] or standardization)
+            resized_frame = resized_frame.astype(np.float32) / 255.0
+
+            # You can add more preprocessing steps (e.g., mean subtraction, etc.)
             return resized_frame
         else:
             raise TypeError(f"Expected frame to be a numpy array, but got {type(frame)}")
@@ -2806,7 +2835,12 @@ class MainWindow(QtWidgets.QMainWindow):
         """Release video resources."""
         if hasattr(self, 'video_capture') and self.video_capture.isOpened():
             self.video_capture.release()
-        print("Video capture resources released.")     
+        print("Video capture resources released.")  
+        # Enable the frame navigation buttons only if the video is loaded successfully
+        if self.video_capture.isOpened():
+            self.actions.openPrevFrame.setEnabled(False)
+            self.actions.openNextFrame.setEnabled(False) 
+            self.actions.AnnotateVideo.setEnabled(False)
     
 
 
