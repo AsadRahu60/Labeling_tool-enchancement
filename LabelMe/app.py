@@ -2247,80 +2247,58 @@ class MainWindow(QtWidgets.QMainWindow):
         print(f"Box: {box}, Area: {area}")
         return area
     
-    def run_yolo_segmentation(self, result, frame):
-        
+    def run_yolo_segmentation(self, frame):
         """Run YOLOv8 segmentation model to detect and segment people in the frame."""
-        
-        self.yolo_model.conf = 0.56  # Lower the confidence threshold for more detections
-        self.yolo_model.iou = 0.52   # Adjust NMS IOU threshold for better detection
+
+        # Set model thresholds
+        self.yolo_model.conf = 0.4  # Confidence threshold for detection
+        self.yolo_model.iou = 0.4   # IOU threshold for NMS
 
         # Run YOLO inference
-        results = self.yolo_model(source=frame, stream=True)
-        
-        boxes = []
-        masks = []
-        confidences = []  # Store confidence values
+        results = self.yolo_model(source=frame, stream=False)  # Batch inference on the frame
 
-        min_area_threshold = 500  # Adjust based on your video resolution
-        max_area_threshold = 3000000  # Adjust based on your video resolution
+        boxes = []
+        confidences = []  # Store confidence values
+        class_ids = []  # Store class IDs for detected objects
+
+        # Minimum and maximum area thresholds for bounding boxes
+        min_area_threshold = 500
+        max_area_threshold = 3000000
 
         for result in results:
             if hasattr(result, 'boxes'):
                 for idx, cls in enumerate(result.boxes.cls):
                     cls = int(cls)
-                    # Print the detected classes to verify labels
-                    print(f"Detected class: {cls}, Confidence: {result.boxes.conf[idx].item()}")
-
-                    # Assuming class '0' is 'person'
-                    if cls == 0:  
+                    if cls == 0:  # Class 'person'
                         # Extract bounding box
                         x1, y1, x2, y2 = result.boxes.xyxy[idx].cpu().numpy().astype(int)
-                        width=x2-x1
-                        height=y2-y1
-                        boxes.append([x1, y1, width, height])  # Format as [x, y, w, h]
 
-                        # Extract confidence value
-                        confidence = result.boxes.conf[idx].cpu().numpy()
-                        confidences.append(float(confidence))
+                        # Calculate area and filter based on thresholds
+                        area = (x2 - x1) * (y2 - y1)
+                        if min_area_threshold < area < max_area_threshold:
+                            boxes.append([x1, y1, x2 - x1, y2 - y1])  # Convert to (x, y, w, h)
+                            confidences.append(float(result.boxes.conf[idx].cpu().numpy()))
+                            class_ids.append(cls)
 
-                        # Extract mask
-                        if result.masks is not None and len(result.masks.data) > idx:
-                            mask = result.masks.data[idx].cpu().numpy()
-                            masks.append(mask)
-                        else:
-                            masks.append(None)
-            else:
-                print(f"Unexpected 'result' object type: {type(result)}")
-                return [], [], []  # Return empty lists if 'result' is not valid
-        
-            # Apply Non-Maximum Suppression (NMS) to filter overlapping boxes
-        score_threshold = 0.5  # Define a score threshold to keep only high-confidence boxes
-        nms_threshold = 0.4  # IOU threshold for NMS (typically between 0.3 - 0.5)  
+        # Apply Non-Maximum Suppression (NMS)
+        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.4, nms_threshold=0.4)
 
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold, nms_threshold)
-        
         filtered_boxes = []
-        filtered_masks = []
         filtered_confidences = []
-        
-        
-        if len(indices) > 0:
-            for i in indices.flatten():
-                filtered_boxes.append(boxes[i])
-                filtered_confidences.append(confidences[i])
-                if masks[i] is not None:
-                    filtered_masks.append(masks[i])
-                else:
-                    filtered_masks.append(None)
 
-        print(f"Filtered boxes: {filtered_boxes}")
-        print(f"Filtered masks: {filtered_masks}")
-        
-        print(f"YOLO Detected Boxes: {boxes}")
-        print(f"Number of boxes: {len(boxes)}")
-        print(f"Confidences: {confidences}")
+        for i in indices:
+            i = i[0]
+            filtered_boxes.append(boxes[i])
+            filtered_confidences.append(confidences[i])
 
-        return filtered_boxes, filtered_masks, confidences  # Return the filtered bounding boxes, masks, and confidences
+        print(f"Filtered boxes after NMS: {filtered_boxes}")
+        print(f"Number of filtered boxes: {len(filtered_boxes)}")
+        print(f"Confidences: {filtered_confidences}")
+
+        # Create masks if available
+        filtered_masks = [None] * len(filtered_boxes)  # Placeholder if masks are needed in the future
+
+        return filtered_boxes, filtered_masks, filtered_confidences
 
 ##################################################
 
@@ -2611,6 +2589,20 @@ class MainWindow(QtWidgets.QMainWindow):
                     all_features.extend(features)
                     all_ids.extend(ids)
                     all_confidences.extend(confidences)
+                    
+                    # Loop through all detected boxes in each frame
+                    for i, box in enumerate(bboxes):
+                        x1, y1, x2, y2 = box
+                        confidence = confidences[i]
+
+                        # Create a shape from the bounding box
+                        shape = Shape(label=f"Person_{i+1}", points=[(x1, y1), (x2, y2)])
+                        shape.fill_color = QtGui.QColor(*random.sample(range(255), 3))  # Assign a random color for visualization
+
+                        # Add the shape to the annotation list and GUI
+                        self.addLabel(shape)
+
+                    
                 else:
                     print("Warning: Mismatch in the number of bounding boxes, features, IDs, and confidences.")
                 
@@ -2627,6 +2619,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 all_features.extend(features)
                 all_ids.extend(ids)
                 all_confidences.extend(confidences)
+                
+                # Loop through all detected boxes in each frame
+                for i, box in enumerate(bboxes):
+                    x1, y1, x2, y2 = box
+                    confidence = confidences[i]
+
+                    # Create a shape from the bounding box
+                    shape = Shape(label=f"Person_{i+1}", points=[(x1, y1), (x2, y2)])
+                    shape.fill_color = QtGui.QColor(*random.sample(range(255), 3))  # Assign a random color for visualization
+
+                    # Add the shape to the annotation list and GUI
+                    self.addLabel(shape)
                 
             else:
                 print("Warning: Mismatch in the number of bounding boxes, features, and IDs.")
@@ -2687,6 +2691,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Extract ReID features
             features = self.run_reid_with_or_without_masks(frame, filtered_boxes, filtered_masks)
             print(f"Extracted Features: {features}")
+            features=np.array(features)
 
             # Ensure both boxes and features are present
             if not filtered_boxes or not features.any():
