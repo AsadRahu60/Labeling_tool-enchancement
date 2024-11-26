@@ -42,6 +42,7 @@ class Shape(object):
         label=None,
         line_color=None,
         shape_type=None,
+        shape_id=None,
         flags=None,
         group_id=None,
         description=None,
@@ -49,6 +50,7 @@ class Shape(object):
     ):
         self.label = label
         self.group_id = group_id
+        self.id= shape_id
         self.points = []
         self.point_labels = []
         self.shape_type = shape_type

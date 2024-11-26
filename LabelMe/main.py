@@ -16,6 +16,7 @@ from labelme.config import get_config
 from labelme.logger import logger
 from labelme.utils import newIcon
 
+
 __version__ = "5.5.0"
 __appname__ = "LabelMe - Enhanced Version"
 def main():
