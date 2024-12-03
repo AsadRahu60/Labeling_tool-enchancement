@@ -52,7 +52,7 @@ import numpy as np
 
 from ultralytics import YOLO
 from scipy.spatial.distance import euclidean
-# from deep_sort_realtime.deepsort_tracker import DeepSort
+from deep_sort_realtime.deepsort_tracker import DeepSort
 # import torch.nn as nn
 # from torchvision.models import resnet50, ResNet50_Weights
 # yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
@@ -128,7 +128,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Additional state for video handling
         self.video_capture = None  # OpenCV VideoCapture object
         self.current_frame = 0      # Current frame number
-        self.total_frames = 0       # Total number of frames in the video
+        self.previous_features=[]
+        # self.total_frames = 0       # Total number of frames in the video
         self.person_tracks = {}# Dictionary to store tracks for each person
         # Example check if the loaded file is a video (you need to set this flag somewhere)
         self.is_video = False  # This flag will be set to True when loading a video
@@ -150,75 +151,96 @@ class MainWindow(QtWidgets.QMainWindow):
         if config is None:
             config = get_config()
         self._config = config
-        
-        # new_code for the PrevFrame    
-         # Add buttons for video navigation
-        self.prevFrameButton = QtWidgets.QPushButton(self.tr("Previous Frame"), self)
-        self.nextFrameButton = QtWidgets.QPushButton(self.tr("Next Frame"), self)
-        self.annotateVideoButton = QtWidgets.QPushButton(self.tr("Annotate Video"), self)
-       
-
-        
-
-        # Define frameNumberInput here
-        self.frameNumberInput = QtWidgets.QLineEdit(self)  # Define QLineEdit for frame input
-        self.frameNumberInput.setPlaceholderText("Enter Frame #")  # Optional: Add placeholder text
-        
-        # Connect buttons to frame navigation
-        self.annotateVideoButton.clicked.connect(self.annotateVideo)
-        self.annotateVideoButton.clicked.connect(self.enable_save_annotation_button)
+################################################################################################################################
 
         """
-          This layout manages frame navigation buttons like "Previous Frame", "Next Frame", and the input field for entering a frame number.
-        """  
-        # Create a layout for frame control
-        frameControlLayout = QtWidgets.QHBoxLayout()
+        Initialize the UI components, including frame controls, video controls,
+        and playback functionalities.
+        """
+        # Central widget
+        self.centralWidget = QWidget(self)
+        self.mainLayout = QVBoxLayout(self.centralWidget)
+        self.setCentralWidget(self.centralWidget)
+
+        
+
+       
+        
+        """
+        Initialize frame navigation controls for video annotation.
+        """
+        # Create buttons and input field
+        self.prevFrameButton = QPushButton("Previous Frame", self)
+        self.nextFrameButton = QPushButton("Next Frame", self)
+        self.frameNumberInput = QLineEdit(self)
+        self.frameNumberInput.setPlaceholderText("Enter Frame #")
+
+        # Create a layout for frame controls
+        frameControlLayout = QHBoxLayout()
         frameControlLayout.addWidget(self.prevFrameButton)
         frameControlLayout.addWidget(self.frameNumberInput)
         frameControlLayout.addWidget(self.nextFrameButton)
-        
-        
-        
-        #Wrap frame Control in a widget
-        self.frameControlWidget = QtWidgets.QWidget(self)
+
+        # Wrap frame controls in a widget
+        self.frameControlWidget = QWidget(self)
         self.frameControlWidget.setLayout(frameControlLayout)
-        
-        # Wrap the QWidget inside a QDockWidget for frame controls
-        frameControlDock = QtWidgets.QDockWidget(self.tr("Frame Control"), self)
-        frameControlDock.setObjectName("frameControlDock")  # Set object name
+
+        # Add the widget to a dock widget
+        frameControlDock = QDockWidget("Frame Control", self)
+        frameControlDock.setObjectName("frameControlDock")
         frameControlDock.setWidget(self.frameControlWidget)
         self.addDockWidget(Qt.BottomDockWidgetArea, frameControlDock)
-       
-        """ This layout is added specifically for video-related buttons (in this case, the "Annotate Video" butto).
-        """    
-    
+
+        # Connect frame navigation buttons to their functionalities
+        self.prevFrameButton.clicked.connect(self.openPrevFrame)
+        self.nextFrameButton.clicked.connect(self.openNextFrame)
         
-        
-        """Both layouts are placed into separate widgets (frameControlWidget and videoControlWidget) and added to the QMainWindow using addDockWidget.
         """
-        
-        # Video control widget for annotation button
-        self.videoControlWidget = QtWidgets.QWidget(self)
-        videoControlLayout = QtWidgets.QHBoxLayout()
-        self.annotateVideoButton = QtWidgets.QPushButton(self.tr("Annotate Video"), self)
+        Initialize video playback controls and annotation functionalities.
+        """
+        # Create buttons
+        self.annotateVideoButton = QPushButton("Annotate Video", self)
+        self.playVideoButton = QPushButton("Play", self)
+        self.pauseVideoButton = QPushButton("Pause", self)
+        self.stopVideoButton = QPushButton("Stop", self)
+
+        # Create a layout for video controls
+        videoControlLayout = QHBoxLayout()
         videoControlLayout.addWidget(self.annotateVideoButton)
+        videoControlLayout.addWidget(self.playVideoButton)
+        videoControlLayout.addWidget(self.pauseVideoButton)
+        videoControlLayout.addWidget(self.stopVideoButton)
+
+        # Wrap video controls in a widget
+        self.videoControlWidget = QWidget(self)
         self.videoControlWidget.setLayout(videoControlLayout)
-        
-        
-        # Wrap the QWidget inside a QDockWidget for video controls
-        videoControlDock = QtWidgets.QDockWidget(self.tr("Video Control"), self)
-        videoControlDock.setObjectName("VideoControlDock")#Set object name
+
+        # Add the widget to a dock widget
+        videoControlDock = QDockWidget("Video Control", self)
+        videoControlDock.setObjectName("videoControlDock")
         videoControlDock.setWidget(self.videoControlWidget)
-        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, videoControlDock)
+        self.addDockWidget(Qt.BottomDockWidgetArea, videoControlDock)
+
+        # Connect buttons to their functionalities
+        self.annotateVideoButton.clicked.connect(self.annotateVideo)
+        self.playVideoButton.clicked.connect(self.playVideo)
+        self.pauseVideoButton.clicked.connect(self.pauseVideo)
+        self.stopVideoButton.clicked.connect(self.stopVideo)
+        
+         # Initially disable video playback buttons
+        self.playVideoButton.setEnabled(False)
+        self.pauseVideoButton.setEnabled(False)
+        self.stopVideoButton.setEnabled(False)
+
+        
+
+        
 
         
         
-
         
         
-        
-        
-
+##############################################################################################################################
         # set default shape colors
         Shape.line_color = QtGui.QColor(*self._config["shape"]["line_color"])
         Shape.fill_color = QtGui.QColor(*self._config["shape"]["fill_color"])
@@ -1550,41 +1572,47 @@ class MainWindow(QtWidgets.QMainWindow):
     #         )
     #     )
     
-    def addLabel(self, shape, annotation_source=None):
+    def addLabel(self, shape):
         """
-        Add a label to the label list.
+        Add a label to the label list and ensure it's unique.
         """
-        if shape.group_id is None:
-            text = f"{shape.label} - ID: {shape.id}"  # Add ID to the label text
-        else:
-            text = f"{shape.label} ({shape.group_id})"
+        # Construct the label text
+        label_text = f"{shape.label} - ID: {shape.shape_id}"  # Label with ID
 
-        # Add label to the label list
-        label_text = f"person - ID: {shape.id}"  # Add ID to the label text
+        # Check if the label already exists in the LabelListWidget
+        for i in range(self.labelList.model().rowCount()):  # Use model's rowCount
+            item = self.labelList.model().item(i)  # Access item through model
+            if item.text() == label_text:
+                # If the label already exists, don't add it again
+                return
+
+        # Add the label to the LabelListWidget
         label_list_item = LabelListWidgetItem(label_text, shape)
         self.labelList.addItem(label_list_item)
 
-        # If the label is not in the unique label list, add it
+        # Ensure the label is added to the Unique Label List
         if self.uniqLabelList.findItemByLabel(shape.label) is None:
-            item = self.uniqLabelList.createItemFromLabel(shape.label)
-            self.uniqLabelList.addItem(item)
+            uniq_item = self.uniqLabelList.createItemFromLabel(shape.label)
+            self.uniqLabelList.addItem(uniq_item)
             rgb = self._get_rgb_by_label(shape.label)
-            self.uniqLabelList.setItemLabel(item, shape.label, rgb)
+            self.uniqLabelList.setItemLabel(uniq_item, shape.label, rgb)
 
         # Add label history for the dialog box
         self.labelDialog.addLabelHistory(shape.label)
 
-        # Enable shape-related actions
+        # Enable actions related to shapes
         for action in self.actions.onShapesPresent:
             action.setEnabled(True)
 
-            # Update the shape's color and set the text
+        # Update the shape's color and set the label text with a color indicator
         self._update_shape_color(shape)
         label_list_item.setText(
-           # Correct the f-string
-        f'{text} <font color="#{int(shape.fill_color.red()):02x}{int(shape.fill_color.green()):02x}{int(shape.fill_color.blue()):02x}">●</font>'
-
+            f'{label_text} <font color="#{int(shape.fill_color.red()):02x}{int(shape.fill_color.green()):02x}{int(shape.fill_color.blue()):02x}">●</font>'
         )
+
+
+
+
 
 
     def _update_shape_color(self, shape):
@@ -2197,6 +2225,21 @@ class MainWindow(QtWidgets.QMainWindow):
             self.actions.openPrevFrame.setEnabled(True)
             self.actions.openNextFrame.setEnabled(True)
     
+    def load_models(self):
+        """Load YOLO and FastReID models."""
+        # Load YOLOv8 model (e.g., pretrained on COCO)
+        self.yolo_model = YOLO("yolov8n.pt")  # Adjust YOLO model variant as needed
+
+        # Load FastReID model
+        cfg = get_cfg()
+        cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid\configs/Market1501/bagtricks_R50.yml")
+        cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
+        cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        self.fastreid_model = DefaultPredictor(cfg) 
+        
+        # Initialize DeepSORT
+        self.deepsort = DeepSort(max_age=30, n_init=3)
+    
     def openVideo(self):
         """Open a video file for annotation."""
         options = QtWidgets.QFileDialog.Options()
@@ -2206,6 +2249,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if filePath:
             self.loadVideo(filePath)
             # Enable the frame navigation buttons only if the video is loaded successfully
+            
+        if self.playVideoButton is not None:
+            self.playVideoButton.setEnabled(True)
+        
         if self.video_capture.isOpened():
             self.actions.openPrevFrame.setEnabled(True)
             self.actions.openNextFrame.setEnabled(True)
@@ -2219,6 +2266,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.errorMessage(self.tr("Error"), self.tr("Could notvideo"))
             return
         
+        
+        print("Video successfully loaded")
+        print(f"Does playVideoButton exist? {hasattr(self, 'playVideoButton')}")
         # Successfully opened the video, set the flag
         self.is_video = True
         
@@ -2229,7 +2279,15 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Load the first frame to display
         self.loadFrame(self.current_frame)
-        # Enable video navigation buttons
+        # Enable video navigation buttons#Vdeo Button
+        # Enable the Play button
+        # if hasattr(self, 'playVideoButton'):
+        #     self.playVideoButton.setEnabled(True)
+        # else:
+        #     print("playVideoButton is not initialized or has been deleted")
+        
+        
+        
         self.prevFrameButton.setEnabled(self.current_frame > 0)
         self.nextFrameButton.setEnabled(self.current_frame < self.total_frames - 1)
         
@@ -2237,6 +2295,10 @@ class MainWindow(QtWidgets.QMainWindow):
         print("Video mode: Connecting video frame navigation buttons")
         self.prevFrameButton.clicked.connect(self.openPrevFrame)
         self.nextFrameButton.clicked.connect(self.openNextFrame)
+        
+        
+        
+        
         
     def loadFrame(self, frame_number):
         """Load a specific frame from the video."""
@@ -2273,6 +2335,22 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.errorMessage(self.tr("Error loading frame"), self.tr("Cannot load frame %d") % frame_number)
 
+    
+    def playVideo(self):
+        """Play the loaded video frame by frame."""
+        if not hasattr(self, 'video_capture') or not self.video_capture.isOpened():
+            QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
+            return
+
+        self.is_playing = True  # Set playback state to playing
+
+        # Use QTimer to control the playback speed
+        self.video_timer = QtCore.QTimer(self)
+        self.video_timer.timeout.connect(self.playNextFrame)
+        self.video_timer.start(33)  # Approx. 30 FPS (1000ms / 30fps = 33ms)
+    
+    
+    
     def openNextFrame(self):
         """Go to the next frame."""
         if self.current_frame + 1 < self.total_frames:
@@ -2286,17 +2364,33 @@ class MainWindow(QtWidgets.QMainWindow):
             self.current_frame -= 1 # Decrement current frame number
             self.loadFrame(self.current_frame)
 
-    def load_models(self):
-        """Load YOLO and FastReID models."""
-        # Load YOLOv8 model (e.g., pretrained on COCO)
-        self.yolo_model = YOLO("yolov8n.pt")  # Adjust YOLO model variant as needed
+    def playNextFrame(self):
+        """Play the next frame during video playback."""
+        if self.is_playing and self.current_frame + 1 < self.total_frames:
+            self.current_frame += 1
+            self.loadFrame(self.current_frame)
+        else:
+            self.stopVideo()  # Stop playback if the end of the video is reached
 
-        # Load FastReID model
-        cfg = get_cfg()
-        cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid\configs/Market1501/bagtricks_R50.yml")
-        cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
-        cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        self.fastreid_model = DefaultPredictor(cfg) 
+    def stopVideo(self):
+        """Stop video playback."""
+        if hasattr(self, 'video_timer') and self.video_timer.isActive():
+            self.video_timer.stop()
+        self.is_playing = False
+    
+    def pauseVideo(self):
+        """Pause video playback."""
+        if hasattr(self, 'video_timer') and self.video_timer.isActive():
+            self.video_timer.stop()
+        self.is_playing = False
+
+    def stopVideoPlayback(self):
+        """Stop video playback and reset to the first frame."""
+        self.pauseVideo()
+        self.current_frame = 0
+        self.loadFrame(self.current_frame)
+
+    
         
     def preprocess_image(self, img):
         """Preprocess image for FastReID input."""
@@ -2305,43 +2399,9 @@ class MainWindow(QtWidgets.QMainWindow):
         img = torch.tensor(img).permute(2, 0, 1).unsqueeze(0).float()
         return img 
     
-    def match_ids(self, current_features, previous_features, threshold=0.7):
-        """
-        Match current features to previous features based on cosine similarity.
+    
 
-        Args:
-            current_features: List of tuples [(feature_vector, bbox), ...].
-            previous_features: List of tuples [(feature_vector, bbox), ...].
-            threshold: Minimum cosine similarity to consider a match.
 
-        Returns:
-            List of tuples [(current_idx, matched_idx)].
-        """
-        matches = []
-        current_ids = []  # Store the IDs of the current frame detections
-        for i, (curr_feat, curr_bbox) in enumerate(current_features):
-            best_match = -1
-            best_similarity = threshold
-
-            # Extract only the feature vector
-            curr_feat = np.array(curr_feat).flatten()
-
-            for j, (prev_feat, prev_bbox) in enumerate(previous_features):
-                prev_feat = np.array(prev_feat).flatten()
-                similarity = cosine_similarity([curr_feat], [prev_feat])[0][0]
-                if similarity > best_similarity:
-                    best_similarity = similarity
-                    best_match = j
-
-            # If no match found, assign a new ID
-            if best_match == -1:
-                # Assign a new unique ID to the person
-                new_id = len(self.labelList) + 1  # New ID assignment logic
-                matches.append((i, new_id))
-            else:
-                matches.append((i, best_match))
-
-        return matches
 
 
 
@@ -2359,20 +2419,26 @@ class MainWindow(QtWidgets.QMainWindow):
     
     
     
-    def track_persons(self, frame):
-        """Track persons and extract features."""
-        results = self.yolo_model(frame)
-        boxes = []
-        features = []
-        for det in results[0].boxes:
-            if int(det.cls[0]) == 0:  # Class 0 is 'person'
-                x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
-                boxes.append((x1, y1, x2, y2))
+    # def track_persons(self, frame):
+    #     """Track persons and extract features."""
+    #     results = self.yolo_model(frame)
+    #     boxes = []
+    #     features = []
+        
+    #     for det in results[0].boxes:
+    #         if int(det.cls[0]) == 0:  # Class 0 is 'person'
+    #             x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
+    #             boxes.append((x1, y1, x2, y2))
 
-                # Extract ReID features
-                feature = self.extract_reid_features(frame, [(x1, y1, x2, y2)])
-                features.append(feature)
-        return boxes, features
+    #             # Extract ReID features
+    #             feature = self.extract_reid_features(frame, [(x1, y1, x2, y2)])
+    #             features.append((feature[0][0], (x1, y1, x2, y2)))  # Pack feature and bounding box as a tuple
+        
+    #     print(f"Features with bounding boxes: {features}")  # Print for debugging
+    #     return boxes, features
+
+
+
     
     
     def extract_reid_features(self, frame, boxes):
@@ -2397,19 +2463,76 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     raise ValueError("Unexpected output format from FastReID model.")
 
-            # Store the feature vector and bounding box as a tuple
+            # Ensure feature is flat and consistent
             features.append((feature, (x1, y1, x2, y2)))  # Tuple of (feature, bounding box)
         return features
 
-    
-    
-    def annotateVideo(self, batch_size=2):
-        """Annotate video frames with YOLO, FastReID, and tracking."""
-        self.load_models()  # Load YOLO and FastReID models
 
-        if not hasattr(self, 'video_capture'):
-            QtWidgets.QMessageBox.warning(self, "Error", "No video loaded.")
-            return
+    def match_ids(self, current_features, previous_features, threshold=0.7):
+        """
+        Match current features to previous features based on cosine similarity.
+        
+        Args:
+            current_features: List of tuples [(feature_vector, bbox), ...].
+            previous_features: List of tuples [(feature_vector, bbox), ...].
+            threshold: Minimum cosine similarity to consider a match.
+        
+        Returns:
+            List of tuples [(current_idx, matched_idx)].
+        """
+        matches = []
+        used_ids=set()
+        
+        # print(f"Current Features: {current_features}")
+        # print(f"Previous Features: {previous_features}")
+        
+        for i, (curr_feat, curr_bbox) in enumerate(current_features):
+            # print(f"Processing current feature {i}: {curr_feat}, {curr_bbox}")
+            
+            best_match = -1
+            best_similarity = threshold
+
+            # Ensure the feature vector is a flat numpy array
+            curr_feat = np.array(curr_feat).flatten()
+            # print(f"Flattened current feature: {curr_feat}")
+
+            for j, (prev_feat, prev_bbox) in enumerate(previous_features):
+                prev_feat = np.array(prev_feat).flatten()
+                # print(f"Flattened previous feature {j}: {prev_feat}")
+                
+                # Compute cosine similarity
+                similarity = cosine_similarity([curr_feat], [prev_feat])[0][0]
+                if similarity > best_similarity and j not in used_ids:
+                    best_similarity = similarity
+                    best_match = j
+
+            if best_match == -1:
+                # Assign a new ID if no match is found
+                new_id = max(used_ids) + 1 if used_ids else 1
+                matches.append((i, new_id))
+                used_ids.add(new_id)
+            else:
+                # Reuse the matched ID
+                matches.append((i, best_match))
+                used_ids.add(best_match)
+
+        return matches
+
+    # Generate unique color for each track_id
+    def get_color_for_id(self,track_id):
+        """
+        Generate or retrieve a unique color for a given ID.
+        """
+        random.seed(track_id)  # Seed the random generator with the ID for consistent colors
+        return (
+            random.randint(0, 255),  # Red
+            random.randint(0, 255),  # Green
+            random.randint(0, 255),  # Blue
+        )
+    
+    def annotateVideo(self):
+        """Annotate video with YOLO, FastReID, and DeepSORT."""
+        self.load_models()
 
         frames = []
         previous_features = []
@@ -2422,49 +2545,80 @@ class MainWindow(QtWidgets.QMainWindow):
             # Run YOLO for person detection
             results = self.yolo_model(frame)
             boxes = []
+            confidences = []
             for det in results[0].boxes:
                 if int(det.cls[0]) == 0:  # Class 0 is 'person'
                     x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
                     boxes.append((x1, y1, x2, y2))
+                    confidences.append(float(det.conf[0]))  # Confidence score
 
-            # Extract ReID features for detected persons
+            # Extract ReID features
             current_features = self.extract_reid_features(frame, boxes)
 
-            # Match IDs across frames using ReID
+            # Match IDs across frames
             ids = self.match_ids(current_features, previous_features)
+
             previous_features = current_features
 
-            # Annotate the frame with bounding boxes and IDs
-            for i, box in enumerate(boxes):
-                x1, y1, x2, y2 = map(int, box)
-                label_text = f"ID: {ids[i]}"
+            # Use DeepSORT for multi-frame tracking
+            detections = []
+            embeds = []
+            for box, confidence, feature in zip(boxes, confidences, current_features):
+                bbox = box
+                feature_vector = np.array(feature[0]).flatten()
+                detections.append((bbox, confidence))
+                embeds.append(feature_vector)
+
+            tracks = self.deepsort.update_tracks(raw_detections=detections, embeds=embeds)
+
+            
+
+            # Annotate the frame
+            for track, (bbox, confidence) in zip(tracks, detections):
+                track_id = track.track_id
+                x1, y1, x2, y2 = track.to_tlbr()
+                color = self.get_color_for_id(track_id)
+
+                # Draw bounding box
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+
+                # Add label
+                label_text = f"Person ID: {track_id}"
+                cv2.putText(frame, label_text, (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
                 # Create a shape object for labeling
-                shape = Shape(label="person", shape_id=id(self))
-                self.addLabel(shape)
+                shape = Shape(label="person{track_id}", shape_id=track_id)
+                shape.addPoint(QtCore.QPointF(x1, y1))
+                shape.addPoint(QtCore.QPointF(x2, y1))
+                shape.addPoint(QtCore.QPointF(x2, y2))
+                shape.addPoint(QtCore.QPointF(x1, y2))
 
-                # Annotate frame with bounding box and ID
-                x1, y1, x2, y2 = map(int, box)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
-            # Add frame to list for batch processing
+                self.addLabel(shape)  # Add label to the label list dialog box
+            # Save the annotated frame
             frames.append(frame)
 
-            # Display the annotated frame
+            # Update display in the LabelMe
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             height, width, channel = rgb_frame.shape
             bytes_per_line = channel * width
             q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
             self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))
-            self.setClean()
-            self.canvas.update()
-            self.repaint()
+            # self.setClean()
+            # self.canvas.update()
+            # self.repaint()
 
-        # Save annotated frames as JSON
-        self.save_reid_annotations(frames, boxes, ids)
+        # Step 6: Save annotations to JSON after processing the video
+         # Save annotated frames and labels as JSON
+        self.save_reid_annotations(frames, boxes, [track.track_id for track in tracks])
         self.video_capture.release()
         cv2.destroyAllWindows()
+
+    def get_random_color(self):
+        """Generate a random color for bounding boxes."""
+        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    
+    
+
 
         
         
@@ -2562,11 +2716,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.actions.openNextFrame.setEnabled(False) 
             self.actions.AnnotateVideo.setEnabled(False)
 
-    # def saveVideoAnnotations(self, video_name, annotations):
-    #     """Save bounding boxes, features, and IDs to a JSON file."""
-    #     with open(f"{video_name}_annotations.json", "w") as f:
-    #         json.dump(annotations, f, indent=4)
-    #     print(f"Annotations saved to {video_name}_annotations.json")
+  
 
 
 

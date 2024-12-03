@@ -51,6 +51,7 @@ class Shape(object):
         self.label = label
         self.group_id = group_id
         self.id= shape_id
+        self.shape_id = shape_id  # Add this line
         self.points = []
         self.point_labels = []
         self.shape_type = shape_type
