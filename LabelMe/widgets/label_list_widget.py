@@ -90,6 +90,10 @@ class LabelListWidgetItem(QtGui.QStandardItem):
 
     def __repr__(self):
         return '{}("{}")'.format(self.__class__.__name__, self.text())
+    
+    def isSelected(self):
+        return self.checkState() == QtCore.Qt.CheckState.Checked
+
 
 
 class StandardItemModel(QtGui.QStandardItemModel):
@@ -173,5 +177,55 @@ class LabelListWidget(QtWidgets.QListView):
                 return item
         raise ValueError("cannot find shape: {}".format(shape))
 
+    def findItems(self, text, matchFlag):
+        """
+        Find items in the list that match the given text.
+        :param text: The text to search for.
+        :param matchFlag: The matching criteria (e.g., QtCore.Qt.MatchExactly).
+        :return: List of matching items.
+        """
+        matching_items = []
+        for row in range(self.model().rowCount()):
+            item = self.model().item(row, 0)
+            if matchFlag == QtCore.Qt.MatchExactly and item.text() == text:
+                matching_items.append(item)
+            elif matchFlag == QtCore.Qt.MatchContains and text in item.text():
+                matching_items.append(item)
+        return matching_items
+    
+    def addPersonLabel(self, track_id, color):
+        """
+        Add a person label with a unique ID to the label list.
+        Args:
+            person_id: Unique ID for the person (e.g., Person ID 1).
+            color: Tuple representing the color (R, G, B) for the label.
+        """
+        label_text = f"Person ID {track_id}"
+        existing_items = self.findItems(label_text, QtCore.Qt.MatchExactly)
+        if not existing_items:  # Add only if it doesn't already exist
+            label_item = LabelListWidgetItem(label_text)
+            label_item.setBackground(QtGui.QColor(*color))
+            self.addItem(label_item)
+
+    def updatePersonLabel(self, person_id, color):
+        """
+        Update the color of an existing person label.
+        Args:
+            person_id: Unique ID for the person.
+            color: New color for the label (R, G, B).
+        """
+        label_text = f"Person ID {person_id}"
+        items = self.findItems(label_text, QtCore.Qt.MatchExactly)
+        for item in items:
+            item.setBackground(QtGui.QColor(*color))
+    
+    
+    def clearPersonLabels(self):
+        """Clear all person labels from the list."""
+        self.clear()
+    
     def clear(self):
         self.model().clear()
+        
+    
+    

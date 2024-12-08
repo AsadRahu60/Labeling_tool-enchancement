@@ -1,5 +1,6 @@
 import imgviz
 from qtpy import QtCore
+from qtpy.QtCore import Qt
 from qtpy import QtGui
 from qtpy import QtWidgets
 
@@ -8,7 +9,7 @@ import labelme.utils
 from labelme import QT5
 from labelme.logger import logger
 from labelme.shape import Shape
-
+import random
 # TODO(unknown):
 # - [maybe] Find optimal epsilon value.
 
@@ -25,8 +26,8 @@ MOVE_SPEED = 5.0
 class Canvas(QtWidgets.QWidget):
     zoomRequest = QtCore.Signal(int, QtCore.QPoint)
     scrollRequest = QtCore.Signal(int, int)
-    newShape = QtCore.Signal()
-    selectionChanged = QtCore.Signal(list)
+    newShape = QtCore.Signal(object)
+    selectionChanged = QtCore.Signal(bool)
     shapeMoved = QtCore.Signal()
     drawingPolygon = QtCore.Signal(bool)
     vertexSelected = QtCore.Signal(bool)
@@ -68,6 +69,7 @@ class Canvas(QtWidgets.QWidget):
         self.current = None
         self.selectedShapes = []  # save the selected shapes here
         self.selectedShapesCopy = []
+        # self.selectionChanged = QtCore.Signal(bool)  # Signal indicating change in selection
         # self.line represents:
         #   - createMode == 'polygon': edge from last point to current
         #   - createMode == 'rectangle': diagonal line of the rectangle
@@ -147,6 +149,31 @@ class Canvas(QtWidgets.QWidget):
             image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
         )
 
+    def addShape(self, shape):
+        """
+        Add a new shape to the canvas.
+        """
+        self.shapes.append(shape)
+        self.newShape.emit(shape)
+        self.update()
+
+    def removeShape(self, shape):
+        """
+        Remove a shape from the canvas.
+        """
+        if shape in self.shapes:
+            self.shapes.remove(shape)
+            self.update()
+
+    def clearShapes(self):
+        """
+        Clear all shapes from the canvas.
+        """
+        self.shapes = []
+        self.selectedShape = None
+        self.update()
+    
+    
     def storeShapes(self):
         shapesBackup = []
         for shape in self.shapes:
@@ -225,6 +252,19 @@ class Canvas(QtWidgets.QWidget):
     def selectedEdge(self):
         return self.hEdge is not None
 
+
+    def assignColor(self, shape_id):
+        """
+        Assign a unique color to a shape based on its ID.
+        """
+        if shape_id not in self.colors:
+            self.colors[shape_id] = (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            )
+        return self.colors[shape_id]
+
     def mouseMoveEvent(self, ev):
         """Update line with last point and current coordinates."""
         try:
@@ -241,6 +281,14 @@ class Canvas(QtWidgets.QWidget):
         self.restoreCursor()
 
         is_shift_pressed = ev.modifiers() & QtCore.Qt.ShiftModifier
+        
+        if self.selectedShapes and ev.buttons() == Qt.LeftButton:
+            dx = ev.pos().x() - self.selectedShape.boundingBox().x()
+            dy = ev.pos().y() - self.selectedShape.boundingBox().y()
+            self.selectedShape.move(dx, dy)
+            self.shapeMoved.emit()
+        self.update()
+           
 
         # Polygon drawing.
         if self.drawing():
@@ -322,7 +370,7 @@ class Canvas(QtWidgets.QWidget):
                 self.repaint()
                 self.movingShape = True
             return
-
+        
         # Just hovering over the canvas, 2 possibilities:
         # - Highlight shapes
         # - Highlight vertex
@@ -408,7 +456,23 @@ class Canvas(QtWidgets.QWidget):
             pos = self.transformPos(ev.posF())
 
         is_shift_pressed = ev.modifiers() & QtCore.Qt.ShiftModifier
+        clicked_shape = None  # Initialize clicked_shape
+        for shape in self.shapes:
+            if shape.boundingBox().contains(ev.pos()):
+                clicked_shape = shape
+                break
 
+        if clicked_shape:
+            self.selectedShape = clicked_shape
+            self.selectionChanged.emit(True)
+        else:
+            self.selectedShape = None
+            self.selectionChanged.emit(False)
+
+        
+        
+        
+        
         if ev.button() == QtCore.Qt.LeftButton:
             if self.drawing():
                 if self.current:
@@ -487,6 +551,7 @@ class Canvas(QtWidgets.QWidget):
                 self.selectShapePoint(pos, multiple_selection_mode=group_mode)
                 self.repaint()
             self.prevPoint = pos
+        self.update()
 
     def mouseReleaseEvent(self, ev):
         if ev.button() == QtCore.Qt.RightButton:
@@ -559,7 +624,8 @@ class Canvas(QtWidgets.QWidget):
 
     def selectShapes(self, shapes):
         self.setHiding()
-        self.selectionChanged.emit(shapes)
+        self.selectedShapes.append(shapes)
+        self.selectionChanged.emit(True)
         self.update()
 
     def selectShapePoint(self, point, multiple_selection_mode):
@@ -640,7 +706,7 @@ class Canvas(QtWidgets.QWidget):
     def deSelectShape(self):
         if self.selectedShapes:
             self.setHiding(False)
-            self.selectionChanged.emit([])
+            self.selectionChanged.emit(bool(self.selectedShapes))
             self.hShapeIsSelected = False
             self.update()
 
@@ -718,6 +784,20 @@ class Canvas(QtWidgets.QWidget):
 
         Shape.scale = self.scale
         for shape in self.shapes:
+            
+            color = self.assignColor(shape.id)
+            pen = QtGui.QPen(QtGui.QColor(*color))
+            pen.setWidth(2)
+            p.setPen(pen)
+
+            if shape == self.selectedShape:
+                brush = QtGui.QBrush(QtGui.QColor(255, 255, 255, 100))
+                p.setBrush(brush)
+            else:
+                p.setBrush(Qt.NoBrush)
+            
+            p.drawRect(shape.boundingBox())
+            
             if (shape.selected or not self._hideBackround) and self.isVisible(shape):
                 shape.fill = shape.selected or shape == self.hShape
                 shape.paint(p)
@@ -785,6 +865,30 @@ class Canvas(QtWidgets.QWidget):
             drawing_shape.paint(p)
 
         p.end()
+        
+    def drawShapesForFrame(self, frame_shapes):
+        """
+        Update the canvas with shapes for the current frame.
+        """
+        self.clearShapes()
+        for shape_data in frame_shapes:
+            shape = self.createShapeFromData(shape_data)
+            self.addShape(shape)
+        self.update()
+
+    def createShapeFromData(self, shape_data):
+        """
+        Create a shape object from shape data (bounding box, ID, etc.).
+        """
+        # Assuming `shape_data` includes bounding box and ID
+        x1, y1, x2, y2, shape_id = shape_data
+        return Shape(QtCore.QRectF(x1, y1, x2, y2), shape_id)
+    
+    def getShapes(self):
+        """
+        Return all shapes on the canvas.
+        """
+        return self.shapes
 
     def transformPos(self, point):
         """Convert from widget-logical coordinates to painter-logical ones."""
@@ -940,7 +1044,26 @@ class Canvas(QtWidgets.QWidget):
             else:
                 self.scrollRequest.emit(ev.delta(), QtCore.Qt.Horizontal)
         ev.accept()
+    
+    def centerOnShape(self, shape):
+        """Center the canvas view on the given shape."""
+        if not self.pixmap or not shape:
+            return
 
+        x_min = min([point.x() for point in shape.points])
+        y_min = min([point.y() for point in shape.points])
+        x_max = max([point.x() for point in shape.points])
+        y_max = max([point.y() for point in shape.points])
+
+        # Calculate the center of the shape
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+
+        # Scroll the canvas to center on the shape
+        self.scrollRequest.emit(center_x, center_y)
+
+    
+    
     def moveByKeyboard(self, offset):
         if self.selectedShapes:
             self.boundedMoveShapes(self.selectedShapes, self.prevPoint + offset)
@@ -982,6 +1105,10 @@ class Canvas(QtWidgets.QWidget):
                     self.shapeMoved.emit()
 
                 self.movingShape = False
+    
+    
+    
+    
 
     def setLastLabel(self, text, flags):
         assert text
@@ -1037,6 +1164,32 @@ class Canvas(QtWidgets.QWidget):
         self.hEdge = None
         self.update()
 
+    ###########################################################################################################################
+    def highlightShape(self, shape):
+        """Highlight the given shape by changing its color temporarily."""
+        if not shape:
+            return
+
+        # Save the original color
+        original_color = shape.line_color
+
+        # Set the highlight color (e.g., bright yellow)
+        shape.line_color = QtGui.QColor(255, 255, 0)
+
+        # Refresh the canvas to show the change
+        self.update()
+
+        # Optional: Restore the original color after a delay
+        QtCore.QTimer.singleShot(1000, lambda: self._restoreShapeColor(shape, original_color))
+
+    def _restoreShapeColor(self, shape, original_color):
+        """Restore the original color of the shape."""
+        if shape:
+            shape.line_color = original_color
+            self.update()
+
+    
+    
     def setShapeVisible(self, shape, value):
         self.visible[shape] = value
         self.update()
@@ -1054,3 +1207,7 @@ class Canvas(QtWidgets.QWidget):
         self.pixmap = None
         self.shapesBackups = []
         self.update()
+
+    def clearSelection(self):
+        self.selectedShapes.clear()
+        self.selectionChanged.emit(False)  # No shapes are selected

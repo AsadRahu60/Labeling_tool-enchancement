@@ -21,6 +21,7 @@ import imgviz
 import natsort
 
 from PyQt5 import QtCore,QtGui,QtWidgets
+from PyQt5.QtGui import QBrush ,QColor
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import *
 from qtpy.QtCore import Qt
@@ -53,6 +54,14 @@ import numpy as np
 from ultralytics import YOLO
 from scipy.spatial.distance import euclidean
 from deep_sort_realtime.deepsort_tracker import DeepSort
+from deep_sort_realtime.deep_sort.nn_matching import NearestNeighborDistanceMetric
+from deep_sort_realtime.deep_sort.detection import Detection
+from deep_sort_realtime.deep_sort.tracker import Tracker
+from shapely.geometry import  box
+
+
+
+
 # import torch.nn as nn
 # from torchvision.models import resnet50, ResNet50_Weights
 # yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
@@ -63,6 +72,7 @@ print(fastreid.__file__)
 from fastreid.config import get_cfg
 from fastreid.engine import DefaultPredictor
 from sklearn.metrics.pairwise import cosine_similarity
+from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 
 
@@ -139,7 +149,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.first_detected_id=None
         self.person_id_map={}
         self.person={} # track the person across the video
+        self.track_id_manager = IDManager()
         # Connect the 'annotateVideoButton' to the enable function
+        self.expected_embedding_size=2048
         
         
         if output is not None:
@@ -1535,11 +1547,13 @@ class MainWindow(QtWidgets.QMainWindow):
         for shape in self.canvas.selectedShapes:
             shape.selected = False
         self.labelList.clearSelection()
-        self.canvas.selectedShapes = selected_shapes
+        if not hasattr(self.canvas, 'selectedShapes') or not isinstance(self.canvas.selectedShapes, list):
+            print("Warning: selectedShapes is not a list or undefined. Resetting to an empty list.")
+            self.canvas.selectedShapes = []
         for shape in self.canvas.selectedShapes:
             shape.selected = True
             item = self.labelList.findItemByShape(shape)
-            self.labelList.selectItem(item)
+            self.labelList.selectItemByShape(item)
             self.labelList.scrollToItem(item)
         self._noSelectionSlot = False
         n_selected = len(selected_shapes)
@@ -1575,40 +1589,41 @@ class MainWindow(QtWidgets.QMainWindow):
     def addLabel(self, shape):
         """
         Add a label to the label list and ensure it's unique.
-        """
-        # Construct the label text
+       # Construct the instance-specific label text
+       """
         label_text = f"{shape.label} - ID: {shape.shape_id}"  # Label with ID
 
-        # Check if the label already exists in the LabelListWidget
-        for i in range(self.labelList.model().rowCount()):  # Use model's rowCount
-            item = self.labelList.model().item(i)  # Access item through model
-            if item.text() == label_text:
-                # If the label already exists, don't add it again
-                return
+        # Maintain a dictionary to track existing labels for fast lookup
+        if not hasattr(self, "labelSet"):
+            self.labelSet = set()
+
+        # Check if the label already exists
+        if label_text in self.labelSet:
+            return  # Avoid adding duplicates
+        self.labelSet.add(label_text)  # Add to the set
 
         # Add the label to the LabelListWidget
         label_list_item = LabelListWidgetItem(label_text, shape)
         self.labelList.addItem(label_list_item)
 
-        # Ensure the label is added to the Unique Label List
+        # Ensure the label is added to the Unique Label List (track the base label)
         if self.uniqLabelList.findItemByLabel(shape.label) is None:
             uniq_item = self.uniqLabelList.createItemFromLabel(shape.label)
             self.uniqLabelList.addItem(uniq_item)
-            rgb = self._get_rgb_by_label(shape.label)
+            rgb = self._get_rgb_by_label(shape.label)  # Generate label-specific color
             self.uniqLabelList.setItemLabel(uniq_item, shape.label, rgb)
 
-        # Add label history for the dialog box
+        # Add label to the label dialog history
         self.labelDialog.addLabelHistory(shape.label)
 
         # Enable actions related to shapes
         for action in self.actions.onShapesPresent:
             action.setEnabled(True)
-
-        # Update the shape's color and set the label text with a color indicator
+            
+            # Update the shape's color and add a visual indicator in the label
         self._update_shape_color(shape)
-        label_list_item.setText(
-            f'{label_text} <font color="#{int(shape.fill_color.red()):02x}{int(shape.fill_color.green()):02x}{int(shape.fill_color.blue()):02x}">●</font>'
-        )
+        label_list_item.setForeground(QBrush(QColor(shape.fill_color)))  # Set text color
+        label_list_item.setText(f'{label_text} ●')  # Add an indicator for the color
 
 
 
@@ -1789,8 +1804,54 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.canvas.deSelectShape()
 
     def labelItemChanged(self, item):
+        """Handle changes in the label list item (e.g., visibility or selection)."""
+        # Get the associated shape object
         shape = item.shape()
-        self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
+
+        # Ensure the shape exists
+        if not shape:
+            print("Warning: No shape associated with this item.")
+            return
+
+        # Update visibility based on check state
+        is_visible = item.checkState() == QtCore.Qt.CheckState.Checked
+        self.canvas.setShapeVisible(shape, is_visible)
+
+        # Handle item selection (click or confirmation action)
+        if self.labelList.selectedItems() and item in self.labelList.selectedItems():
+            # Deselect all shapes and select the current one
+            self.canvas.deselectAllShapes()  # Deselect all shapes
+            shape.selected = True  # Mark the current shape as selected
+            self.canvas.selectedShapes = [shape]  # Update the selectedShapes list
+            self.canvas.update()  # Refresh the canvas to reflect changes
+
+            # Optional: Center the canvas view on the selected shape
+            if hasattr(self.canvas, "centerOnShape"):
+                self.canvas.centerOnShape(shape)
+
+            # Optional: Provide visual feedback (e.g., change color to highlight)
+            if hasattr(self.canvas, "highlightShape"):
+                self.canvas.highlightShape(shape)
+
+            # Log or confirm the action (e.g., print or show a confirmation dialog)
+            print(f"Person ID {shape.shape_id} selected.")
+
+            # Display a dialog to confirm the selected person
+            response = QtWidgets.QMessageBox.question(
+                self,
+                "Confirm Selection",
+                f"Do you confirm Person ID {shape.shape_id}?",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+            )
+            if response == QtWidgets.QMessageBox.Yes:
+                print(f"Person ID {shape.shape_id} confirmed.")
+            else:
+                print(f"Person ID {shape.shape_id} not confirmed.")
+
+        # Update the canvas to reflect changes
+        self.canvas.update()
+
+
 
     def labelOrderChanged(self):
         self.setDirty()
@@ -2235,10 +2296,13 @@ class MainWindow(QtWidgets.QMainWindow):
         cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid\configs/Market1501/bagtricks_R50.yml")
         cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
         cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        self.fastreid_model = DefaultPredictor(cfg) 
+        self.fastreid_model = DefaultPredictor(cfg)
+        test_img = torch.randn(1, 3, 128, 256)  # Replace with appropriate input size
+        feature = self.fastreid_model(test_img)
+        print(feature.shape)  # Should output (1, expected_embedding_size) 
         
         # Initialize DeepSORT
-        self.deepsort = DeepSort(max_age=30, n_init=3)
+        self.deepsort = DeepSort(max_age=50, n_init=3)
     
     def openVideo(self):
         """Open a video file for annotation."""
@@ -2530,94 +2594,292 @@ class MainWindow(QtWidgets.QMainWindow):
             random.randint(0, 255),  # Blue
         )
     
+    
+
+    
+
+
+
+    def normalize_bbox(self, bbox):
+        return tuple(map(int, bbox))
+
+    def iou(self,box1, box2):
+        x1, y1, x2, y2 = box1
+        x1_, y1_, x2_, y2_ = box2
+
+        inter_x1 = max(x1, x1_)
+        inter_y1 = max(y1, y1_)
+        inter_x2 = min(x2, x2_)
+        inter_y2 = min(y2, y2_)
+        inter_area = max(0, inter_x2 - inter_x1 + 1) * max(0, inter_y2 - inter_y1 + 1)
+
+        box1_area = (x2 - x1 + 1) * (y2 - y1 + 1)
+        box2_area = (x2_ - x1_ + 1) * (y2_ - y1_ + 1)
+        union_area = box1_area + box2_area - inter_area
+
+        return inter_area / union_area if union_area > 0 else 0
+
+      # Should output (1, expected_embedding_size)
+
+    
+    
     def annotateVideo(self):
+        
+       
         """Annotate video with YOLO, FastReID, and DeepSORT."""
         self.load_models()
 
         frames = []
-        previous_features = []
+        all_annotations = []
 
+        # Initialize the Tracker
+        max_cosine_distance = 0.5
+        max_age = 30
+        n_init = 3
+        metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance, None)
+        if not hasattr(self, 'tracker'):
+            self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init)
+
+        person_colors = {}
+        if not hasattr(self, 'track_id_manager'):
+            self.track_id_manager = IDManager()
+
+        # Set the expected embedding size (based on the model)
+        if not hasattr(self, 'expected_embedding_size'):
+            self.expected_embedding_size =2048   # Replace with your model's actual output size
+
+        # Process the video frame by frame
         while self.video_capture.isOpened():
             ret, frame = self.video_capture.read()
             if not ret:
+                print("End of video or no frame available.")
                 break
 
-            # Run YOLO for person detection
+            # Step 1: Run YOLO for person detection
             results = self.yolo_model(frame)
-            boxes = []
-            confidences = []
+            boxes, confidences = [], []
             for det in results[0].boxes:
-                if int(det.cls[0]) == 0:  # Class 0 is 'person'
+                if int(det.cls[0]) == 0 and float(det.conf[0]) > 0.5:  # Class 0 is person
                     x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
+                    
                     boxes.append((x1, y1, x2, y2))
-                    confidences.append(float(det.conf[0]))  # Confidence score
-
-            # Extract ReID features
+                    confidences.append(float(det.conf[0]))
+                print(f"Raw YOLO output box: {det.xyxy[0].tolist()}")
+            # Step 2: Extract ReID features for detected boxes
             current_features = self.extract_reid_features(frame, boxes)
-
-            # Match IDs across frames
-            ids = self.match_ids(current_features, previous_features)
-
-            previous_features = current_features
-
-            # Use DeepSORT for multi-frame tracking
             detections = []
-            embeds = []
-            for box, confidence, feature in zip(boxes, confidences, current_features):
-                bbox = box
-                feature_vector = np.array(feature[0]).flatten()
-                detections.append((bbox, confidence))
-                embeds.append(feature_vector)
+            frame_height, frame_width, _ = frame.shape
+            print(f"Frame dimensions: Width={frame_width}, Height={frame_height}")
+            print(f"Bounding box: {boxes}")
 
-            tracks = self.deepsort.update_tracks(raw_detections=detections, embeds=embeds)
+            for box, confidence, feature in zip(boxes, confidences, current_features):
+                if not (0 <= box[0] < box[2] <= frame_width and 0 <= box[1] < box[3] <= frame_height):
+                    print(f"Skipping invalid YOLO bounding box: {box}")
+                    continue
+                
+                if isinstance(feature, tuple):
+                    feature = feature[0]  # Handle feature as tuple if needed
+                try:
+                    feature_vector = np.array(feature).flatten()
+                    # Validate feature size
+                    if len(feature_vector) != self.expected_embedding_size:
+                        print(f"Skipping box {box}: Invalid feature size")
+                        continue
+
+                    # Validate and normalize bounding box
+                    x1, y1, x2, y2 = box
+                    if not (0 <= x1 < frame_width and 0 <= y1 < frame_height and 0 <= x2 <= frame_width and 0 <= y2 <= frame_height and x1 < x2 and y1 < y2):
+                        print(f"Skipping invalid bounding box: {box}")
+                        continue
+
+                    bbox_tuple = (x1 / frame_width, y1 / frame_height, x2 / frame_width, y2 / frame_height)
+                    detection = Detection(bbox_tuple, confidence, feature_vector)
+                    detections.append(detection)
+                except Exception as e:
+                    print(f"Error preparing detection for box {box}: {e}")
+
+
+                    # Step 3: Update the tracker
+            # Step 3: Update the tracker
+            if detections:
+                try:
+                    self.tracker.predict()
+                    self.tracker.update(detections=detections)  # Pass the list of detections
+                except Exception as e:
+                    print(f"Error during tracker update: {e}")
+            else:
+                print("No valid detections for this frame, skipping tracker update.")
+
+
 
             
+                    # Step 4: Process and annotate tracks
+            frame_annotations = []
+            for track in self.tracker.tracks:
+                
+                # Skip unconfirmed tracks or tracks that haven't been updated recently
+                if not track.is_confirmed() or track.time_since_update > 1:
+                    print(f"Unconfirmed track, skipping: {track}")
+                    
+                
+                            # Assign a new ID if not already assigned
+                if not hasattr(track, 'track_id') or track.track_id not in self.track_id_manager.used_ids:
+                    track.track_id = self.track_id_manager.get_new_id()
+                    continue
+                # Get track ID and bounding box
+                # track_id = track.track_id
+                bbox = track.to_tlbr()  # Bounding box in (x1, y1, x2, y2) format
+                print(f"Track ID: {track.track_id}, Bounding box: {track.to_tlbr()}")
+                
+                 # Validate bounding box dimensions
+                if not (0 <= bbox[0] < bbox[2] <= frame_width and 0 <= bbox[1] < bbox[3] <= frame_height):
+                    print(f"Invalid bounding box for track ID {track.track_id}: {bbox}")
+                    continue
 
-            # Annotate the frame
-            for track, (bbox, confidence) in zip(tracks, detections):
-                track_id = track.track_id
-                x1, y1, x2, y2 = track.to_tlbr()
-                color = self.get_color_for_id(track_id)
+                            # Release ID for terminated tracks
+                if not track.is_confirmed() and track.time_since_update > self.tracker.max_age:
+                    print(f"Track already has ID: {track.track_id}")
+                    print(f"Releasing Track ID: {track.track_id} due to inactivity.")
+                    self.track_id_manager.release_id(track.track_id)
+                    
+                    continue
+                # Assign unique colors to each track ID
+                if track.track_id not in person_colors:
+                    person_colors[track.track_id] = self.get_random_color()
+                color = person_colors[track.track_id]
 
-                # Draw bounding box
-                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                # Annotate the frame with bounding box and label
+                label_text = f"Person ID: {track.track_id}"
+                cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+                cv2.putText(frame, label_text, (int(bbox[0]), int(bbox[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-                # Add label
-                label_text = f"Person ID: {track_id}"
-                cv2.putText(frame, label_text, (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                # # Match detection for confidence (optional, depending on detection-tracking pipeline)
+                # matched_detection = None
+                # for detection in detections:
+                #     if self.iou(detection.to_tlbr(), bbox) > 0.3:  # IoU threshold
+                #         matched_detection = detection
+                #         break
+                # detection_confidence = matched_detection.confidence if matched_detection else "No detection"
+                for detection in detections:
+                    if detection.confidence < 0.5:  # Example confidence threshold
+                        continue
+                    
+                # Debugging output
+                print(f"Track ID: {track.track_id}, BBox: {bbox}, Confidence: {confidence}")
 
-                # Create a shape object for labeling
-                shape = Shape(label="person{track_id}", shape_id=track_id)
-                shape.addPoint(QtCore.QPointF(x1, y1))
-                shape.addPoint(QtCore.QPointF(x2, y1))
-                shape.addPoint(QtCore.QPointF(x2, y2))
-                shape.addPoint(QtCore.QPointF(x1, y2))
+                # Create a Shape object for LabelMe annotation
+                shape = Shape(label=f"person{track.track_id}", shape_id=track.track_id)
+                shape.addPoint(QtCore.QPointF(bbox[0], bbox[1]))
+                shape.addPoint(QtCore.QPointF(bbox[2], bbox[1]))
+                shape.addPoint(QtCore.QPointF(bbox[2], bbox[3]))
+                shape.addPoint(QtCore.QPointF(bbox[0], bbox[3]))
+                self.addLabel(shape)
 
-                self.addLabel(shape)  # Add label to the label list dialog box
-            # Save the annotated frame
+                # Update label lists
+                self.labelList.addPersonLabel(track.track_id, color)  # Update Label List
+                self.uniqLabelList.addUniquePersonLabel(f"person{track.track_id}", color)  # Update Unique Label List
+
+                # Append annotations for the current frame
+                frame_annotations.append({
+                    "track_id": track.track_id,
+                    "bbox": list(bbox),
+                    "confidence": confidence,
+                    "class": "person"
+                })
+                print(f"Track ID: {track.track_id}, BBox: {bbox}, Confidence: {confidence}")
+
+            if frame_annotations:
+                    all_annotations.append(frame_annotations)
             frames.append(frame)
 
-            # Update display in the LabelMe
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            height, width, channel = rgb_frame.shape
-            bytes_per_line = channel * width
-            q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(q_img))
-            # self.setClean()
-            # self.canvas.update()
-            # self.repaint()
-
-        # Step 6: Save annotations to JSON after processing the video
-         # Save annotated frames and labels as JSON
-        self.save_reid_annotations(frames, boxes, [track.track_id for track in tracks])
+                    # Update display
+            try:
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                height, width, channel = rgb_frame.shape
+                bytes_per_line = channel * width
+                q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+                pixmap = QtGui.QPixmap.fromImage(q_img)
+                self.canvas.loadPixmap(pixmap)
+                self.canvas.update()
+            except Exception as e:
+                print(f"Error updating UI for frame: {e}")
+        
+        # Step 4: Ask the user for the desired annotation format
+        format_choice = self.choose_annotation_format()
+        if format_choice:
+            self.save_reid_annotations(frames, all_annotations, format_choice)
+            self.actions.saveReIDAnnotationsAction.setEnabled(True) 
+        else:
+            print("Annotation saving canceled by user.")
         self.video_capture.release()
         cv2.destroyAllWindows()
+
+
+
+
+    def choose_annotation_format(self):
+        """Allow the user to choose the annotation format."""
+        formats = ["JSON", "XML", "COCO", "YOLO"]  # Add more formats if needed
+        format_choice, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            "Choose Annotation Format",
+            "Select the format for saving annotations:",
+            formats,
+            0,
+            False,
+        )
+        if ok and format_choice:
+            return format_choice.lower()
+        return None
+
+    
+    
+    
 
     def get_random_color(self):
         """Generate a random color for bounding boxes."""
         return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
     
-    
+    def find_bbox_match(self, bbox, boxes, iou_threshold=0.5):
+        """
+        Find the best-matching bounding box for a given bbox using IoU.
+        Args:
+            bbox: The bounding box to match (x1, y1, x2, y2).
+            boxes: List of detected boxes [(x1, y1, x2, y2), ...].
+            iou_threshold: Minimum IoU threshold to consider a match.
+        Returns:
+            The best-matching box from `boxes`, or None if no match is found.
+        """
+        def iou(box1, box2):
+            x1, y1, x2, y2 = box1
+            x1_, y1_, x2_, y2_ = box2
+
+            # Compute intersection
+            inter_x1 = max(x1, x1_)
+            inter_y1 = max(y1, y1_)
+            inter_x2 = min(x2, x2_)
+            inter_y2 = min(y2, y2_)
+            inter_area = max(0, inter_x2 - inter_x1 + 1) * max(0, inter_y2 - inter_y1 + 1)
+
+            # Compute union
+            box1_area = (x2 - x1 + 1) * (y2 - y1 + 1)
+            box2_area = (x2_ - x1_ + 1) * (y2_ - y1_ + 1)
+            union_area = box1_area + box2_area - inter_area
+
+            return inter_area / union_area if union_area > 0 else 0
+
+        best_match = None
+        best_iou = 0
+
+        for detected_box in boxes:
+            current_iou = iou(bbox, detected_box)
+            if current_iou > best_iou and current_iou >= iou_threshold:
+                best_match = detected_box
+                best_iou = current_iou
+
+        return best_match
+
+
 
 
         
@@ -2627,34 +2889,178 @@ class MainWindow(QtWidgets.QMainWindow):
         self.saveReIDAnnotationsAction.setEnabled(True)  # Enable the saveReIDAnnotation button
  
     
+    def choose_annotation_format(self):
+        """Allow the user to choose the annotation format."""
+        formats = ["JSON", "XML", "COCO", "YOLO"]  # Add more formats if needed
+        format_choice, ok = QtWidgets.QInputDialog.getItem(
+            self,
+            "Choose Annotation Format",
+            "Select the format for saving annotations:",
+            formats,
+            0,
+            False,
+        )
+        if ok and format_choice:
+            return format_choice.lower()
+        return None
 
-    def save_reid_annotations(self, frames, boxes, ids):
-        """Save the ReID annotations to a file."""
-        annotations = self.collect_reid_annotations(frames, boxes, ids)
+    
+    
+    
+    
+    
+    
+    def save_reid_annotations(self, frames, all_annotations, format_choice="json"):
+        """Save the annotations in the chosen format."""
+        options = QtWidgets.QFileDialog.Options()
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save Annotations", "", f"{format_choice.upper()} Files (*.{format_choice});;All Files (*)", options=options
+        )
 
-        if annotations:
-            options = QtWidgets.QFileDialog.Options()
-            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save ReID Annotations", "", "JSON Files (*.json);;All Files (*)", options=options)
+        if not file_path:
+            print("Save canceled by user.")
+            return
 
-            if file_path:
-                with open(file_path, 'w') as f:
-                    json.dump(annotations, f)
-                QtWidgets.QMessageBox.information(self, "Success", "ReID annotations have been saved.")
-        else:
-            QtWidgets.QMessageBox.warning(self, "Warning", "No annotations to save.")
-            
-    def collect_reid_annotations(self, frames, boxes, ids):
-        """Collect the ReID annotations (bounding boxes, features, and IDs)."""
+        try:
+            if format_choice == "json":
+                with open(file_path, "w") as f:
+                    json.dump(all_annotations, f, indent=4)
+            elif format_choice == "xml":
+                self.save_annotations_as_xml(file_path, all_annotations)
+            elif format_choice == "coco":
+                self.save_annotations_as_coco(file_path, all_annotations)
+            elif format_choice == "yolo":
+                self.save_annotations_as_yolo(file_path, all_annotations)
+            else:
+                raise ValueError(f"Unsupported format: {format_choice}")
+
+            QtWidgets.QMessageBox.information(self, "Success", f"Annotations saved as {format_choice.upper()}!")
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", f"Failed to save annotations: {e}")
+            print(f"Error saving annotations: {e}")
+
+
+
+    def collect_reid_annotations(self, frames, all_annotations):
+        """
+        Collect the ReID annotations (bounding boxes, IDs, and confidences) for each frame.
+        Each frame contains the following structure:
+        - frame_index
+        - detections: List of detected objects, each with track_id, bbox, confidence, class
+        """
         annotations = []
-        for i, (frame, box, id) in enumerate(zip(frames, boxes, ids)):
-            frame_annotations = {
-                "frame": i,
-                "boxes": box,
-                "ids": id
+
+        for frame_index, frame_annotations in enumerate(all_annotations):
+            frame_data = {
+                "frame": frame_index,
+                "detections": []
             }
-            annotations.append(frame_annotations)
+
+            for annotation in frame_annotations:
+                # Validate the structure of each annotation
+                if not isinstance(annotation, dict):
+                    raise ValueError(f"Invalid annotation format at frame {frame_index}: {annotation}")
+
+                # Ensure required keys exist
+                required_keys = {"track_id", "bbox", "confidence", "class"}
+                if not required_keys.issubset(annotation.keys()):
+                    raise KeyError(f"Missing keys in annotation at frame {frame_index}: {annotation}")
+
+                detection_data = {
+                    "track_id": annotation["track_id"],
+                    "bbox": annotation["bbox"],
+                    "confidence": annotation["confidence"],
+                    "class": annotation["class"]  # For example, "person"
+                }
+                frame_data["detections"].append(detection_data)
+
+            annotations.append(frame_data)
 
         return annotations
+    
+    def save_annotations_as_coco(self,file_path, all_annotations):
+        """Save annotations in COCO format."""
+        # Convert annotations to COCO format
+        coco_annotations = {
+            "info": {"description": "Generated by LabelMe"},
+            "images": [],
+            "annotations": [],
+            "categories": [{"id": 1, "name": "person"}],
+        }
+        for frame_idx, frame_anno in enumerate(all_annotations):
+            coco_annotations["images"].append({"id": frame_idx, "file_name": f"frame_{frame_idx}.jpg"})
+            for anno in frame_anno:
+                coco_annotations["annotations"].append({
+                    "id": anno["track_id"],
+                    "image_id": frame_idx,
+                    "bbox": anno["bbox"],
+                    "category_id": 1,
+                    "confidence": anno["confidence"]
+                })
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save as COCO", "", "COCO Files (*.json)")
+        if file_path:
+            with open(file_path, 'w') as f:
+                json.dump(coco_annotations, f, indent=4)
+
+
+    def save_annotations_as_xml(self,file_path, all_annotations):
+        """Save annotations in Pascal VOC format."""
+        for frame_idx, frame_anno in enumerate(all_annotations):
+            root = Element('annotation')
+
+            # Add the filename of the frame
+            SubElement(root, 'filename').text = f"frame_{frame_idx}.jpg"
+
+            # Loop through annotations for the current frame
+            for anno in frame_anno:
+                obj = SubElement(root, 'object')
+                SubElement(obj, 'name').text = "person"  # Class name
+                bndbox = SubElement(obj, 'bndbox')
+
+                # Add bounding box coordinates
+                SubElement(bndbox, 'xmin').text = str(anno["bbox"][0])
+                SubElement(bndbox, 'ymin').text = str(anno["bbox"][1])
+                SubElement(bndbox, 'xmax').text = str(anno["bbox"][2])
+                SubElement(bndbox, 'ymax').text = str(anno["bbox"][3])
+
+            # Save the XML file for the current frame
+            tree = ElementTree(root)
+            file_path = f"frame_{frame_idx}.xml"  # You can customize the file path if needed
+            tree.write(file_path, encoding="utf-8", xml_declaration=True)
+            print(f"Saved Pascal VOC annotations to {file_path}")
+            
+    def save_annotations_as_yolo(self, file_path, all_annotations):
+        """
+        Save annotations in YOLO format.
+        Each line in a YOLO annotation file represents an object and has the format:
+        <class> <x_center> <y_center> <width> <height>
+        where values are normalized to [0, 1].
+        """
+        try:
+            frame_width = self.video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+            frame_height = self.video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+            with open(file_path, 'w') as f:
+                for frame_idx, frame_anno in enumerate(all_annotations):
+                    for anno in frame_anno:
+                        bbox = anno["bbox"]
+                        x_center = ((bbox[0] + bbox[2]) / 2) / frame_width
+                        y_center = ((bbox[1] + bbox[3]) / 2) / frame_height
+                        width = (bbox[2] - bbox[0]) / frame_width
+                        height = (bbox[3] - bbox[1]) / frame_height
+
+                        # Write in YOLO format: <class> <x_center> <y_center> <width> <height>
+                        f.write(f"0 {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}\n")
+
+            print(f"YOLO annotations saved to {file_path}")
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, "Error", f"Failed to save YOLO annotations: {e}")
+            print(f"Error saving YOLO annotations: {e}")
+
+
+
+    
+
     
 
   
@@ -3044,3 +3450,21 @@ class MainWindow(QtWidgets.QMainWindow):
 #             transforms.ToTensor(),                  # Convert PIL image to Tensor
 #             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
 #         ])
+
+
+class IDManager:
+   
+    def __init__(self):
+        self.used_ids = set()
+        self.next_id = 1
+
+    def get_new_id(self):
+        while self.next_id in self.used_ids:
+            self.next_id += 1
+        new_id = self.next_id
+        self.used_ids.add(new_id)
+        return new_id
+
+    def release_id(self, track_id):
+        if track_id in self.used_ids:
+            self.used_ids.remove(track_id)

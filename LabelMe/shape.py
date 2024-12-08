@@ -4,6 +4,7 @@ import math
 import numpy as np
 import skimage.measure
 from qtpy import QtCore
+from qtpy.QtCore import QRectF
 from qtpy import QtGui
 
 import labelme.utils
@@ -47,10 +48,12 @@ class Shape(object):
         group_id=None,
         description=None,
         mask=None,
+        rect=None
     ):
         self.label = label
         self.group_id = group_id
         self.id= shape_id
+        self.rect=rect
         self.shape_id = shape_id  # Add this line
         self.points = []
         self.point_labels = []
@@ -349,6 +352,18 @@ class Shape(object):
                 path.lineTo(p)
         return path
 
+    def boundingBox(self):
+        """
+        Return the bounding box of the shape.
+        """
+        return self.rect
+
+    def move(self, dx, dy):
+        """
+        Move the shape by dx and dy.
+        """
+        self.rect.translate(dx, dy)
+    
     def boundingRect(self):
         return self.makePath().boundingRect()
 

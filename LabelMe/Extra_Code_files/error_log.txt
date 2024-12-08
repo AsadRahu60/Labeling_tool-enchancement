@@ -1,0 +1,34 @@
+
+# Error Log
+
+## Error 1: Skipping IDs in Tracking
+**Description:** Track IDs were not sequential, and some were skipped.
+**Resolution:**
+- Integrated `IDManager` class to manage and reuse IDs.
+- Released unused IDs when tracks ended.
+
+## Error 2: Invalid Feature Vector Size
+**Description:** Mismatch in feature vector size (expected 2048).
+**Resolution:**
+- Added validation for feature vector size in the `annotateVideo` method.
+
+## Error 3: Invalid Bounding Boxes
+**Description:** Bounding boxes outside the frame dimensions were detected.
+**Resolution:**
+- Added checks to validate and normalize bounding boxes.
+
+## Error 4: Tracker Update Failure
+**Description:** DeepSORT tracker failed to update due to malformed detections.
+**Resolution:**
+- Added error handling and validation for detections before updating the tracker.
+
+## Error 5: Duplicate Labels in Label List
+**Description:** Duplicate labels appeared in the `LabelListWidget`.
+**Resolution:**
+- Checked for existing labels before adding new ones.
+
+---
+
+### Debugging Notes
+- Ensure all models and dependencies are correctly configured.
+- Validate the input video and annotations for consistency.
