@@ -3,6 +3,7 @@ from qtpy import QtCore
 from qtpy.QtCore import Qt
 from qtpy import QtGui
 from qtpy import QtWidgets
+from shapely.geometry import box
 
 import labelme.ai
 import labelme.utils
@@ -12,7 +13,20 @@ from labelme.shape import Shape
 import random
 # TODO(unknown):
 # - [maybe] Find optimal epsilon value.
+import logging
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to DEBUG for more detailed logs
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # Logs to console
+        logging.FileHandler("annotate_video.log"),  # Logs to file
+    ]
+)
+
+
+logger = logging.getLogger(__name__)
 
 CURSOR_DEFAULT = QtCore.Qt.ArrowCursor
 CURSOR_POINT = QtCore.Qt.PointingHandCursor
@@ -69,13 +83,16 @@ class Canvas(QtWidgets.QWidget):
         self.current = None
         self.selectedShapes = []  # save the selected shapes here
         self.selectedShapesCopy = []
+        
         # self.selectionChanged = QtCore.Signal(bool)  # Signal indicating change in selection
         # self.line represents:
         #   - createMode == 'polygon': edge from last point to current
         #   - createMode == 'rectangle': diagonal line of the rectangle
         #   - createMode == 'line': the line
         #   - createMode == 'point': the point
-        self.line = Shape()
+        self.line = Shape(QtCore.QRectF(0, 0, 1, 1))  # Default QRectF with minimum dimensions
+        
+
         self.prevPoint = QtCore.QPoint()
         self.prevMovePoint = QtCore.QPoint()
         self.offsets = QtCore.QPoint(), QtCore.QPoint()
@@ -95,6 +112,9 @@ class Canvas(QtWidgets.QWidget):
         self.hShapeIsSelected = False
         self._painter = QtGui.QPainter()
         self._cursor = CURSOR_DEFAULT
+        shape = Shape(QtCore.QRectF(0, 0, 100, 100))
+        
+        
         # Menus:
         # 0: right-click without selection and dragging of shapes
         # 1: right-click with selection and dragging of shapes
@@ -148,14 +168,25 @@ class Canvas(QtWidgets.QWidget):
         self._ai_model.set_image(
             image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
         )
-
     def addShape(self, shape):
         """
-        Add a new shape to the canvas.
+        Add a validated Shape to the canvas.
+        Args:
+            shape (Shape): Shape object to be added.
         """
+        if shape is None:
+            logging.error("Attempted to add NoneType shape to canvas.")
+            return
+
+        # Use boundingRect() instead of boundingBox()
+        bbox = shape.boundingRect()
+        if bbox is None or bbox.isEmpty():
+            logging.error(f"Invalid bounding box for shape ID {shape.id}.")
+            return
+
         self.shapes.append(shape)
-        self.newShape.emit(shape)
-        self.update()
+        logging.info(f"Shape added to canvas: ID {shape.id}, BoundingBox {bbox}")
+
 
     def removeShape(self, shape):
         """
@@ -255,8 +286,10 @@ class Canvas(QtWidgets.QWidget):
 
     def assignColor(self, shape_id):
         """
-        Assign a unique color to a shape based on its ID.
+        Assigns a unique color to a shape ID and returns the color.
         """
+        if not hasattr(self, 'colors'):  # Ensure colors dictionary exists
+            self.colors = {}
         if shape_id not in self.colors:
             self.colors[shape_id] = (
                 random.randint(0, 255),
@@ -747,6 +780,7 @@ class Canvas(QtWidgets.QWidget):
             self.boundedMoveShapes(shapes, point + offset)
 
     def paintEvent(self, event):
+        """Override the paintEvent to draw shapes on the canvas."""
         if not self.pixmap:
             return super(Canvas, self).paintEvent(event)
 
@@ -756,12 +790,14 @@ class Canvas(QtWidgets.QWidget):
         p.setRenderHint(QtGui.QPainter.HighQualityAntialiasing)
         p.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
+        # Adjust scaling and translation
         p.scale(self.scale, self.scale)
         p.translate(self.offsetToCenter())
 
+        # Draw the main pixmap
         p.drawPixmap(0, 0, self.pixmap)
 
-        # draw crosshair
+        # Draw crosshair if applicable
         if (
             self._crosshair[self._createMode]
             and self.drawing()
@@ -782,89 +818,113 @@ class Canvas(QtWidgets.QWidget):
                 self.height() - 1,
             )
 
+        # Scale shapes
         Shape.scale = self.scale
-        for shape in self.shapes:
-            
-            color = self.assignColor(shape.id)
-            pen = QtGui.QPen(QtGui.QColor(*color))
-            pen.setWidth(2)
-            p.setPen(pen)
 
-            if shape == self.selectedShape:
-                brush = QtGui.QBrush(QtGui.QColor(255, 255, 255, 100))
-                p.setBrush(brush)
-            else:
-                p.setBrush(Qt.NoBrush)
-            
-            p.drawRect(shape.boundingBox())
-            
-            if (shape.selected or not self._hideBackround) and self.isVisible(shape):
-                shape.fill = shape.selected or shape == self.hShape
-                shape.paint(p)
+        # Render each shape on the canvas
+        try:
+            for shape in self.shapes:
+                # Validate the shape and bounding box
+                if shape is None or shape.boundingBox() is None:
+                    logging.warning(f"Skipping invalid shape: {shape}")
+                    continue
+
+                # Assign color and configure the pen
+                color = self.assignColor(shape.id)
+                pen = QtGui.QPen(QtGui.QColor(*color))
+                pen.setWidth(2)
+                p.setPen(pen)
+
+                # Apply brush for selected shapes
+                if shape == self.selectedShape:
+                    brush = QtGui.QBrush(QtGui.QColor(255, 255, 255, 100))
+                    p.setBrush(brush)
+                else:
+                    p.setBrush(Qt.NoBrush)
+
+                # Draw the bounding box
+                p.drawRect(shape.boundingBox())
+
+                # Paint the shape if it's visible or selected
+                if (shape.selected or not self._hideBackround) and self.isVisible(shape):
+                    shape.fill = shape.selected or shape == self.hShape
+                    shape.paint(p)
+
+        except Exception as e:
+            logging.error(f"Error while rendering shapes: {e}")
+
+        # Render the current drawing shape
         if self.current:
             self.current.paint(p)
             assert len(self.line.points) == len(self.line.point_labels)
             self.line.paint(p)
+
+        # Render copied selected shapes
         if self.selectedShapesCopy:
             for s in self.selectedShapesCopy:
                 s.paint(p)
 
-        if (
-            self.fillDrawing()
-            and self.createMode == "polygon"
-            and self.current is not None
-            and len(self.current.points) >= 2
-        ):
-            drawing_shape = self.current.copy()
-            if drawing_shape.fill_color.getRgb()[3] == 0:
-                logger.warning(
-                    "fill_drawing=true, but fill_color is transparent,"
-                    " so forcing to be opaque."
+        # Render current drawing polygon or AI-assisted shapes
+        try:
+            if (
+                self.fillDrawing()
+                and self.createMode == "polygon"
+                and self.current is not None
+                and len(self.current.points) >= 2
+            ):
+                drawing_shape = self.current.copy()
+                if drawing_shape.fill_color.getRgb()[3] == 0:
+                    logging.warning(
+                        "fill_drawing=true, but fill_color is transparent,"
+                        " so forcing to be opaque."
+                    )
+                    drawing_shape.fill_color.setAlpha(64)
+                drawing_shape.addPoint(self.line[1])
+                drawing_shape.fill = True
+                drawing_shape.paint(p)
+            elif self.createMode == "ai_polygon" and self.current is not None:
+                drawing_shape = self.current.copy()
+                drawing_shape.addPoint(
+                    point=self.line.points[1],
+                    label=self.line.point_labels[1],
                 )
-                drawing_shape.fill_color.setAlpha(64)
-            drawing_shape.addPoint(self.line[1])
-            drawing_shape.fill = True
-            drawing_shape.paint(p)
-        elif self.createMode == "ai_polygon" and self.current is not None:
-            drawing_shape = self.current.copy()
-            drawing_shape.addPoint(
-                point=self.line.points[1],
-                label=self.line.point_labels[1],
-            )
-            points = self._ai_model.predict_polygon_from_points(
-                points=[[point.x(), point.y()] for point in drawing_shape.points],
-                point_labels=drawing_shape.point_labels,
-            )
-            if len(points) > 2:
+                points = self._ai_model.predict_polygon_from_points(
+                    points=[[point.x(), point.y()] for point in drawing_shape.points],
+                    point_labels=drawing_shape.point_labels,
+                )
+                if len(points) > 2:
+                    drawing_shape.setShapeRefined(
+                        shape_type="polygon",
+                        points=[QtCore.QPointF(point[0], point[1]) for point in points],
+                        point_labels=[1] * len(points),
+                    )
+                    drawing_shape.fill = self.fillDrawing()
+                    drawing_shape.selected = True
+                    drawing_shape.paint(p)
+            elif self.createMode == "ai_mask" and self.current is not None:
+                drawing_shape = self.current.copy()
+                drawing_shape.addPoint(
+                    point=self.line.points[1],
+                    label=self.line.point_labels[1],
+                )
+                mask = self._ai_model.predict_mask_from_points(
+                    points=[[point.x(), point.y()] for point in drawing_shape.points],
+                    point_labels=drawing_shape.point_labels,
+                )
+                y1, x1, y2, x2 = imgviz.instances.masks_to_bboxes([mask])[0].astype(int)
                 drawing_shape.setShapeRefined(
-                    shape_type="polygon",
-                    points=[QtCore.QPointF(point[0], point[1]) for point in points],
-                    point_labels=[1] * len(points),
+                    shape_type="mask",
+                    points=[QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2)],
+                    point_labels=[1, 1],
+                    mask=mask[y1 : y2 + 1, x1 : x2 + 1],
                 )
-                drawing_shape.fill = self.fillDrawing()
                 drawing_shape.selected = True
                 drawing_shape.paint(p)
-        elif self.createMode == "ai_mask" and self.current is not None:
-            drawing_shape = self.current.copy()
-            drawing_shape.addPoint(
-                point=self.line.points[1],
-                label=self.line.point_labels[1],
-            )
-            mask = self._ai_model.predict_mask_from_points(
-                points=[[point.x(), point.y()] for point in drawing_shape.points],
-                point_labels=drawing_shape.point_labels,
-            )
-            y1, x1, y2, x2 = imgviz.instances.masks_to_bboxes([mask])[0].astype(int)
-            drawing_shape.setShapeRefined(
-                shape_type="mask",
-                points=[QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2)],
-                point_labels=[1, 1],
-                mask=mask[y1 : y2 + 1, x1 : x2 + 1],
-            )
-            drawing_shape.selected = True
-            drawing_shape.paint(p)
+        except Exception as e:
+            logging.error(f"Error while rendering current drawing shape: {e}")
 
         p.end()
+
         
     def drawShapesForFrame(self, frame_shapes):
         """
@@ -878,11 +938,96 @@ class Canvas(QtWidgets.QWidget):
 
     def createShapeFromData(self, shape_data):
         """
-        Create a shape object from shape data (bounding box, ID, etc.).
+        Convert annotation data into a Shape object.
+        Args:
+            shape_data (dict): Dictionary containing shape information.
+
+        Returns:
+            Shape: A validated Shape object or None if creation fails.
         """
-        # Assuming `shape_data` includes bounding box and ID
-        x1, y1, x2, y2, shape_id = shape_data
-        return Shape(QtCore.QRectF(x1, y1, x2, y2), shape_id)
+        try:
+            # Extract and validate required fields
+            bbox = shape_data.get("bbox")
+            shape_type = shape_data.get("shape_type", "rectangle")
+            shape_id = shape_data.get("shape_id")
+            confidence = shape_data.get("confidence")
+
+            # Validate bbox
+            if not self.is_bbox_valid(bbox, min_size=1):
+                raise ValueError(f"Invalid bbox: {bbox}")
+
+            # Normalize bbox coordinates
+            x1, y1, x2, y2 = map(int, [
+                min(bbox[0], bbox[2]),
+                min(bbox[1], bbox[3]),
+                max(bbox[0], bbox[2]),
+                max(bbox[1], bbox[3])
+            ])
+
+            # Validate dimensions
+            if x2 <= x1 or y2 <= y1:
+                raise ValueError(f"Invalid rectangle dimensions: ({x1}, {y1}, {x2}, {y2})")
+
+            # Create QRectF
+            rect = QtCore.QRectF(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
+            logging.debug(f"Initialized QRectF: TopLeft ({x1}, {y1}), BottomRight ({x2}, {y2}), "
+                        f"Width: {rect.width()}, Height: {rect.height()}")
+
+            # Initialize Shape object
+            shape = Shape(rect=rect, shape_id=shape_id, confidence=confidence)
+
+            # Add bounding box points
+            shape.addPoint(QtCore.QPointF(x1, y1))  # Top-left
+            shape.addPoint(QtCore.QPointF(x2, y1))  # Top-right
+            shape.addPoint(QtCore.QPointF(x2, y2))  # Bottom-right
+            shape.addPoint(QtCore.QPointF(x1, y2))  # Bottom-left
+
+            # Validate boundingRect
+            if shape.boundingRect().isEmpty():
+                raise ValueError(f"BoundingRect is empty for shape ID {shape_id}.")
+
+            logging.info(f"Successfully created shape: ID {shape_id}, Bbox {bbox}")
+            return shape
+
+        except Exception as e:
+            logging.error(f"Shape creation failed: {e}")
+            logging.error(f"Problematic shape data: {shape_data}")
+            return None
+
+
+
+
+    def is_bbox_valid(self,bbox, min_size=1, max_size=None):
+        """
+        Additional utility method for bbox validation.
+        Args:
+            bbox (list): Bounding box coordinates [x1, y1, x2, y2]
+            min_size (float, optional): Minimum allowed bbox dimension
+            max_size (float, optional): Maximum allowed bbox dimension
+        Returns:
+            bool: True if bbox is valid, False otherwise
+        """
+        try:
+            # Convert to numeric values
+            x1, y1, x2, y2 = map(float, bbox[:4])
+
+            # Check basic geometric validity
+            width = abs(x2 - x1)
+            height = abs(y2 - y1)
+
+            # Size checks
+            if width < min_size or height < min_size:
+                return False
+            if max_size is not None:
+                if width > max_size or height > max_size:
+                    return False
+
+            return True
+        except (TypeError, ValueError):
+            return False
+
+
+
     
     def getShapes(self):
         """
@@ -1106,17 +1251,38 @@ class Canvas(QtWidgets.QWidget):
 
                 self.movingShape = False
     
-    
+    def setLastLabel(self, text, flags):
+        """
+        Set the label and flags of the last added shape.
+        Args:
+            text (str): The label to assign to the last shape.
+            flags (dict): Flags to assign to the last shape.
+        Returns:
+            Shape: The last shape with the updated label and flags.
+        """
+        assert text, "Label text cannot be empty."
+        if not self.shapes:
+            logging.warning("No shapes available to set label.")
+            return None
+
+        # Update label and flags of the last shape
+        self.shapes[-1].label = text
+        self.shapes[-1].flags = flags
+
+        # Ensure shapesBackups is not empty before popping
+        if self.shapesBackups:
+            self.shapesBackups.pop()
+        else:
+            logging.warning("shapesBackups is empty; nothing to pop.")
+
+        # Store shapes and return the last one
+        self.storeShapes()
+        return self.shapes[-1]
+
     
     
 
-    def setLastLabel(self, text, flags):
-        assert text
-        self.shapes[-1].label = text
-        self.shapes[-1].flags = flags
-        self.shapesBackups.pop()
-        self.storeShapes()
-        return self.shapes[-1]
+    
 
     def undoLastLine(self):
         assert self.shapes

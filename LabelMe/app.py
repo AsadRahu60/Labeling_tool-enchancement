@@ -4,6 +4,7 @@
 
 
 
+from datetime import time
 import random
 import functools
 import html
@@ -22,7 +23,7 @@ import natsort
 
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtGui import QBrush ,QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt ,pyqtSignal
 from PyQt5.QtWidgets import *
 from qtpy.QtCore import Qt
 
@@ -42,12 +43,14 @@ from labelme.widgets import LabelListWidgetItem
 from labelme.widgets import ToolBar
 from labelme.widgets import UniqueLabelQListWidget
 from labelme.widgets import ZoomWidget
+
 from labelme import utils
 #from labelme.widgets.Detection_annotation import PersonDetectionApp
 import cv2
 import torch
-# import torchreid
-# from torchreid import models
+import torchreid
+from torchreid import models
+
 import json
 import numpy as np
 
@@ -57,8 +60,9 @@ from deep_sort_realtime.deepsort_tracker import DeepSort
 from deep_sort_realtime.deep_sort.nn_matching import NearestNeighborDistanceMetric
 from deep_sort_realtime.deep_sort.detection import Detection
 from deep_sort_realtime.deep_sort.tracker import Tracker
-from shapely.geometry import  box
 
+from shapely.geometry import box
+from torchvision import transforms
 
 
 
@@ -73,6 +77,22 @@ from fastreid.config import get_cfg
 from fastreid.engine import DefaultPredictor
 from sklearn.metrics.pairwise import cosine_similarity
 from xml.etree.ElementTree import Element, SubElement, ElementTree
+
+###############################################################################
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to DEBUG for more detailed logs
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # Logs to console
+        logging.FileHandler("annotate_video.log"),  # Logs to file
+    ]
+)
+
+logger = logging.getLogger(__name__)
+################################################################################
 
 
 
@@ -90,6 +110,9 @@ LABEL_COLORMAP = imgviz.label_colormap()
 
 class MainWindow(QtWidgets.QMainWindow):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = 0, 1, 2
+     # Define a signal for progress updates
+    progress_callback = pyqtSignal(int)
+    
 
     def __init__(
         self,
@@ -104,6 +127,14 @@ class MainWindow(QtWidgets.QMainWindow):
           
         self.setWindowTitle(__appname__)
         self.setWindowIcon(QtGui.QIcon(r"labelme//icons//image.png"))
+        self.progress_callback.connect(self.updateProgressBar)
+        
+        # Add progress bar to the status bar
+        self.progressBar = QProgressBar()
+        self.progressBar.setValue(0)  # Initialize to 0%
+        self.progressBar.setMaximum(100)  # Set maximum to 100%
+        self.statusBar().addWidget(self.progressBar)
+
         
         # Apply styles for a modern look
         self.setStyleSheet("""
@@ -137,9 +168,11 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Additional state for video handling
         self.video_capture = None  # OpenCV VideoCapture object
+        self.is_cancelled = False  # Initialize the cancellation flag
         self.current_frame = 0      # Current frame number
         self.previous_features=[]
         # self.total_frames = 0       # Total number of frames in the video
+        self.frame_skip = 1  # Process every frame
         self.person_tracks = {}# Dictionary to store tracks for each person
         # Example check if the loaded file is a video (you need to set this flag somewhere)
         self.is_video = False  # This flag will be set to True when loading a video
@@ -149,9 +182,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.first_detected_id=None
         self.person_id_map={}
         self.person={} # track the person across the video
-        self.track_id_manager = IDManager()
+        self.track_id_manager = ImprovedIDManager()
         # Connect the 'annotateVideoButton' to the enable function
         self.expected_embedding_size=2048
+        self.addModelSelectors()
+        self.detector=None
+        # Set the device for model inference
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+
         
         
         if output is not None:
@@ -1070,6 +1109,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         self.tools = self.toolbar("tool")
+        self.tools.setMovable(False)  # Optional: Make it fixed
         self.actions.tool = (
             open_,
             opendir,
@@ -1093,7 +1133,8 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWindow,
             zoom,
             None,
-            selectAiModel,
+            selectAiModel
+            # selectDetectionModel,SelectReIDModel
             
         )
         #self.toolbar.addAction(self.openVideoAction)
@@ -1199,41 +1240,41 @@ class MainWindow(QtWidgets.QMainWindow):
     def noShapes(self):
         return not len(self.labelList)
 
-    def addDetectionAlgorithmComboBox(self):
+    # def addDetectionAlgorithmComboBox(self):
         
         
         
         
         
-        detection_label=QtWidgets.QLabel(self.tr("Detection Model"))
-        detection_label.setAlignment(QtCore.Qt.AlignCenter)
+    #     detection_label=QtWidgets.QLabel(self.tr("Detection Model"))
+    #     detection_label.setAlignment(QtCore.Qt.AlignHCenter)
         
         
-        # Create a dropdown combo box for selecting the detection algorithm
-        self.algorithmSelector = QComboBox(self)
-        self.algorithmSelector.addItem("YOLOv8")
-        self.algorithmSelector.addItem("Haar Cascade")
-        self.algorithmSelector.addItem("SSD")
-        self.algorithmSelector.addItem("OpenPose")
-        self.algorithmSelector.setCurrentIndex(0)  # Default to YOLOv8
+    #     # Create a dropdown combo box for selecting the detection algorithm
+    #     self.algorithmSelector = QComboBox(self)
+    #     self.algorithmSelector.addItem("YOLOv8")
+    #     self.algorithmSelector.addItem("Haar Cascade")
+    #     self.algorithmSelector.addItem("SSD")
+    #     self.algorithmSelector.addItem("OpenPose")
+    #     self.algorithmSelector.setCurrentIndex(0)  # Default to YOLOv8
 
-        # Add the combo box to the toolbar
-        self.tools.addWidget(detection_label)
-        self.tools.addWidget(self.algorithmSelector)
+    #     # Add the combo box to the toolbar
+    #     self.tools.addWidget(detection_label)
+    #     self.tools.addWidget(self.algorithmSelector)
         
         
         
-        # Connect the combo box selection to a method
-        self.algorithmSelector.currentIndexChanged.connect(self.onAlgorithmChanged)
+    #     # Connect the combo box selection to a method
+    #     self.algorithmSelector.currentIndexChanged.connect(self.onAlgorithmChanged)
         
 
-        # Store the default detection algorithm selection
-        self.selected_detection_algorithm = self.algorithmSelector.currentText()
+    #     # Store the default detection algorithm selection
+    #     self.selected_detection_algorithm = self.algorithmSelector.currentText()
 
-    def onAlgorithmChanged(self):
-        """Handler when the detection algorithm is changed by the user."""
-        self.selected_detection_algorithm = self.algorithmSelector.currentText()
-        print(f"Detection Algorithm changed to: {self.selected_detection_algorithm}")
+    # def onAlgorithmChanged(self):
+    #     """Handler when the detection algorithm is changed by the user."""
+    #     self.selected_detection_algorithm = self.algorithmSelector.currentText()
+    #     print(f"Detection Algorithm changed to: {self.selected_detection_algorithm}")
         
     
     def populateModeActions(self):
@@ -1256,7 +1297,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         utils.addActions(self.menus.edit, actions + self.actions.editMenu)
         # Add the "Detection Algorithm" ComboBox to the toolbar
-        self.addDetectionAlgorithmComboBox()
+        # self.addDetectionAlgorithmComboBox()
         
     def setDirty(self):
         # Even if we autosave the file, we keep the ability to undo
@@ -1413,6 +1454,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _edit_label(self, value=None):
         if not self.canvas.editing():
+            logger.warning("Canvas is not in editing mode. Cannot edit label.")
             return
 
         items = self.labelList.selectedItems()
@@ -1422,65 +1464,73 @@ class MainWindow(QtWidgets.QMainWindow):
 
         shape = items[0].shape()
 
-        if len(items) == 1:
-            edit_text = True
-            edit_flags = True
-            edit_group_id = True
-            edit_description = True
-        else:
-            edit_text = all(item.shape().label == shape.label for item in items[1:])
-            edit_flags = all(item.shape().flags == shape.flags for item in items[1:])
-            edit_group_id = all(
-                item.shape().group_id == shape.group_id for item in items[1:]
+        logger.debug(f"Editing label: {shape.label}")
+
+        try:
+            # Determine which attributes can be edited
+            if len(items) == 1:
+                edit_text = True
+                edit_flags = True
+                edit_group_id = True
+                edit_description = True
+            else:
+                edit_text = all(item.shape().label == shape.label for item in items[1:])
+                edit_flags = all(item.shape().flags == shape.flags for item in items[1:])
+                edit_group_id = all(
+                    item.shape().group_id == shape.group_id for item in items[1:]
+                )
+                edit_description = all(
+                    item.shape().description == shape.description for item in items[1:]
+                )
+
+            # Disable editing options if attributes differ across items
+            if not edit_text:
+                self.labelDialog.edit.setDisabled(True)
+                self.labelDialog.labelList.setDisabled(True)
+            if not edit_flags:
+                for i in range(self.labelDialog.flagsLayout.count()):
+                    self.labelDialog.flagsLayout.itemAt(i).setDisabled(True)
+            if not edit_group_id:
+                self.labelDialog.edit_group_id.setDisabled(True)
+            if not edit_description:
+                self.labelDialog.editDescription.setDisabled(True)
+
+            # Pop up dialog to edit attributes
+            text, flags, group_id, description = self.labelDialog.popUp(
+                text=shape.label if edit_text else "",
+                flags=shape.flags if edit_flags else None,
+                group_id=shape.group_id if edit_group_id else None,
+                description=shape.description if edit_description else None,
             )
-            edit_description = all(
-                item.shape().description == shape.description for item in items[1:]
-            )
 
-        if not edit_text:
-            self.labelDialog.edit.setDisabled(True)
-            self.labelDialog.labelList.setDisabled(True)
-        if not edit_flags:
-            for i in range(self.labelDialog.flagsLayout.count()):
-                self.labelDialog.flagsLayout.itemAt(i).setDisabled(True)
-        if not edit_group_id:
-            self.labelDialog.edit_group_id.setDisabled(True)
-        if not edit_description:
-            self.labelDialog.editDescription.setDisabled(True)
+            # Re-enable options after editing
+            if not edit_text:
+                self.labelDialog.edit.setDisabled(False)
+                self.labelDialog.labelList.setDisabled(False)
+            if not edit_flags:
+                for i in range(self.labelDialog.flagsLayout.count()):
+                    self.labelDialog.flagsLayout.itemAt(i).setDisabled(False)
+            if not edit_group_id:
+                self.labelDialog.edit_group_id.setDisabled(False)
+            if not edit_description:
+                self.labelDialog.editDescription.setDisabled(False)
 
-        text, flags, group_id, description = self.labelDialog.popUp(
-            text=shape.label if edit_text else "",
-            flags=shape.flags if edit_flags else None,
-            group_id=shape.group_id if edit_group_id else None,
-            description=shape.description if edit_description else None,
-        )
+            # Update shape attributes
+            if text is not None:
+                self.canvas.storeShapes()
+                for item in items:
+                    self._update_item(
+                        item=item,
+                        text=text if edit_text else None,
+                        flags=flags if edit_flags else None,
+                        group_id=group_id if edit_group_id else None,
+                        description=description if edit_description else None,
+                    )
+            else:
+                logger.info("Label editing cancelled by user.")
+        except Exception as e:
+            logger.error(f"Error in _edit_label: {e}")
 
-        if not edit_text:
-            self.labelDialog.edit.setDisabled(False)
-            self.labelDialog.labelList.setDisabled(False)
-        if not edit_flags:
-            for i in range(self.labelDialog.flagsLayout.count()):
-                self.labelDialog.flagsLayout.itemAt(i).setDisabled(False)
-        if not edit_group_id:
-            self.labelDialog.edit_group_id.setDisabled(False)
-        if not edit_description:
-            self.labelDialog.editDescription.setDisabled(False)
-
-        if text is None:
-            assert flags is None
-            assert group_id is None
-            assert description is None
-            return
-
-        self.canvas.storeShapes()
-        for item in items:
-            self._update_item(
-                item=item,
-                text=text if edit_text else None,
-                flags=flags if edit_flags else None,
-                group_id=group_id if edit_group_id else None,
-                description=description if edit_description else None,
-            )
 
     def _update_item(self, item, text, flags, group_id, description):
         if not self.validateLabel(text):
@@ -1541,26 +1591,46 @@ class MainWindow(QtWidgets.QMainWindow):
             if filename:
                 self.loadFile(filename)
 
-    # React to canvas signals.
     def shapeSelectionChanged(self, selected_shapes):
         self._noSelectionSlot = True
+        
+        # Debug print to understand the input
+        print(f"Input selected_shapes: {selected_shapes}")
+        
+        # Ensure selected_shapes is a list
+        if not isinstance(selected_shapes, list):
+            selected_shapes = []
+        
+        # Clear previous selection
         for shape in self.canvas.selectedShapes:
-            shape.selected = False
+            if isinstance(shape, Shape):
+                shape.selected = False
+        
+        # Clear label list selection
         self.labelList.clearSelection()
-        if not hasattr(self.canvas, 'selectedShapes') or not isinstance(self.canvas.selectedShapes, list):
-            print("Warning: selectedShapes is not a list or undefined. Resetting to an empty list.")
-            self.canvas.selectedShapes = []
-        for shape in self.canvas.selectedShapes:
-            shape.selected = True
-            item = self.labelList.findItemByShape(shape)
-            self.labelList.selectItemByShape(item)
-            self.labelList.scrollToItem(item)
+        
+        # Update canvas and label list with new selection
+        self.canvas.selectedShapes = selected_shapes
+        
+        for shape in selected_shapes:
+            if isinstance(shape, Shape):
+                shape.selected = True
+                item = self.labelList.findItemByShape(shape)
+                if item:
+                    self.labelList.selectItemByShape(item)
+                    self.labelList.scrollToItem(item)
+            else:
+                print(f"Skipping invalid shape object: {shape}")
+        
         self._noSelectionSlot = False
+        
+        # Update action buttons
         n_selected = len(selected_shapes)
-        self.actions.delete.setEnabled(n_selected)
-        self.actions.duplicate.setEnabled(n_selected)
-        self.actions.copy.setEnabled(n_selected)
-        self.actions.edit.setEnabled(n_selected)
+        self.actions.delete.setEnabled(n_selected > 0)
+        self.actions.duplicate.setEnabled(n_selected > 0)
+        self.actions.copy.setEnabled(n_selected > 0)
+        self.actions.edit.setEnabled(n_selected > 0)
+
     
     ##### when I would liek to add the labels on the video from the detection will sue this method###
     # def addLabel(self, shape):
@@ -2286,23 +2356,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.actions.openPrevFrame.setEnabled(True)
             self.actions.openNextFrame.setEnabled(True)
     
-    def load_models(self):
-        """Load YOLO and FastReID models."""
-        # Load YOLOv8 model (e.g., pretrained on COCO)
-        self.yolo_model = YOLO("yolov8n.pt")  # Adjust YOLO model variant as needed
-
-        # Load FastReID model
-        cfg = get_cfg()
-        cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid\configs/Market1501/bagtricks_R50.yml")
-        cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
-        cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        self.fastreid_model = DefaultPredictor(cfg)
-        test_img = torch.randn(1, 3, 128, 256)  # Replace with appropriate input size
-        feature = self.fastreid_model(test_img)
-        print(feature.shape)  # Should output (1, expected_embedding_size) 
-        
-        # Initialize DeepSORT
-        self.deepsort = DeepSort(max_age=50, n_init=3)
+    
     
     def openVideo(self):
         """Open a video file for annotation."""
@@ -2310,17 +2364,39 @@ class MainWindow(QtWidgets.QMainWindow):
         filePath, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Open Video File", "", "Video Files (*.mp4 *.avi *.mov);;All Files (*)", options=options
         )
-        if filePath:
-            self.loadVideo(filePath)
-            # Enable the frame navigation buttons only if the video is loaded successfully
-            
-        if self.playVideoButton is not None:
-            self.playVideoButton.setEnabled(True)
         
-        if self.video_capture.isOpened():
-            self.actions.openPrevFrame.setEnabled(True)
-            self.actions.openNextFrame.setEnabled(True)
-            self.actions.AnnotateVideo.setEnabled(True)
+        # Proceed only if a file is selected
+        if filePath:
+            try:
+                # Initialize video capture
+                self.video_capture = cv2.VideoCapture(filePath)
+
+                # Check if the video file was successfully opened
+                if not self.video_capture.isOpened():
+                    logging.error(f"Failed to open video file: {filePath}")
+                    QtWidgets.QMessageBox.warning(self, "Error", f"Failed to open video file: {filePath}")
+                    self.video_capture = None
+                    return
+
+                # Load video and enable navigation buttons
+                self.loadVideo(filePath)
+                logging.info(f"Video file loaded successfully: {filePath}")
+
+                # Enable frame navigation and annotation buttons
+                if self.playVideoButton is not None:
+                    self.playVideoButton.setEnabled(True)
+                self.actions.openPrevFrame.setEnabled(True)
+                self.actions.openNextFrame.setEnabled(True)
+                self.actions.AnnotateVideo.setEnabled(True)
+
+            except Exception as e:
+                logging.error(f"Error opening video file: {e}")
+                QtWidgets.QMessageBox.critical(self, "Error", f"Error opening video file: {e}")
+                self.video_capture = None
+        else:
+            logging.info("No video file selected.")
+
+            
     
     def loadVideo(self, video_path):
         """Loads the video file and initializes video processing."""
@@ -2505,31 +2581,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     
     
-    def extract_reid_features(self, frame, boxes):
-        """Extract ReID features for detected persons."""
-        features = []
-        for box in boxes:
-            x1, y1, x2, y2 = map(int, box)
-            cropped_img = frame[y1:y2, x1:x2]
-
-            if cropped_img.size == 0:
-                continue
-
-            processed_img = self.preprocess_image(cropped_img)
-            processed_img = processed_img.to(self.fastreid_model.model.device)
-
-            with torch.no_grad():
-                output = self.fastreid_model(processed_img)
-                if isinstance(output, torch.Tensor):
-                    feature = output.detach().cpu().numpy().flatten()
-                elif isinstance(output, dict) and "feat" in output:
-                    feature = output["feat"].detach().cpu().numpy().flatten()
-                else:
-                    raise ValueError("Unexpected output format from FastReID model.")
-
-            # Ensure feature is flat and consistent
-            features.append((feature, (x1, y1, x2, y2)))  # Tuple of (feature, bounding box)
-        return features
+   
 
 
     def match_ids(self, current_features, previous_features, threshold=0.7):
@@ -2583,16 +2635,16 @@ class MainWindow(QtWidgets.QMainWindow):
         return matches
 
     # Generate unique color for each track_id
-    def get_color_for_id(self,track_id):
-        """
-        Generate or retrieve a unique color for a given ID.
-        """
-        random.seed(track_id)  # Seed the random generator with the ID for consistent colors
-        return (
-            random.randint(0, 255),  # Red
-            random.randint(0, 255),  # Green
-            random.randint(0, 255),  # Blue
-        )
+    # def get_color_for_id (self,track.track_id):
+    #     """
+    #     Generate or retrieve a unique color for a given ID.
+    #     """
+    #     random.seed(track.track_id)  # Seed the random generator with the ID for consistent colors
+    #     return (
+    #         random.randint(0, 255),  # Red
+    #         random.randint(0, 255),  # Green
+    #         random.randint(0, 255),  # Blue
+    #     )
     
     
 
@@ -2618,205 +2670,628 @@ class MainWindow(QtWidgets.QMainWindow):
         union_area = box1_area + box2_area - inter_area
 
         return inter_area / union_area if union_area > 0 else 0
-
-      # Should output (1, expected_embedding_size)
-
-    
-    
-    def annotateVideo(self):
-        
-       
-        """Annotate video with YOLO, FastReID, and DeepSORT."""
-        self.load_models()
-
-        frames = []
-        all_annotations = []
-
-        # Initialize the Tracker
+##############################################################################################################################################
+    def initializeTracker(self):
+        """
+        Initialize the DeepSORT tracker with the specified parameters.
+        """
         max_cosine_distance = 0.5
         max_age = 30
         n_init = 3
-        metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance, None)
+        max_iou_distance = 0.7
+
+        # Metric for matching detections to existing tracks
+        metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance)
+
+        # Initialize the tracker
         if not hasattr(self, 'tracker'):
-            self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init)
+            self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init, max_iou_distance=max_iou_distance)
 
-        person_colors = {}
-        if not hasattr(self, 'track_id_manager'):
-            self.track_id_manager = IDManager()
+        # Log tracker configuration
+        logger.info("Tracker initialized with parameters:")
+        logger.info(f"Max Cosine Distance: {max_cosine_distance}")
+        logger.info(f"Max Age: {max_age}")
+        logger.info(f"Initialization Frames (n_init): {n_init}")
+        logger.info(f"Max IOU Distance: {max_iou_distance}")
 
-        # Set the expected embedding size (based on the model)
-        if not hasattr(self, 'expected_embedding_size'):
-            self.expected_embedding_size =2048   # Replace with your model's actual output size
+      
+    def load_models(self):
+        
+        """Load Detection and ReID Models Dynamically."""
+        # Retrieve the selected model names
+        selected_detection_model = self.detectionModelSelector.currentText()
+        selected_reid_model = self.reidModelSelector.currentText()
 
-        # Process the video frame by frame
-        while self.video_capture.isOpened():
-            ret, frame = self.video_capture.read()
-            if not ret:
-                print("End of video or no frame available.")
-                break
+        # Load detection model
+        self.detector = self._load_detection_model(selected_detection_model)
 
-            # Step 1: Run YOLO for person detection
+        # Load ReID model
+        self.reid_model = self._load_reid_model(selected_reid_model)
+
+        if self.detector:
+            logger.info(f"Detection model {selected_detection_model} loaded successfully.")
+        else:
+            logger.warning(f"Detection model {selected_detection_model} not recognized.")
+
+        if self.reid_model:
+            logger.info(f"ReID model {selected_reid_model} loaded successfully.")
+        else:
+            logger.warning(f"ReID model {selected_reid_model} not recognized.")
+        
+        
+        
+        
+        # """
+        # Load all necessary models (YOLO and ReID models).
+        # """
+        # try:
+        #     logger.info("Loading YOLO model...")
+        #     self.yolo_model = YOLO("yolov8m.pt")  # Replace with your YOLO model path
+
+        #     logger.info("Loading FastReID model...")
+        #     self.load_fastreid_model()
+            
+        #     logger.info("loading the DeepSort Tracker")
+        #     self.deepsort = DeepSort(max_age=50, n_init=3)
+
+        #     logger.info("All models loaded successfully.")
+        # except Exception as e:
+        #     logger.error(f"Error loading models: {e}", exc_info=True)
+        #     raise RuntimeError("Failed to load necessary models.")
+  
+      
+      
+      # Should output (1, expected_embedding_size)
+#################################################################################################
+    def updateProgressBar(self, value):
+        """
+        Update the progress bar in the UI.
+        Args:
+            value (int): Progress percentage (0-100). -1 indicates an error.
+        """
+        if value == -1:
+            self.progressBar.setValue(0)
+            self.statusBar().showMessage("Error during annotation", 5000)  # Display error for 5 seconds
+        else:
+            self.progressBar.setValue(value)
+            self.statusBar().showMessage(f"Processing... {value}%", 2000)  # Display progress message
+
+
+##############################################################################################################################
+    def resetProgressBar(self):
+        """Reset the progress bar to its initial state."""
+        self.progressBar.setValue(0)
+        self.statusBar().clearMessage()
+############################################################################################
+    def cancelAnnotation(self):
+        """Set the cancellation flag to stop video annotation."""
+        self.is_cancelled = True
+        logging.info("Annotation process cancelled by user.")
+
+ #################################################################################################################   
+        """ 
+        The Method for annotating the video and automating the annotation process
+        """
+    def annotateVideo(self):
+        """Annotate video using detection, ReID, and tracking."""
+        try:
+            # Ensure models are loaded
+            if not self.detector or not self.reid_model:
+                self.load_models()
+
+            if not self.video_capture.isOpened():
+                logger.warning("No video is loaded for annotation.")
+                return
+
+            logger.info("Starting video annotation...")
+            
+            # Get video metadata
+            total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = self.video_capture.get(cv2.CAP_PROP_FPS)
+            
+            logger.info(f"Video details: {total_frames} frames, {fps} FPS")
+            
+            self.initializeTracker()  # Initialize DeepSORT tracker
+            person_colors = {}
+            all_annotations = []
+            processed_frames = 0
+
+            while self.video_capture.isOpened():
+                ret, frame = self.video_capture.read()
+                if not ret:
+                    logger.info("End of video reached.")
+                    break
+                
+                    # Optional: Frame skip for performance
+                if processed_frames % self.frame_skip != 0:
+                    processed_frames += 1
+                    continue
+                try:
+                    # Step 1: Detect and Extract Features
+                    frame_detections = self.process_image(frame)
+
+                    # Step 2: Update Tracker
+                    self.update_tracker(frame_detections)
+
+                    # Step 3: Process Tracks for Final Annotations
+                    frame_annotations = self.process_tracks(frame, person_colors)
+
+                    # Step 4: Draw Shapes and Update Canvas
+                    self.canvas.drawShapesForFrame(frame_annotations)
+                    self.canvas.update()
+                    self.repaint()
+
+                    all_annotations.extend(frame_annotations)
+                    
+                     # Update progress
+                    processed_frames += 1
+                    progress = int((processed_frames / total_frames) * 100)
+                    self.progress_callback.emit(progress)
+                    
+                    # Optional: Allow cancellation
+                    if self.is_cancelled:
+                        logger.info("Video annotation cancelled by user.")
+                        break
+            
+                except Exception as frame_error:
+                    logger.error(f"Error processing frame {processed_frames}: {frame_error}")
+                    continue
+            # Save annotations
+            self.save_reid_annotations(all_annotations)
+            logger.info(f"Video annotation completed. Processed {processed_frames} frames.")
+            self.progress_callback.emit(100)
+    
+        except Exception as e:
+            logger.error(f"Critical error during video annotation: {e}", exc_info=True)
+            self.progress_callback.emit(-1)  # 
+
+
+        #############################################################################################################
+    def run_yolo(self, frame):
+        try:
             results = self.yolo_model(frame)
             boxes, confidences = [], []
+            confidence_threshold = 0.4  # Adjusted threshold
+
             for det in results[0].boxes:
-                if int(det.cls[0]) == 0 and float(det.conf[0]) > 0.5:  # Class 0 is person
+                if int(det.cls[0]) == 0 and float(det.conf[0]) > confidence_threshold:
                     x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
-                    
-                    boxes.append((x1, y1, x2, y2))
-                    confidences.append(float(det.conf[0]))
-                print(f"Raw YOLO output box: {det.xyxy[0].tolist()}")
-            # Step 2: Extract ReID features for detected boxes
-            current_features = self.extract_reid_features(frame, boxes)
-            detections = []
-            frame_height, frame_width, _ = frame.shape
-            print(f"Frame dimensions: Width={frame_width}, Height={frame_height}")
-            print(f"Bounding box: {boxes}")
+                    conf = float(det.conf[0])
+                    if 0 <= x1 < x2 <= frame.shape[1] and 0 <= y1 < y2 <= frame.shape[0]:
+                        boxes.append((x1, y1, x2, y2))
+                        confidences.append(conf)
+                    else:
+                        logger.warning(f"Skipping invalid YOLO box: {[x1, y1, x2, y2]}")
+                else:
+                    logger.debug(f"Skipping non-person or low-confidence detection: Class={int(det.cls[0])}, Confidence={det.conf[0]}")
 
-            for box, confidence, feature in zip(boxes, confidences, current_features):
-                if not (0 <= box[0] < box[2] <= frame_width and 0 <= box[1] < box[3] <= frame_height):
-                    print(f"Skipping invalid YOLO bounding box: {box}")
+            logger.info(f"YOLO detected {len(boxes)} valid boxes.")
+            return boxes, confidences
+
+        except Exception as e:
+            logger.error(f"Error during YOLO detection: {e}", exc_info=True)
+            return [], []
+
+
+    
+    ####################################################################################################################################
+    def load_fastreid_model(self):
+        """
+        Load the FastReID model with the specified configuration.
+        """
+        try:
+            from fastreid.config import get_cfg
+            from fastreid.engine.defaults import DefaultPredictor
+
+            # Load FastReID model configuration
+            cfg = get_cfg()
+            cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid/configs/Market1501/bagtricks_R50.yml")
+            cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
+            cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+            # Initialize the FastReID model
+            self.reid_model = DefaultPredictor(cfg)
+
+            # Test the model with dummy data to ensure it's working
+            test_img = torch.randn(1, 3, 128, 256).to(cfg.MODEL.DEVICE)  # Replace with actual input size
+            feature = self.reid_model(test_img)
+            logger.info(f"FastReID model loaded successfully. Test output shape: {feature.shape}")
+
+        except Exception as e:
+            logger.error(f"Error loading FastReID model: {e}", exc_info=True)
+            raise RuntimeError("Failed to load the FastReID model.")
+
+
+    ###############################################################################################################################
+    def extract_reid_features(self, frame, boxes):
+        """
+        Extract ReID features for detected bounding boxes.
+
+        Args:
+            frame (np.ndarray): Current video frame (H, W, C).
+            boxes (list of tuples): Detected bounding boxes [(x1, y1, x2, y2), ...].
+
+        Returns:
+            list: ReID feature vectors for each bounding box or None for invalid boxes.
+        """
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        features = []
+
+        for box in boxes:
+            try:
+                x1, y1, x2, y2 = box
+
+                # # Validate bounding box dimensions
+                # if x2 <= x1 or y2 <= y1:
+                #     logger.warning(f"Invalid bounding box skipped: {box}")
+                #     features.append(None)
+                #     continue
+
+                # Step 1: Crop and preprocess the region of interest
+                crop = self._preprocess_crop(frame, x1, y1, x2, y2, device)
+
+                if crop is None:
+                    logger.warning(f"Skipping empty or invalid crop for box: {box}")
+                    features.append(None)
                     continue
+
+                # Step 2: Extract features using the ReID model
+                with torch.no_grad():
+                    output = self.reid_model(crop)
                 
-                if isinstance(feature, tuple):
-                    feature = feature[0]  # Handle feature as tuple if needed
-                try:
-                    feature_vector = np.array(feature).flatten()
-                    # Validate feature size
-                    if len(feature_vector) != self.expected_embedding_size:
-                        print(f"Skipping box {box}: Invalid feature size")
-                        continue
+                # Handle FastReID-specific outputs (dict with 'features' key)
+                feature = output.get("features") if isinstance(output, dict) else output
 
-                    # Validate and normalize bounding box
-                    x1, y1, x2, y2 = box
-                    if not (0 <= x1 < frame_width and 0 <= y1 < frame_height and 0 <= x2 <= frame_width and 0 <= y2 <= frame_height and x1 < x2 and y1 < y2):
-                        print(f"Skipping invalid bounding box: {box}")
-                        continue
+                # Flatten the feature if it's batched
+                if len(feature.shape) == 2:
+                    feature = feature[0]
 
-                    bbox_tuple = (x1 / frame_width, y1 / frame_height, x2 / frame_width, y2 / frame_height)
-                    detection = Detection(bbox_tuple, confidence, feature_vector)
-                    detections.append(detection)
-                except Exception as e:
-                    print(f"Error preparing detection for box {box}: {e}")
+                features.append(feature.cpu().numpy())
+
+            except Exception as e:
+                logger.warning(f"Error processing box {box}: {e}")
+                features.append(None)
+
+        logger.info(f"Extracted features for {len(features)} bounding boxes.")
+        return features
+    ##########################################################################################
+    def _preprocess_crop(self, frame, x1, y1, x2, y2, device):
+        """
+        Preprocess the cropped region for ReID model input using PyTorch transforms.
+        """
+        try:
+            # Ensure bounding box coordinates are integers
+            x1, y1, x2, y2 = map(int, (x1, y1, x2, y2))
+
+            # Validate bounding box dimensions
+            if x2 <= x1 or y2 <= y1:
+                logger.warning(f"Invalid bounding box: ({x1}, {y1}, {x2}, {y2})")
+                return None
+
+            # Crop the bounding box
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                logger.warning(f"Empty crop for bbox: ({x1}, {y1}, {x2}, {y2})")
+                return None
+
+            # Preprocess the crop
+            transform = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.Resize((256, 128)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+            crop_tensor = transform(crop).unsqueeze(0)  # Add batch dimension
+            return crop_tensor.to(device)
+
+        except Exception as e:
+            logger.warning(f"Error preprocessing crop ({x1}, {y1}, {x2}, {y2}): {e}")
+            return None
 
 
-                    # Step 3: Update the tracker
-            # Step 3: Update the tracker
-            if detections:
-                try:
-                    self.tracker.predict()
-                    self.tracker.update(detections=detections)  # Pass the list of detections
-                except Exception as e:
-                    print(f"Error during tracker update: {e}")
-            else:
-                print("No valid detections for this frame, skipping tracker update.")
 
 
 
+
+
+
+
+
+    #######################################################################################################################################
+    def update_tracker(self, detections):
+        """
+        Update the DeepSORT tracker with validated detections.
+        Args:
+            detections (list): List of Detection objects.
+        """
+        try:
+            # Predict the next state for the tracker
+            self.tracker.predict()
+
+            # Update tracker with current detections
+            self.tracker.update(detections=detections)
+            logger.info(f"Tracker updated with {len(detections)} detections.")
             
-                    # Step 4: Process and annotate tracks
-            frame_annotations = []
-            for track in self.tracker.tracks:
+            
                 
-                # Skip unconfirmed tracks or tracks that haven't been updated recently
-                if not track.is_confirmed() or track.time_since_update > 1:
-                    print(f"Unconfirmed track, skipping: {track}")
-                    
+        except Exception as e:
+            logger.error(f"Error updating tracker: {e}", exc_info=True)
+
+
+    ############################################################################################################################
+    def validate_detections(self, boxes, confidences, features, frame_shape):
+        """
+        Validate and prepare detections for the tracker.
+        """
+        frame_height, frame_width, _ = frame_shape
+        detections = []
+
+        for box, confidence, feature in zip(boxes, confidences, features):
+            if feature is not None and len(feature) == self.expected_embedding_size and np.isfinite(feature).all():
+                bbox_tuple = (
+                    box[0] / frame_width,
+                    box[1] / frame_height,
+                    box[2] / frame_width,
+                    box[3] / frame_height,
+                )
+                detections.append(Detection(bbox_tuple, confidence, feature))
+            else:
+                logger.warning(f"Invalid detection or feature for box {box}.")
+
+        logger.info(f"Validated {len(detections)} detections out of {len(boxes)}.")
+        logger.debug(f"YOLO bounding boxes: {detections}")
+
+        return detections
+
+    ############################################################################################################################
+    
+    def validate_bbox(self, bbox, frame_shape):
+        frame_height, frame_width = frame_shape[:2]
+        x1, y1, x2, y2 = bbox
+        
+        # Additional validation checks
+        if x1 < 0 or y1 < 0 or x2 > frame_width or y2 > frame_height:
+            logger.warning(f"Bbox exceeds frame dimensions: {bbox}")
+            logger.warning(f"Frame dimensions: {frame_width}x{frame_height}")
+            
+            # Clamp values to frame dimensions
+            x1 = max(0, min(x1, frame_width))
+            y1 = max(0, min(y1, frame_height))
+            x2 = max(0, min(x2, frame_width))
+            y2 = max(0, min(y2, frame_height))
+            
+            return [x1, y1, x2, y2]
+        
+        return bbox
+
+    #########################################################################################################################
+    def process_image(self, frame):
+        """Detect persons, extract features, and prepare detections for tracking."""
+        detections = []
+
+        # Step 1: Run Detection
+        results = self.detector(frame)
+        boxes = []
+        confidences = []
+
+        # Extract bounding boxes and confidences
+        for det in results[0].boxes:
+            if int(det.cls[0]) == 0:  # Person class
+                box = det.xyxy[0].tolist()
+                confidence = float(det.conf[0])
+
+                # Validate the bounding box
+                if len(box) == 4:
+                    boxes.append(box)
+                    confidences.append(confidence)
+                else:
+                    logger.warning(f"Skipping invalid detection: {box}")
+
+        if not boxes:
+            logger.warning("No valid bounding boxes found.")
+            return []
+
+        # Step 2: Extract ReID Features
+        features = self.extract_reid_features(frame, boxes)
+
+        # Step 3: Prepare Detections
+        for box, confidence, feature in zip(boxes, confidences, features):
+            if feature is not None:
+                x1, y1, x2, y2 = map(int, box)  # Ensure integer coordinates
+                detection = Detection(
+                    (x1 / frame.shape[1], y1 / frame.shape[0], x2 / frame.shape[1], y2 / frame.shape[0]),
+                    confidence,
+                    feature
+                )
+                detections.append(detection)
+
+        logger.info(f"Processed {len(detections)} detections in the frame.")
+        return detections
+##########################################################################################################################################################################
+    def scale_bbox(self, bbox, width, height):
+        """
+        Scale bounding box coordinates to pixel coordinates.
+        
+        Args:
+            bbox (list): Bounding box coordinates 
+            width (int): Frame width in pixels
+            height (int): Frame height in pixels
+        
+        Returns:
+            list: Scaled bounding box coordinates [x1, y1, x2, y2]
+        """
+        # Ensure input bbox is a list with 4 coordinates
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            raise ValueError(f"Invalid bbox format. Expected list of 4 coordinates, got {bbox}")
+        
+        # Unpack coordinates
+        x1, y1, x2, y2 = bbox
+        
+        # Normalize coordinates if they exceed 1
+        if x1 > 1 or y1 > 1 or x2 > 1 or y2 > 1:
+            # Find the maximum coordinate to determine scaling factor
+            max_coord = max(x1, y1, x2, y2)
+            
+            # Normalize based on the maximum coordinate
+            x1_norm = x1 / max_coord
+            y1_norm = y1 / max_coord
+            x2_norm = x2 / max_coord
+            y2_norm = y2 / max_coord
+        else:
+            # Already normalized
+            x1_norm, y1_norm, x2_norm, y2_norm = bbox
+        
+        # Clamp normalized coordinates between 0 and 1
+        x1_norm = max(0, min(x1_norm, 1))
+        y1_norm = max(0, min(y1_norm, 1))
+        x2_norm = max(0, min(x2_norm, 1))
+        y2_norm = max(0, min(y2_norm, 1))
+        
+        # Scale to pixel coordinates
+        x1 = int(x1_norm * width)
+        y1 = int(y1_norm * height)
+        x2 = int(x2_norm * width)
+        y2 = int(y2_norm * height)
+        
+        # Validate scaled coordinates
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(width, x2)
+        y2 = min(height, y2)
+        
+        # Ensure bbox has valid dimensions
+        if x2 <= x1 or y2 <= y1:
+            # If dimensions are invalid, return an empty or default bbox
+            return [0, 0, 0, 0]
+        
+        return [x1, y1, x2, y2]
+
+
+
+    ###########################################################################################################
+    def process_tracks(self, frame, person_colors):
+        """Process tracks from the tracker and annotate frame."""
+        frame_annotations = []
+        frame_shape = frame.shape
+        logging.info(f"frame shape: {frame_shape}")
+        height, width, _ = frame.shape
+
+        for track in self.tracker.tracks:
+            # Skip unconfirmed or old tracks
+            if not track.is_confirmed() or track.time_since_update > 1:
+                continue
+
+            # Get raw bounding box (normalized)
+            raw_bbox = track.to_tlbr().tolist()
+            logging.info(f"Track {track.track_id} - Raw bbox: {raw_bbox}")
+
+            try:
+                # Scale bbox to pixel coordinates
+                scaled_bbox = self.scale_bbox(raw_bbox, width, height)
                 
-                            # Assign a new ID if not already assigned
-                if not hasattr(track, 'track_id') or track.track_id not in self.track_id_manager.used_ids:
-                    track.track_id = self.track_id_manager.get_new_id()
-                    continue
-                # Get track ID and bounding box
-                # track_id = track.track_id
-                bbox = track.to_tlbr()  # Bounding box in (x1, y1, x2, y2) format
-                print(f"Track ID: {track.track_id}, Bounding box: {track.to_tlbr()}")
+                logging.info(f"Track {track.track_id} - Scaled bbox: {scaled_bbox}")
                 
-                 # Validate bounding box dimensions
-                if not (0 <= bbox[0] < bbox[2] <= frame_width and 0 <= bbox[1] < bbox[3] <= frame_height):
-                    print(f"Invalid bounding box for track ID {track.track_id}: {bbox}")
+                # Unpack scaled bbox
+                x1, y1, x2, y2 = scaled_bbox
+
+                # Validate bounding box dimensions
+                if x2 <= x1 or y2 <= y1:
+                    logging.warning(f"Invalid bbox dimensions for track {track.track_id}: {scaled_bbox}")
                     continue
 
-                            # Release ID for terminated tracks
-                if not track.is_confirmed() and track.time_since_update > self.tracker.max_age:
-                    print(f"Track already has ID: {track.track_id}")
-                    print(f"Releasing Track ID: {track.track_id} due to inactivity.")
-                    self.track_id_manager.release_id(track.track_id)
-                    
-                    continue
-                # Assign unique colors to each track ID
+                # Assign unique color for the track
                 if track.track_id not in person_colors:
                     person_colors[track.track_id] = self.get_random_color()
                 color = person_colors[track.track_id]
 
-                # Annotate the frame with bounding box and label
-                label_text = f"Person ID: {track.track_id}"
-                cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
-                cv2.putText(frame, label_text, (int(bbox[0]), int(bbox[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                # Draw bounding box on frame
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, f"ID: {track.track_id}", (x1, y1 - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-                # # Match detection for confidence (optional, depending on detection-tracking pipeline)
-                # matched_detection = None
-                # for detection in detections:
-                #     if self.iou(detection.to_tlbr(), bbox) > 0.3:  # IoU threshold
-                #         matched_detection = detection
-                #         break
-                # detection_confidence = matched_detection.confidence if matched_detection else "No detection"
-                for detection in detections:
-                    if detection.confidence < 0.5:  # Example confidence threshold
-                        continue
+                # Prepare shape data for canvas
+                shape_data = {
+                    "bbox": [x1, y1, x2, y2],
+                    "shape_type": "rectangle",
+                    "shape_id": str(track.track_id),
+                    "confidence": getattr(track, "confidence", None)
+                }
+                logging.debug(f"Constructed shape_data: {shape_data}")
+
+               # Create shape on canvas
+                try:
+                    shape = self.canvas.createShapeFromData(shape_data)
+                    if not isinstance(shape, Shape):
+                        logging.error(f"Invalid shape instance: {type(shape)}")
+                        continue  # Skip this iteration if shape is invalid
                     
-                # Debugging output
-                print(f"Track ID: {track.track_id}, BBox: {bbox}, Confidence: {confidence}")
+                    # Validate the boundingRect() of the shape
+                    bbox = shape.boundingRect()
+                    if bbox.isEmpty():
+                        logging.warning(f"Shape boundingRect is empty for track ID: {track.track_id}")
+                        continue
 
-                # Create a Shape object for LabelMe annotation
-                shape = Shape(label=f"person{track.track_id}", shape_id=track.track_id)
-                shape.addPoint(QtCore.QPointF(bbox[0], bbox[1]))
-                shape.addPoint(QtCore.QPointF(bbox[2], bbox[1]))
-                shape.addPoint(QtCore.QPointF(bbox[2], bbox[3]))
-                shape.addPoint(QtCore.QPointF(bbox[0], bbox[3]))
-                self.addLabel(shape)
+                    logging.debug(f"Shape bounding box before addition: {bbox}")
+                    self.canvas.addShape(shape)
 
-                # Update label lists
-                self.labelList.addPersonLabel(track.track_id, color)  # Update Label List
-                self.uniqLabelList.addUniquePersonLabel(f"person{track.track_id}", color)  # Update Unique Label List
+                except Exception as canvas_error:
+                    logging.error(f"Canvas shape creation error for track {track.track_id}: {canvas_error}")
+                    continue
 
-                # Append annotations for the current frame
-                frame_annotations.append({
-                    "track_id": track.track_id,
-                    "bbox": list(bbox),
-                    "confidence": confidence,
-                    "class": "person"
-                })
-                print(f"Track ID: {track.track_id}, BBox: {bbox}, Confidence: {confidence}")
+                # Create LabelMe UI shape
+                label_shape = Shape(label=f"person{track.track_id}", shape_id=track.track_id)
+                label_shape.addPoint(QtCore.QPointF(x1, y1))
+                label_shape.addPoint(QtCore.QPointF(x2, y1))
+                label_shape.addPoint(QtCore.QPointF(x2, y2))
+                label_shape.addPoint(QtCore.QPointF(x1, y2))
+                
+                # Add labels
+                self.addLabel(label_shape)
+                self.labelList.addPersonLabel(track.track_id, color)
+                self.uniqLabelList.addUniquePersonLabel(f"person{track.track_id}", color)
 
-            if frame_annotations:
-                    all_annotations.append(frame_annotations)
-            frames.append(frame)
+                # Append annotations for saving
+                frame_annotations.append(shape_data)
 
-                    # Update display
-            try:
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                height, width, channel = rgb_frame.shape
-                bytes_per_line = channel * width
-                q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-                pixmap = QtGui.QPixmap.fromImage(q_img)
-                self.canvas.loadPixmap(pixmap)
-                self.canvas.update()
             except Exception as e:
-                print(f"Error updating UI for frame: {e}")
+                logging.error(f"Error processing track {track.track_id}: {e}")
+                continue
+
+        return frame_annotations
+
+   
+
         
-        # Step 4: Ask the user for the desired annotation format
-        format_choice = self.choose_annotation_format()
-        if format_choice:
-            self.save_reid_annotations(frames, all_annotations, format_choice)
-            self.actions.saveReIDAnnotationsAction.setEnabled(True) 
-        else:
-            print("Annotation saving canceled by user.")
-        self.video_capture.release()
-        cv2.destroyAllWindows()
 
 
 
 
+
+    ########################################################################################################################
+    def display_frame(self, frame):
+        
+        """
+        Display the current frame with annotations in the LabelMe canvas.
+        """
+        try:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            height, width, channel = rgb_frame.shape
+            bytes_per_line = channel * width
+            q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+            pixmap = QtGui.QPixmap.fromImage(q_img)
+            self.canvas.loadPixmap(pixmap)
+            self.canvas.update()
+            logger.debug("Frame updated in the LabelMe canvas.")
+        except Exception as e:
+            logger.error(f"Error displaying frame: {e}", exc_info=True)
+
+
+
+    
+    
+
+
+#################################################################################################################################
     def choose_annotation_format(self):
         """Allow the user to choose the annotation format."""
         formats = ["JSON", "XML", "COCO", "YOLO"]  # Add more formats if needed
@@ -3099,16 +3574,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.update()  # Refresh the canvas to show updated annotations
   # Refresh the canvas to show updated annotations
             
-    def update_display(self, frame):
-        """Display the updated frame in the LabelMe UI."""
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        height, width, channel = rgb_frame.shape
-        bytes_per_line = 3 * width
-        q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
-        pixmap = QtGui.QPixmap.fromImage(q_img)
-
-        if hasattr(self, 'canvas') and self.canvas:
-            self.canvas.loadPixmap(pixmap)
+    
 
 
     def closeVideo(self):
@@ -3441,6 +3907,78 @@ class MainWindow(QtWidgets.QMainWindow):
                     images.append(relativePath)
         images = natsort.os_sorted(images)
         return images
+    
+    """Update the code and the UI
+    """
+    def _load_detection_model(self, model_name):
+        """Load detection model dynamically."""
+        if "yolov8" in model_name.lower():
+            from ultralytics import YOLO
+            return YOLO("yolov8m.pt")  # Replace with user-specified model path
+        elif "yolov5" in model_name.lower():
+            return torch.hub.load("ultralytics/yolov5", "custom", path="yolov5s.pt")
+        elif "faster_rcnn" in model_name.lower():
+            import torchvision.models.detection as detection
+            model = detection.fasterrcnn_resnet50_fpn(pretrained=True)
+            model.eval()
+            return model
+        else:
+            logger.warning(f"Detection model {model_name} not recognized.")
+            return None
+
+    def _load_reid_model(self, model_name):
+        """Load ReID model dynamically."""
+        if isinstance(model_name, int):
+            model_name = str(model_name)
+        if "osnet" in model_name.lower():
+            import torchreid
+            model = torchreid.models.build_model(
+                name="osnet_x1_0", num_classes=1000, pretrained=True)
+            logging.debug("loading OSNet ReID model...")
+            
+            model.eval().to(self.device)
+            return model
+        elif "fastreid" in model_name.lower():
+            from fastreid.config import get_cfg
+            from fastreid.engine.defaults import DefaultPredictor
+            cfg = get_cfg()
+            cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid/configs/Market1501/bagtricks_R50.yml")
+            cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
+            cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+            return DefaultPredictor(cfg)
+            logging.debug("loading Fastreid ReID model...")
+        else:
+            logger.warning(f"ReID model {model_name} not recognized.")
+            return None
+        
+    def addModelSelectors(self):
+        """Add dropdowns for selecting detection and ReID models."""
+        self.tools = self.toolbar("Tools")
+        # Detection Model Selector
+        self.detectionModelSelector = QtWidgets.QComboBox(self)
+        self.detectionModelSelector.addItems(["YOLOv8", "YOLOv5", "Faster R-CNN"])
+        # detection_model_label = QLabel("Detection Model:")
+        # detection_model_dropdown = QComboBox()
+        # detection_model_dropdown.addItems(["YOLOv8", "YOLOv5","Faster R-CNN"])
+        # detection_model_dropdown.setCurrentIndex(0)  # Default to YOLOv8
+        self.tools.addWidget(QtWidgets.QLabel("Detection Model:"))
+        self.tools.addWidget(self.detectionModelSelector)
+        # self.tools.addWidget(detection_model_label, alignment=Qt.AlignLeft)
+        # self.tools.addWidget(detection_model_dropdown, alignment=Qt.AlignLeft)
+        # self.tools.addWidget(reid_model_label, alignment=Qt.AlignLeft)
+        # self.tools.addWidget(reid_model_dropdown, alignment=Qt.AlignLeft)
+
+        # ReID Model Selector
+        self.reidModelSelector = QtWidgets.QComboBox(self)
+        self.reidModelSelector.addItems(["OSNet", "FastReID"])
+        self.reidModelSelector.setCurrentIndex(0)  # Default to OSNet
+        self.tools.addWidget(QtWidgets.QLabel("ReID Model:"))
+        self.tools.addWidget(self.reidModelSelector)
+
+        # Connect selectors to model-loading logic
+        self.detectionModelSelector.currentIndexChanged.connect(self.load_models)
+        self.reidModelSelector.currentIndexChanged.connect(self.load_models)
+    
 
 # def get_transform(self):
 #         """Create a transformation pipeline for person ReID model input."""
@@ -3451,20 +3989,49 @@ class MainWindow(QtWidgets.QMainWindow):
 #             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
 #         ])
 
+import time
+class ImprovedIDManager:
+    def __init__(self, start_id=1):
+        self._current_id = start_id
+        self._used_ids = set()
+        self._track_history = {}  # Store track history for persistent tracking
 
-class IDManager:
-   
-    def __init__(self):
-        self.used_ids = set()
-        self.next_id = 1
-
-    def get_new_id(self):
-        while self.next_id in self.used_ids:
-            self.next_id += 1
-        new_id = self.next_id
-        self.used_ids.add(new_id)
+    def get_next_id(self, detection_feature=None):
+        # Find next available ID
+        while self._current_id in self._used_ids:
+            self._current_id += 1
+        
+        new_id = self._current_id
+        self._used_ids.add(new_id)
+        
+        # Store detection feature for this ID
+        if detection_feature is not None:
+            self._track_history[new_id] = {
+                'first_seen': time.time(),
+                'feature': detection_feature
+            }
+        
         return new_id
 
-    def release_id(self, track_id):
-        if track_id in self.used_ids:
-            self.used_ids.remove(track_id)
+    def match_or_create_id(self, current_feature, similarity_threshold=0.7):
+        # Try to match with existing tracks based on feature similarity
+        for track_id, track_info in self._track_history.items():
+            similarity = self.calculate_feature_similarity(
+                track_info['feature'], 
+                current_feature
+            )
+            
+            if similarity > similarity_threshold:
+                return track_id
+        
+        # If no match, create a new ID
+        return self.get_next_id(current_feature)
+
+    def calculate_feature_similarity(self, feature1, feature2):
+        # Cosine similarity calculation
+        return np.dot(feature1, feature2) / (
+            np.linalg.norm(feature1) * np.linalg.norm(feature2)
+        )
+
+##########################################################################################################################################################################################################################
+   

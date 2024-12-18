@@ -9,6 +9,17 @@ from qtpy import QtGui
 
 import labelme.utils
 from labelme.logger import logger
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to DEBUG for more detailed logs
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(),  # Logs to console
+        logging.FileHandler("annotate_video.log"),  # Logs to file
+    ]
+)
 
 # TODO(unknown):
 # - [opt] Store paths instead of creating new ones at each paint.
@@ -48,13 +59,26 @@ class Shape(object):
         group_id=None,
         description=None,
         mask=None,
-        rect=None
+        rect=None,
+        confidence=None
     ):
+        # if rect is None:
+        #     # raise ValueError("Shape cannot be initialized with a NoneType rect.")
+        #     rect = QtCore.QRectF(0, 0, 1, 1)  # Default rectangle with minimum size
+        #     logging.warning("Initializing Shape with default QRectF.")
+        
+        # if not isinstance(rect, QtCore.QRectF):
+        #     raise ValueError(f"Expected QRectF, but got {type(rect)}.")
+        # if rect.isEmpty():
+        #     raise ValueError("QRectF is empty. Invalid bounding box dimensions.")
         self.label = label
         self.group_id = group_id
         self.id= shape_id
-        self.rect=rect
+        self.rect=rect if rect else None
         self.shape_id = shape_id  # Add this line
+        self.confidence=confidence
+        # Log shape creation
+        logging.debug(f"Created Shape: ID {shape_id}, BoundingBox {self.rect}, Confidence {confidence}")
         self.points = []
         self.point_labels = []
         self.shape_type = shape_type
@@ -96,6 +120,14 @@ class Shape(object):
         self.shape_type, self.points, self.point_labels = self._shape_raw
         self._shape_raw = None
 
+    def boundingBox(self):
+        if self.rect and not self.rect.isEmpty():
+            logging.debug(f"Bounding box valid: {self.rect}")
+            return self.rect
+        logging.warning("Bounding box is invalid or empty.")
+        return None
+    
+    
     @property
     def shape_type(self):
         return self._shape_type
@@ -117,6 +149,9 @@ class Shape(object):
             raise ValueError("Unexpected shape_type: {}".format(value))
         self._shape_type = value
 
+    
+    
+    
     def close(self):
         self._closed = True
 
@@ -336,6 +371,12 @@ class Shape(object):
         return rectangle
 
     def makePath(self):
+        
+        if not self.points:
+            logging.warning("Shape has no points; returning empty path.")
+            return QtGui.QPainterPath()
+
+        path = QtGui.QPainterPath()
         if self.shape_type in ["rectangle", "mask"]:
             path = QtGui.QPainterPath()
             if len(self.points) == 2:
@@ -352,11 +393,8 @@ class Shape(object):
                 path.lineTo(p)
         return path
 
-    def boundingBox(self):
-        """
-        Return the bounding box of the shape.
-        """
-        return self.rect
+    
+
 
     def move(self, dx, dy):
         """

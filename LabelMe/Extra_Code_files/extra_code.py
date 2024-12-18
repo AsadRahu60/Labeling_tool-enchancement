@@ -1921,3 +1921,653 @@
 #             self.actions.saveReIDAnnotations.setEnabled(True) 
 #         else:
 #             print("Annotation saving canceled by user.")
+
+# def shapeSelectionChanged(self, selected_shapes):
+#         self._noSelectionSlot = True
+
+#         # Debug: Check the type and contents of selectedShapes
+#         print(f"Type of selectedShapes: {type(self.canvas.selectedShapes)}")
+#         print(f"Contents of selectedShapes: {self.canvas.selectedShapes}")
+
+#         # Clear previous selection
+#         for shape in self.canvas.selectedShapes:
+#             if isinstance(shape, Shape):
+#                 shape.selected = False
+#             else:
+#                 print(f"Warning: Found invalid shape object: {shape}")
+
+#         self.labelList.clearSelection()
+
+#         # Check if selectedShapes is defined and valid
+#         if not hasattr(self.canvas, 'selectedShapes') or not isinstance(self.canvas.selectedShapes, list):
+#             print("Warning: selectedShapes is not a list or undefined. Resetting to an empty list.")
+#             self.canvas.selectedShapes = []
+
+#         # Update selection
+#         for shape in self.canvas.selectedShapes:
+#             if isinstance(shape, Shape):
+#                 shape.selected = True
+#                 item = self.labelList.findItemByShape(shape)
+#                 self.labelList.selectItemByShape(item)
+#                 self.labelList.scrollToItem(item)
+#             else:
+#                 print(f"Skipping invalid shape object: {shape}")
+
+#         self._noSelectionSlot = False
+
+#         # Update action buttons
+#         n_selected = len(selected_shapes)
+#         self.actions.delete.setEnabled(n_selected)
+#         self.actions.duplicate.setEnabled(n_selected)
+#         self.actions.copy.setEnabled(n_selected)
+#         self.actions.edit.setEnabled(n_selected)
+
+# def annotateVideo(self):
+        
+       
+#         """Annotate video with YOLO, FastReID, and DeepSORT."""
+#         self.load_models()
+#         self.track_id_manager = ImprovedIDManager()
+#         frames = []
+#         all_annotations = []
+
+#         # Initialize the Tracker
+#         max_cosine_distance = 0.5
+#         max_age = 30
+#         n_init = 3
+#         metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance)
+#         if not hasattr(self, 'tracker'):
+#             self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init,max_iou_distance=0.7)
+
+#         person_colors = {}
+        
+            
+
+#         # Set the expected embedding size (based on the model)
+#         if not hasattr(self, 'expected_embedding_size'):
+#             self.expected_embedding_size =2048   # Replace with your model's actual output size
+
+#         #Process video frame by frame
+#         while self.video_capture.isOpened():
+#             ret, frame = self.video_capture.read()
+#             if not ret:
+#                 print("End of video or no frame available.")
+#                 break
+
+#             # Step 1: Run YOLO for person detection
+#             results = self.yolo_model(frame)
+#             boxes, confidences = [], []
+#             for det in results[0].boxes:
+#                 if int(det.cls[0]) == 0 and float(det.conf[0]) > 0.5:  # Class 0 is person
+#                     x1, y1, x2, y2 = map(int, det.xyxy[0].tolist())
+#                     if not (0 <= x1 < x2 <= frame.shape[1] and 0 <= y1 < y2 <= frame.shape[0]):
+#                         print(f"Skipping invalid YOLO box: {[x1, y1, x2, y2]}")
+#                         continue
+#                     boxes.append((x1, y1, x2, y2))
+#                     confidences.append(float(det.conf[0]))
+#                 print(f"Raw YOLO output box: {det.xyxy[0].tolist()}")
+#                 print("Step 1 ends")
+
+#             # Step 2: Extract ReID features for detected boxes
+#             current_features = self.extract_reid_features(frame, boxes)
+#             for i, feature in enumerate(current_features):
+#                 if feature is None or not isinstance(feature, np.ndarray) or len(feature) != self.expected_embedding_size:
+#                     print(f"Invalid feature for bounding box {boxes[i]}: {feature}")
+#                     continue
+#             detections = []
+#             frame_height, frame_width, _ = frame.shape
+#             print(f"Frame dimensions: Width={frame_width}, Height={frame_height}")
+#             print(f"Bounding box: {boxes}")
+
+#             for box, confidence, feature in zip(boxes, confidences, current_features):
+#                 # Validate bounding box dimensions
+#                 if not (0 <= box[0] < box[2] <= frame_width and 0 <= box[1] < box[3] <= frame_height):
+#                     print(f"Skipping invalid YOLO bounding box: {box}")
+#                     continue
+
+#                 try:
+#                     # Extract and flatten feature vector
+#                     if isinstance(feature, tuple) or isinstance(feature, list):
+#                         feature_vector = np.array(feature[0]).flatten()
+#                     else:
+#                         feature_vector = np.array(feature).flatten()
+
+#                     # Validate feature size
+#                     if len(np.array(feature[0]).flatten()) != self.expected_embedding_size:
+#                         print(f"Invalid feature size: {len(feature_vector)} for box {box}")
+#                         continue
+
+#                     # Normalize bounding box
+#                     bbox_tuple = (
+#                         box[0] / frame_width,
+#                         box[1] / frame_height,
+#                         box[2] / frame_width,
+#                         box[3] / frame_height,
+#                     )
+
+#                     # Create detection object
+#                     detection = Detection(bbox_tuple, confidence, feature_vector)
+#                     detections.append(detection)
+#                     valid_detections=[]
+#                     if (detection is not None and 
+#                         len(detection.feature) == self.expected_embedding_size and 
+#                         np.isfinite(detection.feature).all() and 
+#                         0 <= detection.confidence <= 1):
+#                         valid_detections.append(detection)
+#                         print(f"Valid detection added: {detection}")
+#                     else:
+#                         print(f"Invalid detection filtered out: {detection}")
+
+#                 except Exception as e:
+#                     print(f"Error processing detection for box {box}: {e}")
+#                     print(f"Error validating detection: {e}, Detection: {detection}")
+
+#             print("Step 2 ends")
+# ##################################################################################################################################
+#              # Step 3: Update the tracker
+#             if detections:
+#                 try:
+#                     print(f"Updating tracker with {len(detections)} detections.")
+#                     self.tracker.predict()
+#                     self.tracker.update(detections=detections)
+#                     # print(self.tracker.update(detections=detections))# Pass the list of detections
+#                 except Exception as e:
+#                     print(f"Error during tracker update: {e}")
+#             else:
+#                 print("No valid detections for this frame, skipping tracker update.")
+
+            
+#             # Step 4: Process and annotate tracks
+#             frame_annotations = []
+
+#             for track in self.tracker.tracks:
+#                 # Skip unconfirmed tracks or tracks that haven't been updated recently
+#                 if not track.is_confirmed() or track.time_since_update > 1:
+#                     print(f"Unconfirmed track, skipping: {track}")
+#                     print(f"Releasing ID for unconfirmed track: {track.track_id}")
+#                     track.track_id = self.track_id_manager.match_or_create_id(
+#                         current_feature=track.get_feature(),
+#                         similarity_threshold=0.7)
+#                     continue
+                    
+                   
+
+#                 # # Assign or create an ID for the track
+               
+#                 # if hasattr(track, 'get_feature') and track.get_feature() is not None:
+#                 #     track_id = self.track_id_manager.match_or_create_id(
+#                 #         current_feature=track.get_feature(),
+#                 #         similarity_threshold=0.7
+#                 #     )
+#                 #     continue
+                    
+                    
+                
+                    
+
+#                 track_id=track.track_id
+
+#                 # Log the track details
+#                 bbox = track.to_tlbr()
+#                 print(f"Track ID: {track.track_id}, Bounding box: {bbox}")
+
+            
+                
+                
+                
+#                 # if not (0 <= bbox[0] < bbox[2] <= frame_width and 0 <= bbox[1] < bbox[3] <= frame_height):
+#                 #     print(f"Invalid bounding box for Track ID {track_id}: {bbox}")
+#                 #     continue
+
+#                 # Assign unique colors
+#                 if track_id not in person_colors:
+#                     person_colors[track_id] = self.get_random_color()
+#                 color = person_colors[track_id]
+
+#                 # Annotate the frame with bounding box and label
+#                 label_text = f"Person ID: {track_id}"
+#                 cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
+#                 cv2.putText(frame, label_text, (int(bbox[0]), int(bbox[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+#                 # Create a Shape object for LabelMe annotation
+#                 shape = Shape(label=f"person{track_id}", shape_id=track_id)
+#                 shape.addPoint(QtCore.QPointF(bbox[0], bbox[1]))
+#                 shape.addPoint(QtCore.QPointF(bbox[2], bbox[1]))
+#                 shape.addPoint(QtCore.QPointF(bbox[2], bbox[3]))
+#                 shape.addPoint(QtCore.QPointF(bbox[0], bbox[3]))
+#                 self.addLabel(shape)
+
+#                 # Update label lists
+#                 self.labelList.addPersonLabel(track_id, color)  # Update Label List
+#                 self.uniqLabelList.addUniquePersonLabel(f"person{track_id}", color)  # Update Unique Label List
+
+#                     # Append annotations for the current frame
+#                 frame_annotations.append({
+#                     "track_id": track_id,
+#                     "bbox": [x1, y1, x2, y2],
+#                     "confidence": confidence,
+#                     "class": "person"
+#                 })
+#                 print(f"Track ID: {track_id}, BBox: {bbox}")
+
+#             if frame_annotations:
+#                     all_annotations.append(frame_annotations)
+#             frames.append(frame)
+
+#             # Display the frame
+#             try:
+#                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#                 height, width, channel = rgb_frame.shape
+#                 bytes_per_line = channel * width
+#                 q_img = QtGui.QImage(rgb_frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888)
+#                 pixmap = QtGui.QPixmap.fromImage(q_img)
+#                 self.canvas.loadPixmap(pixmap)
+#                 self.canvas.update()
+#                 # cv2.imshow("Frame with Bounding Boxes", frame)
+#                 cv2.waitKey(1)
+#             except Exception as e:
+#                 print(f"Error updating UI for frame: {e}")
+
+#         # Step 5: Save annotations
+#         format_choice = self.choose_annotation_format()
+#         if format_choice:
+#             self.save_reid_annotations(frames, all_annotations, format_choice)
+#             self.actions.saveReIDAnnotations.setEnabled(True)
+#         else:
+#             print("Annotation saving canceled by user.")
+#         self.video_capture.release()
+#         cv2.destroyAllWindows()
+# def load_models(self):
+#         """Load YOLO and FastReID models."""
+#         # Load YOLOv8 model (e.g., pretrained on COCO)
+        
+#         self.yolo_model = YOLO("yolov8m.pt")  # Adjust YOLO model variant as needed
+
+#         # Load FastReID model
+#         cfg = get_cfg()
+#         cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid\configs/Market1501/bagtricks_R50.yml")
+#         cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
+#         cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+#         self.fastreid_model = DefaultPredictor(cfg)
+#         test_img = torch.randn(1, 3, 128, 256)  # Replace with appropriate input size
+#         feature = self.fastreid_model(test_img)
+#         print(feature.shape)  # Should output (1, expected_embedding_size) 
+        
+#         # Initialize DeepSORT
+#         self.deepsort = DeepSort(max_age=50, n_init=3)
+
+
+# def process_tracks(self, frame, person_colors):
+        
+        
+        
+        
+#         """
+#         Process confirmed tracks, assign IDs, annotate the frame, and update the LabelMe UI.
+#         """
+#         frame_height, frame_width = frame.shape[:2]
+#         frame_annotations = []
+
+#         for track in self.tracker.tracks:
+#             if not track.is_confirmed() or track.time_since_update > 1:
+#                 logger.debug(f"Skipping unconfirmed or stale track: ID={track.track_id}")
+#                 continue
+
+#             try:
+#                 # Get track ID, bounding box, and confidence
+#                 track_id = track.track_id
+#                 det_conf = getattr(track, "det_conf", None)  # Get confidence, if available
+#                 bbox_tlbr = track.to_tlbr()
+#                 logger.debug(f"Raw bbox: {bbox_tlbr}")
+#                 logger.debug(f"Max bbox value: {max(bbox_tlbr)}")
+#                 logger.debug(f"Min bbox value: {min(bbox_tlbr)}")
+
+#                 logger.debug(f"Track ID {track_id}: to_tlbr={bbox_tlbr}, det_conf={det_conf}")
+
+#                 def is_normalized_bbox(bbox):
+#                     return all(0 <= coord <= 1.0 for coord in bbox)
+
+#                 if is_normalized_bbox(bbox_tlbr):
+#                     bbox_tlbr = [
+#                         bbox_tlbr[0] * frame_width,
+#                         bbox_tlbr[1] * frame_height,
+#                         bbox_tlbr[2] * frame_width,
+#                         bbox_tlbr[3] * frame_height,
+#                     ]
+#                     logger.debug(f"Track ID {track_id}: Normalized bbox scaled to pixel values: {bbox_tlbr}")
+#                     continue
+#                 # Validate and convert bounding box to integer
+#                 abs_bbox = self.validate_bbox(bbox_tlbr, frame.shape)
+#                 if abs_bbox is None:
+#                     logger.warning(f"Skipping invalid bounding box for track ID {track_id}: {bbox_tlbr}")
+#                     continue
+
+#                 x1, y1, x2, y2 = map(int, abs_bbox)
+
+#                 # Assign a unique color for the track
+#                 if track_id not in person_colors:
+#                     person_colors[track_id] = self.get_random_color()
+#                 color = person_colors[track_id]
+
+#                 # Annotate the frame with bounding box and label
+#                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+#                 label_text = f"Person ID: {track_id}"
+#                 cv2.putText(frame, label_text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+#                 # Add to LabelMe UI
+#                 shape = Shape(label=f"person{track_id}", shape_id=track_id)
+#                 shape.addPoint(QtCore.QPointF(x1, y1))
+#                 shape.addPoint(QtCore.QPointF(x2, y1))
+#                 shape.addPoint(QtCore.QPointF(x2, y2))
+#                 shape.addPoint(QtCore.QPointF(x1, y2))
+#                 self.addLabel(shape)
+
+#                 # Update label lists
+#                 self.labelList.addPersonLabel(track_id, color)
+#                 self.uniqLabelList.addUniquePersonLabel(f"person{track_id}", color)
+
+#                 # Prepare annotation data
+#                 annotation = {
+#                     "track_id": track_id,
+#                     "bbox": [x1, y1, x2, y2],
+#                     "confidence": det_conf,
+#                     "class": "person",
+#                 }
+#                 frame_annotations.append(annotation)
+
+#             except Exception as e:
+#                 logger.warning(f"Error processing track ID {track_id}: {e}", exc_info=True)
+
+#         logger.info(f"Processed {len(frame_annotations)} tracks for the current frame.")
+#         return frame_annotations
+
+# def annotateVideo(self):
+#         """
+#         Annotate video with YOLO for detection, ReID for identification, and DeepSORT for tracking.
+#         """
+#         try:
+#             # Load models and initialize tracker
+#             # Ensure models are loaded
+#             if not self.detector or not self.reid_model:
+#                 self.load_models()
+#             self.initializeTracker()  # Initialize the tracker with the given configuration
+#             self.track_id_manager = ImprovedIDManager()
+
+#             frames = []
+#             all_annotations = []
+#             person_colors = {}
+
+#             logger.info("Starting video annotation...")
+
+#             while self.video_capture.isOpened():
+#                 ret, frame = self.video_capture.read()
+#                 if not ret:
+#                     logger.info("End of video or no frame available.")
+#                     break
+
+#                 # Step 1: YOLO Detection
+#                 boxes, confidences = self.run_yolo(frame)
+
+#                 # Step 2: ReID Features
+#                 features = self.extract_reid_features(frame, boxes)
+
+#                 # Step 3: Validate Detections
+#                 detections = self.validate_detections(boxes, confidences, features, frame.shape)
+
+#                 # Step 4: Tracker Update
+#                 self.update_tracker(detections)
+
+#                 # Step 5: Process Tracks
+#                 frame_annotations = self.process_tracks(frame, person_colors)
+
+#                 if frame_annotations:
+#                     all_annotations.append(frame_annotations)
+#                 frames.append(frame)
+
+#                 # Step 6: Display Frame
+#                 self.display_frame(frame)
+
+#             # Step 7: Save Annotations
+#             format_choice = self.choose_annotation_format()
+#             if format_choice:
+#                 self.save_reid_annotations(frames, all_annotations, format_choice)
+#                 self.actions.saveReIDAnnotations.setEnabled(True)
+#                 logger.info(f"Annotations saved successfully in {format_choice} format.")
+#             else:
+#                 logger.warning("Annotation saving canceled by user.")
+
+#         except Exception as e:
+#             logger.error(f"Error during video annotation: {e}", exc_info=True)
+#         finally:
+#             # Release resources
+#             self.video_capture.release()
+#             cv2.destroyAllWindows()
+#             logger.info("Video annotation process completed.")
+
+# def extract_reid_features(self, frame, boxes):
+#         """
+#         Extract ReID features for the detected bounding boxes.
+#         Args:
+#             frame (np.ndarray): Current video frame (H, W, C).
+#             boxes (list of tuples): Detected bounding boxes [(x1, y1, x2, y2), ...].
+
+#         Returns:
+#             list: ReID feature vectors for each bounding box or None for invalid boxes.
+#         """
+#         features = []
+#         device = "cuda" if torch.cuda.is_available() else "cpu"
+
+#         for box in boxes:
+#             try:
+#                 x1, y1, x2, y2 = box
+
+#                 # Validate bounding box dimensions
+#                 if x2 <= x1 or y2 <= y1:
+#                     logger.warning(f"Skipping invalid box with dimensions {box}")
+#                     features.append(None)
+#                     continue
+
+#                 # Extract and preprocess cropped region
+#                 crop = frame[y1:y2, x1:x2]  # Crop the bounding box
+#                 crop = cv2.resize(crop, (128, 256))  # Resize to ReID input size
+#                 crop = crop.transpose(2, 0, 1)  # Convert (H, W, C) to (C, H, W)
+#                 crop = torch.tensor(crop, dtype=torch.float32).unsqueeze(0) / 255.0  # Normalize and add batch dimension
+#                 crop = crop.to(device)
+
+#                 # Extract features using FastReID model
+#                 output = self.reid_model(crop)  # Get model output
+#                 logger.debug(f"Model output: {output}")
+
+#                 if isinstance(output, dict) and "features" in output:
+#                     feature = output["features"]
+#                 else:
+#                     feature = output
+
+#                 # Handle flattened features if necessary
+#                 if len(feature.shape) == 2:
+#                     feature = feature[0]  # Access the first feature if it's a batch
+
+#                 features.append(feature.cpu().detach().numpy())
+#             except Exception as e:
+#                 logger.warning(f"Error extracting feature for box {box}: {e}")
+#                 features.append(None)
+
+#         logger.info(f"Extracted features for {len(features)} boxes.")
+#         return features
+
+# def setLastLabel(self, text, flags):
+#         assert text
+#         self.shapes[-1].label = text
+#         self.shapes[-1].flags = flags
+#         self.shapesBackups.pop()
+#         self.storeShapes()
+#         return self.shapes[-1]
+
+
+# def createShapeFromData(self, shape_data):
+#         """
+#         Robust method to convert annotation data into a Shape object.
+        
+#         Args:
+#             shape_data (dict): Dictionary containing shape information
+        
+#         Returns:
+#             Shape: A validated Shape object or None if creation fails
+#         """
+#         try:
+#             # Extract and validate required fields
+#             bbox = shape_data.get("bbox")
+#             shape_type = shape_data.get("shape_type", "rectangle")
+#             shape_id = shape_data.get("shape_id")
+#             confidence = shape_data.get("confidence")
+
+#             # Comprehensive bbox validation
+#             if not bbox:
+#                 raise ValueError("Missing bounding box coordinates")
+            
+#             # Ensure bbox is a list of numeric values
+#             try:
+#                 bbox = list(map(float, bbox))
+#             except (TypeError, ValueError):
+#                 raise ValueError(f"Invalid bbox format: {bbox}")
+            
+#             # Validate bbox length and dimensions
+#             if len(bbox) != 4:
+#                 raise ValueError(f"Bbox must have 4 coordinates, got {len(bbox)}")
+            
+#             # Use Shapely for robust geometric validation
+#             try:
+#                 geom = box(bbox[0], bbox[1], bbox[2], bbox[3])
+#                 if not geom.is_valid:
+#                     raise ValueError("Invalid geometric shape")
+#             except Exception as geom_error:
+#                 raise ValueError(f"Geometric validation failed: {geom_error}")
+            
+#             # Strict shape type validation with flexibility
+#             ALLOWED_SHAPE_TYPES = {"rectangle", "bbox", "box"}
+#             if shape_type.lower() not in ALLOWED_SHAPE_TYPES:
+#                 logging.warning(f"Unsupported shape type '{shape_type}'. Defaulting to 'rectangle'")
+#                 shape_type = "rectangle"
+            
+#             # Normalize coordinates to ensure positive dimensions
+#             x1, y1, x2, y2 = map(int, [
+#                 min(bbox[0], bbox[2]),
+#                 min(bbox[1], bbox[3]),
+#                 max(bbox[0], bbox[2]),
+#                 max(bbox[1], bbox[3])
+#             ])
+            
+#             # Create QRectF with normalized coordinates
+#             rect = QtCore.QRectF(
+#                 QtCore.QPointF(x1, y1), 
+#                 QtCore.QPointF(x2, y2)
+#             )
+            
+#             # Validate shape dimensions
+#             if rect.width() < 1 or rect.height() < 1:
+#                 raise ValueError(f"Shape dimensions too small: {rect.width()} x {rect.height()}")
+            
+#             # Optional: Add additional metadata validation
+#             metadata = {
+#                 "original_bbox": bbox,
+#                 "shape_type": shape_type,
+#                 "confidence": confidence
+#             }
+            
+#             # Create and return Shape object with enhanced validation
+#             shape = Shape(rect, shape_id, confidence)
+#             shape.metadata = metadata
+            
+#             # Logging for tracking and debugging
+#             logging.info(f"Successfully created shape: ID {shape_id}, Bbox {bbox}")
+            
+#             return shape
+    
+#         except Exception as e:
+#             # Comprehensive error logging
+#             logging.error(f"Shape creation failed: {e}")
+#             logging.error(f"Problematic shape data: {shape_data}")
+            
+#             # Optional: You can choose to re-raise, return None, or handle differently
+#             return None
+
+# def createShapeFromData(self, shape_data):
+#         """
+#         Robust method to convert annotation data into a Shape object.
+
+#         Args:
+#             shape_data (dict): Dictionary containing shape information.
+
+#         Returns:
+#             Shape: A validated Shape object or None if creation fails.
+#         """
+#         try:
+#             # Extract and validate required fields
+#             bbox = shape_data.get("bbox")
+#             shape_type = shape_data.get("shape_type", "rectangle")
+#             shape_id = shape_data.get("shape_id")
+#             confidence = shape_data.get("confidence")
+
+#             # Validate bbox with utility method
+#             if not self.is_bbox_valid(bbox, min_size=1):
+#                 raise ValueError(f"Invalid bbox: {bbox}")
+
+#             # Normalize bbox coordinates
+#             x1, y1, x2, y2 = map(int, [
+#                 min(bbox[0], bbox[2]),
+#                 min(bbox[1], bbox[3]),
+#                 max(bbox[0], bbox[2]),
+#                 max(bbox[1], bbox[3])
+#             ])
+
+#             logging.debug(f"Creating QRectF with points: ({x1}, {y1}), ({x2}, {y2})")
+#             rect = QtCore.QRectF(
+#                 QtCore.QPointF(x1, y1),
+#                 QtCore.QPointF(x2, y2)
+#             )
+#             logging.debug(f"Initialized QRectF: TopLeft ({rect.topLeft().x()}, {rect.topLeft().y()}), "
+#                         f"BottomRight ({rect.bottomRight().x()}, {rect.bottomRight().y()}), "
+#                         f"Width: {rect.width()}, Height: {rect.height()}")
+            
+#             if not (x2 > x1 and y2 > y1):
+#                 raise ValueError(f"Invalid bbox dimensions: ({x1}, {y1}, {x2}, {y2})")
+
+
+#             # Validate dimensions
+#             if rect.width() <= 0 or rect.height() < 1:
+#                 raise ValueError(f"Shape dimensions too small: {rect.width()} x {rect.height()}")
+
+#             # Validate shape type
+#             ALLOWED_SHAPE_TYPES = {"rectangle", "bbox", "box"}
+#             if shape_type.lower() not in ALLOWED_SHAPE_TYPES:
+#                 logging.warning(f"Unsupported shape type '{shape_type}'. Defaulting to 'rectangle'")
+#                 shape_type = "rectangle"
+
+#                 # Initialize Shape object
+#             shape = Shape()
+#             shape.label = shape_type
+#             shape.id = shape_id
+#             shape.confidence = confidence
+
+#             # Add points for the bounding box
+#             shape.addPoint(QtCore.QPointF(x1, y1))  # Top-left
+#             shape.addPoint(QtCore.QPointF(x2, y2))  # Bottom-right
+
+#             # Validate the bounding box dynamically using boundingRect()
+#             if shape.boundingRect().isEmpty():
+#                 raise ValueError(f"BoundingRect is empty for shape ID {shape_id}.")
+
+#             # Attach metadata for debugging
+#             shape.metadata = {
+#                 "original_bbox": bbox,
+#                 "shape_type": shape_type,
+#                 "confidence": confidence
+#             }
+
+#             logging.info(f"Successfully created shape: ID {shape_id}, Bbox {bbox}")
+#             return shape
+
+#         except Exception as e:
+#             logging.error(f"Shape creation failed: {e}")
+#             logging.error(f"Problematic shape data: {shape_data}")
+#             return None
