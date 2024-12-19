@@ -63,6 +63,9 @@ from deep_sort_realtime.deep_sort.tracker import Tracker
 
 from shapely.geometry import box
 from torchvision import transforms
+import scipy.io as sio
+from pathlib import Path
+import h5py
 
 
 
@@ -80,6 +83,8 @@ from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 ###############################################################################
 import logging
+from labelme.widgets.Dataset_Handler import CUHK03Handler, Market1501Handler
+
 
 # Configure logging
 logging.basicConfig(
@@ -174,6 +179,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.total_frames = 0       # Total number of frames in the video
         self.frame_skip = 1  # Process every frame
         self.person_tracks = {}# Dictionary to store tracks for each person
+        self.current_id = 1   # Start sequential IDs from 1
+        self.id_mapping = {}  # Map tracker IDs to sequential IDs
+        self.next_id = 1      # Starting from ID 1
         # Example check if the loaded file is a video (you need to set this flag somewhere)
         self.is_video = False  # This flag will be set to True when loading a video
         self.yolo_model=None
@@ -202,6 +210,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if config is None:
             config = get_config()
         self._config = config
+        
+       
 ################################################################################################################################
 
         """
@@ -283,8 +293,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pauseVideoButton.setEnabled(False)
         self.stopVideoButton.setEnabled(False)
 
+####################################################################################################################################
+         # Create dropdown for dataset selection
+        self.dataset_selector = QtWidgets.QComboBox(self)
+        self.dataset_selector.addItems(["CUHK03", "Market1501"])
+        self.dataset_selector.setGeometry(50, 50, 200, 30)
+        self.tools.addWidget(QtWidgets.QLabel("Select Dataset"))
+        self.tools.addWidget(self.dataset_selector)
+        
+        
         
 
+        
+
+             
+
+        
+        
         
 
         
@@ -504,6 +529,15 @@ class MainWindow(QtWidgets.QMainWindow):
             icon="annotation",  # Optional: set the icon path
             tip=self.tr("Annotate the video using YOLO and ReID models"),
             enabled=False,  # Enable the action by default
+        )
+        UploadDataset= action(
+            text=self.tr("Upload Dataset"),
+            slot=self.upload_dataset,
+            shortcut="Ctrl+D",
+            tip=self.tr("Upload the Dataset"),
+            enabled=True
+            
+            
         )
         save = action(
             self.tr("&Save\n"),
@@ -951,6 +985,7 @@ class MainWindow(QtWidgets.QMainWindow):
             openNextFrame=openNextFrame,
             AnnotateVideo=AnnotateVideo,
             saveReIDAnnotations=saveReIDAnnotationsAction,
+            UploadDataset=UploadDataset,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
@@ -1133,7 +1168,8 @@ class MainWindow(QtWidgets.QMainWindow):
             fitWindow,
             zoom,
             None,
-            selectAiModel
+            selectAiModel,
+            UploadDataset
             # selectDetectionModel,SelectReIDModel
             
         )
@@ -2327,34 +2363,133 @@ class MainWindow(QtWidgets.QMainWindow):
     def openFile(self, _value=False):
         if not self.mayContinue():
             return
+
         path = osp.dirname(str(self.filename)) if self.filename else "."
-        formats = [
-            "*.{}".format(fmt.data().decode())
-            for fmt in QtGui.QImageReader.supportedImageFormats()
-        ]
-        filters = self.tr("Image & Label files (%s)") % " ".join(
-            formats + ["*%s" % LabelFile.suffix]
+        filters = self.tr(
+            "Image, Video, Dataset, or Label files (*.mp4 *.avi *.mov *.mkv *.jpg *.png *.json *.mat *.zip);;All Files (*)"
         )
-        filters = self.tr("Image, Video,Label files (*.mp4 *.avi *.mov *.mkv *.jpg *.png *.json)")
         fileDialog = FileDialogPreview(self)
         fileDialog.setFileMode(FileDialogPreview.ExistingFile)
         fileDialog.setNameFilter(filters)
         fileDialog.setWindowTitle(
-            self.tr("%s - Choose Image ,Video or Label file") % __appname__,
+            self.tr("%s - Choose Image, Video, Dataset, or Label File") % __appname__,
         )
         fileDialog.setWindowFilePath(path)
         fileDialog.setViewMode(FileDialogPreview.Detail)
-        
-        if fileDialog.exec_():
-            fileName = fileDialog.selectedFiles()[0]
-            if fileName.endswith(('.mp4', '.avi', '.mov', '.mkv')):  # Video formats
-                    self.loadVideo(fileName)
-            else:
-                    self.loadFile(fileName)
-            # Enable the frame navigation buttons only if the video is loaded successfully
-        if self.video_capture.isOpened():
+
+        if not fileDialog.exec_():
+            return
+
+        selectedFile = fileDialog.selectedFiles()[0]
+
+        if osp.isdir(selectedFile):
+            self._processDirectory(selectedFile)
+        else:
+            self._processFile(selectedFile)
+            
+            # File dialog for folder selection
+        folder_path = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            "Select Dataset Folder",
+            "."
+        )
+        if not folder_path:
+            return  # User canceled selection
+
+        # Detect the dataset type and process
+        if self.detectCUHK03(folder_path):
+            self.processCUHK03Dataset(folder_path)
+        else:
+            QtWidgets.QMessageBox.warning(
+                self, "Unsupported Folder", "The selected folder does not contain a recognizable dataset."
+            )
+
+        # Enable the frame navigation buttons if the video is successfully loaded
+        if hasattr(self, 'video_capture') and self.video_capture.isOpened():
             self.actions.openPrevFrame.setEnabled(True)
             self.actions.openNextFrame.setEnabled(True)
+    def detectCUHK03(self, folder_path):
+        """Detect if the selected folder contains CUHK03 dataset files."""
+        mat_file = Path(folder_path) / "cuhk03_release" / "cuhk-03.mat"
+        protocol_file = Path(folder_path) / "cuhk03_new_protocol_config_detected.mat"
+        return mat_file.exists() and protocol_file.exists()
+
+    def processCUHK03Dataset(self, folder_path):
+        """Process the CUHK03 dataset from a folder."""
+        output_dir = Path(folder_path) / "processed_cuhk03"
+        handler = CUHK03Handler(folder_path, output_dir)
+        try:
+            handler.prepare_dataset()
+            QtWidgets.QMessageBox.information(
+                self, "Success", f"CUHK03 dataset processed successfully to {output_dir}"
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self, "Error", f"Failed to process CUHK03 dataset: {e}"
+            )
+
+    def _processDirectory(self, directory):
+        """Handle directory selection."""
+        directory_path = Path(directory)
+        if any(file.suffix == '.mat' for file in directory_path.iterdir() if file.is_file()):
+            self.loadReIDDataset(directory)
+        else:
+            self.importDirImages(directory)
+
+
+    def _processFile(self, file):
+        """Handle individual file selection."""
+        file_path = Path(file)
+        if file_path.suffix == '.zip':
+            self._processZipFile(file_path)
+        elif file_path.suffix == '.mat':
+            self._processMatFile(file_path)
+        elif file_path.suffix in ['.mp4', '.avi', '.mov', '.mkv']:
+            self.loadVideo(file_path)
+        elif file_path.suffix in ['.jpg', '.png', '.jpeg']:
+            self.loadFile(file_path)
+        elif file_path.suffix == '.json':
+            self.loadAnnotation(file_path)
+        else:
+            QtWidgets.QMessageBox.warning(self, "Unsupported File", "The selected file type is not supported.")
+
+
+    def _processZipFile(self, zipFile):
+        """Handle ZIP file processing."""
+        output_dir = osp.join(osp.dirname(zipFile), "processed_cuhk03")
+        handler = CUHK03Handler(zipFile, output_dir)
+        try:
+            handler.prepare_dataset()
+            QtWidgets.QMessageBox.information(
+                self, "Success", f"CUHK03 dataset processed successfully to {output_dir}"
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self, "Error", f"Failed to process CUHK03 dataset: {e}"
+            )
+
+    def _processMatFile(self, matFile):
+        """Handle standalone .mat file processing."""
+        protocol_file = osp.join(osp.dirname(matFile), "cuhk03_new_protocol_config_detected.mat")
+        output_dir = osp.join(osp.dirname(matFile), "processed_cuhk03")
+
+        if not osp.exists(protocol_file):
+            QtWidgets.QMessageBox.warning(self, "Missing Protocol File", "Protocol file is missing!")
+            return
+
+        handler = CUHK03Handler(osp.dirname(matFile), output_dir)
+        try:
+            handler.prepare_dataset()
+            QtWidgets.QMessageBox.information(
+                self, "Success", f"CUHK03 dataset processed successfully to {output_dir}"
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self, "Error", f"Failed to process CUHK03 dataset: {e}"
+            )
+
+
+
     
     
     
@@ -2795,6 +2930,7 @@ class MainWindow(QtWidgets.QMainWindow):
             person_colors = {}
             all_annotations = []
             processed_frames = 0
+            frames = []
 
             while self.video_capture.isOpened():
                 ret, frame = self.video_capture.read()
@@ -2821,7 +2957,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.canvas.update()
                     self.repaint()
 
-                    all_annotations.extend(frame_annotations)
+                    if frame_annotations:
+                        all_annotations.extend(frame_annotations)
+                    frames.append(frame)
                     
                      # Update progress
                     processed_frames += 1
@@ -2836,14 +2974,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception as frame_error:
                     logger.error(f"Error processing frame {processed_frames}: {frame_error}")
                     continue
-            # Save annotations
-            self.save_reid_annotations(all_annotations)
+                # Save annotations
+            format_choice = self.choose_annotation_format()
+            if format_choice:
+                self.save_reid_annotations(frames, all_annotations, format_choice)
+                self.actions.saveReIDAnnotations.setEnabled(True)
+                logger.info(f"Annotations saved successfully in {format_choice} format.")
+            else:
+                logger.warning("Annotation saving canceled by user.")
+            
+            
             logger.info(f"Video annotation completed. Processed {processed_frames} frames.")
             self.progress_callback.emit(100)
-    
+
         except Exception as e:
             logger.error(f"Critical error during video annotation: {e}", exc_info=True)
-            self.progress_callback.emit(-1)  # 
+            self.progress_callback.emit(-1) 
 
 
         #############################################################################################################
@@ -3188,67 +3334,71 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 # Scale bbox to pixel coordinates
                 scaled_bbox = self.scale_bbox(raw_bbox, width, height)
-                
-                logging.info(f"Track {track.track_id} - Scaled bbox: {scaled_bbox}")
-                
-                # Unpack scaled bbox
-                x1, y1, x2, y2 = scaled_bbox
-
-                # Validate bounding box dimensions
-                if x2 <= x1 or y2 <= y1:
-                    logging.warning(f"Invalid bbox dimensions for track {track.track_id}: {scaled_bbox}")
+                # Skip invalid bounding boxes
+                if scaled_bbox[2] <= scaled_bbox[0] or scaled_bbox[3] <= scaled_bbox[1]:
                     continue
+                # logging.info(f"Track {track.track_id} - Scaled bbox: {scaled_bbox}")
+                
+                # # Unpack scaled bbox
+                # x1, y1, x2, y2 = scaled_bbox
 
-                # Assign unique color for the track
-                if track.track_id not in person_colors:
-                    person_colors[track.track_id] = self.get_random_color()
-                color = person_colors[track.track_id]
+                # # Validate bounding box dimensions
+                # if x2 <= x1 or y2 <= y1:
+                #     logging.warning(f"Invalid bbox dimensions for track {track.track_id}: {scaled_bbox}")
+                #     continue
 
-                # Draw bounding box on frame
+                    # Fix and assign sequential ID
+                if track.track_id not in self.id_mapping:
+                    self.id_mapping[track.track_id] = self.next_id
+                    self.next_id += 1
+
+                fixed_id = self.id_mapping[track.track_id]
+
+                    # Confidence information
+                confidence = getattr(track, "confidence", 1.0)  # Default to 1.0 if not provided
+                label = f"Person ID: {fixed_id} ({confidence:.2f})"
+
+                # Draw bounding box and label
+                x1, y1, x2, y2 = map(int, scaled_bbox)
+                color = person_colors.setdefault(fixed_id, self.get_random_color())
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, f"ID: {track.track_id}", (x1, y1 - 10), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
                 # Prepare shape data for canvas
                 shape_data = {
                     "bbox": [x1, y1, x2, y2],
                     "shape_type": "rectangle",
-                    "shape_id": str(track.track_id),
-                    "confidence": getattr(track, "confidence", None)
+                    "shape_id": str(fixed_id),
+                    "confidence": confidence
                 }
                 logging.debug(f"Constructed shape_data: {shape_data}")
 
-               # Create shape on canvas
                 try:
                     shape = self.canvas.createShapeFromData(shape_data)
-                    if not isinstance(shape, Shape):
-                        logging.error(f"Invalid shape instance: {type(shape)}")
-                        continue  # Skip this iteration if shape is invalid
-                    
-                    # Validate the boundingRect() of the shape
-                    bbox = shape.boundingRect()
-                    if bbox.isEmpty():
-                        logging.warning(f"Shape boundingRect is empty for track ID: {track.track_id}")
-                        continue
+                    if shape:
+                        # Validate and log the bounding rectangle
+                        bbox = shape.boundingRect()
+                        if bbox.isEmpty():
+                            logging.warning(f"Shape boundingRect is empty for ID: {shape.id}")
+                            continue
 
-                    logging.debug(f"Shape bounding box before addition: {bbox}")
-                    self.canvas.addShape(shape)
-
+                        # Ensure shapes are not added twice
+                        if not self.canvas.is_shape_duplicate(shape.id):
+                            logging.debug(f"Shape bounding box before addition: {bbox}")
+                            self.canvas.addShape(shape)
+                            logging.info(f"Shape added: ID {fixed_id}, Bbox: {scaled_bbox}")
+                        else:
+                            logging.debug(f"Duplicate shape detected, skipping: {shape.id}")
+                    else:
+                        logging.error(f"Failed to create valid shape for track ID: {track.track_id}")
                 except Exception as canvas_error:
                     logging.error(f"Canvas shape creation error for track {track.track_id}: {canvas_error}")
-                    continue
 
-                # Create LabelMe UI shape
-                label_shape = Shape(label=f"person{track.track_id}", shape_id=track.track_id)
-                label_shape.addPoint(QtCore.QPointF(x1, y1))
-                label_shape.addPoint(QtCore.QPointF(x2, y1))
-                label_shape.addPoint(QtCore.QPointF(x2, y2))
-                label_shape.addPoint(QtCore.QPointF(x1, y2))
-                
-                # Add labels
-                self.addLabel(label_shape)
-                self.labelList.addPersonLabel(track.track_id, color)
-                self.uniqLabelList.addUniquePersonLabel(f"person{track.track_id}", color)
+
+                # Create the shape and add it to the UI
+                label_shape = self.create_labelme_shape(track.track_id, x1, y1, x2, y2, color)
+                self.add_labels_to_UI(label_shape, track.track_id, color)
+
 
                 # Append annotations for saving
                 frame_annotations.append(shape_data)
@@ -3259,6 +3409,47 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return frame_annotations
 
+    def create_labelme_shape(self, track_id, x1, y1, x2, y2, color):
+        """
+        Create a LabelMe-compatible shape for the given track ID and bounding box coordinates.
+
+        Args:
+            track_id (int): Unique ID of the track.
+            x1, y1, x2, y2 (float): Bounding box coordinates.
+            color (tuple): Color associated with the track.
+
+        Returns:
+            Shape: A configured Shape object.
+        """
+        label = f"person{track_id}"
+        shape = Shape(label=label, shape_id=track_id)
+        
+        # Define the bounding box points
+        bounding_points = [
+            QtCore.QPointF(x1, y1),  # Top-left
+            QtCore.QPointF(x2, y1),  # Top-right
+            QtCore.QPointF(x2, y2),  # Bottom-right
+            QtCore.QPointF(x1, y2)   # Bottom-left
+        ]
+        
+        # Add points to the shape
+        for point in bounding_points:
+            shape.addPoint(point)
+        
+        return shape
+
+    def add_labels_to_UI(self, shape, track_id, color):
+        """
+        Add the created shape and associated labels to the LabelMe UI.
+
+        Args:
+            shape (Shape): The shape object to add.
+            track_id (int): Unique track ID.
+            color (tuple): Color associated with the track.
+        """
+        self.addLabel(shape)
+        self.labelList.addPersonLabel(track_id, color)
+        self.uniqLabelList.addUniquePersonLabel(f"person{track_id}", color)
    
 
         
@@ -3809,12 +4000,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.mayContinue():
             return
 
+        # Determine the default directory path
         defaultOpenDirPath = dirpath if dirpath else "."
         if self.lastOpenDir and osp.exists(self.lastOpenDir):
             defaultOpenDirPath = self.lastOpenDir
         else:
             defaultOpenDirPath = osp.dirname(self.filename) if self.filename else "."
 
+        # Open directory selection dialog
         targetDirPath = str(
             QtWidgets.QFileDialog.getExistingDirectory(
                 self,
@@ -3824,7 +4017,39 @@ class MainWindow(QtWidgets.QMainWindow):
                 | QtWidgets.QFileDialog.DontResolveSymlinks,
             )
         )
-        self.importDirImages(targetDirPath)
+
+        if not targetDirPath:
+            return
+
+        # Check if the selected directory contains a CUHK03 dataset
+        if any(file.endswith('.mat') for file in os.listdir(targetDirPath)):
+            # Detected a CUHK03 dataset, load its structure
+            self.loadReIDDataset(targetDirPath)
+        else:
+            # Fallback: Import images as usual
+            self.importDirImages(targetDirPath)
+
+    def loadReIDDataset(self, dataset_path):
+        """
+        Load and process a CUHK03 ReID dataset.
+        """
+        try:
+            # Parse CUHK03 annotations using the annotator
+            annotator = ReidDatasetAnnotator(dataset_path=dataset_path, dataset_name='cuhk03')
+            annotations = annotator.extract_annotations()
+            annotator.save_annotations('./annotations/cuhk03_annotations.json')
+
+            # Log success
+            logger.info(f"CUHK03 dataset loaded successfully: {dataset_path}")
+            QtWidgets.QMessageBox.information(
+                self, "Success", f"ReID dataset successfully loaded from {dataset_path}."
+            )
+        except Exception as e:
+            logger.error(f"Error loading ReID dataset: {e}")
+            QtWidgets.QMessageBox.critical(
+                self, "Error", f"Failed to load ReID dataset: {str(e)}"
+            )
+
 
     @property
     def imageList(self):
@@ -3979,7 +4204,39 @@ class MainWindow(QtWidgets.QMainWindow):
         self.detectionModelSelector.currentIndexChanged.connect(self.load_models)
         self.reidModelSelector.currentIndexChanged.connect(self.load_models)
     
+    def log_message(self, message):
+        self.log_area.append(message)
 
+    def upload_dataset(self):
+        # Select dataset folder
+        dataset_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Dataset Folder")
+        if not dataset_path:
+            self.log_message("No folder selected.")
+            return
+
+        # Select output folder
+        output_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if not output_path:
+            self.log_message("No output folder selected.")
+            return
+
+        # Determine dataset type
+        dataset_type = self.dataset_selector.currentText().lower()
+        self.log_message(f"Selected Dataset: {dataset_type.capitalize()}")
+
+        # Handle dataset based on selection
+        try:
+            if dataset_type == "cuhk03":
+                handler = CUHK03Handler(dataset_path, output_path)
+            elif dataset_type == "market1501":
+                handler = Market1501Handler(dataset_path, output_path)
+            else:
+                raise ValueError(f"Unsupported dataset type: {dataset_type}")
+
+            handler.prepare_dataset()
+            self.log_message(f"{dataset_type.capitalize()} dataset processed successfully.")
+        except Exception as e:
+            self.log_message(f"Error: {e}")
 # def get_transform(self):
 #         """Create a transformation pipeline for person ReID model input."""
 #         return transforms.Compose([
@@ -3990,48 +4247,8 @@ class MainWindow(QtWidgets.QMainWindow):
 #         ])
 
 import time
-class ImprovedIDManager:
-    def __init__(self, start_id=1):
-        self._current_id = start_id
-        self._used_ids = set()
-        self._track_history = {}  # Store track history for persistent tracking
-
-    def get_next_id(self, detection_feature=None):
-        # Find next available ID
-        while self._current_id in self._used_ids:
-            self._current_id += 1
-        
-        new_id = self._current_id
-        self._used_ids.add(new_id)
-        
-        # Store detection feature for this ID
-        if detection_feature is not None:
-            self._track_history[new_id] = {
-                'first_seen': time.time(),
-                'feature': detection_feature
-            }
-        
-        return new_id
-
-    def match_or_create_id(self, current_feature, similarity_threshold=0.7):
-        # Try to match with existing tracks based on feature similarity
-        for track_id, track_info in self._track_history.items():
-            similarity = self.calculate_feature_similarity(
-                track_info['feature'], 
-                current_feature
-            )
-            
-            if similarity > similarity_threshold:
-                return track_id
-        
-        # If no match, create a new ID
-        return self.get_next_id(current_feature)
-
-    def calculate_feature_similarity(self, feature1, feature2):
-        # Cosine similarity calculation
-        return np.dot(feature1, feature2) / (
-            np.linalg.norm(feature1) * np.linalg.norm(feature2)
-        )
 
 ##########################################################################################################################################################################################################################
    
+
+        

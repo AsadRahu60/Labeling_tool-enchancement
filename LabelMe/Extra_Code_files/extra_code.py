@@ -2571,3 +2571,279 @@
 #             logging.error(f"Shape creation failed: {e}")
 #             logging.error(f"Problematic shape data: {shape_data}")
 #             return None
+
+# Create LabelMe UI shape
+                # label_shape = Shape(label=f"person{track.track_id}", shape_id=track.track_id)
+                # label_shape.addPoint(QtCore.QPointF(x1, y1))
+                # label_shape.addPoint(QtCore.QPointF(x2, y1))
+                # label_shape.addPoint(QtCore.QPointF(x2, y2))
+                # label_shape.addPoint(QtCore.QPointF(x1, y2))
+                
+                # # Add labels
+                # self.addLabel(label_shape)
+                # self.labelList.addPersonLabel(track.track_id, color)
+                # self.uniqLabelList.addUniquePersonLabel(f"person{track.track_id}", color)
+
+                # # Append annotations for saving
+                # frame_annotations.append(shape_data)
+                
+        #         def process_tracks(self, frame, person_colors):
+        # """Process tracks from the tracker and annotate frame."""
+        # frame_annotations = []
+        # frame_shape = frame.shape
+        # logging.info(f"frame shape: {frame_shape}")
+        # height, width, _ = frame.shape
+
+        # for track in self.tracker.tracks:
+        #     # Skip unconfirmed or old tracks
+        #     if not track.is_confirmed() or track.time_since_update > 1:
+        #         continue
+
+        #     # Get raw bounding box (normalized)
+        #     raw_bbox = track.to_tlbr().tolist()
+        #     logging.info(f"Track {track.track_id} - Raw bbox: {raw_bbox}")
+
+        #     try:
+        #         # Scale bbox to pixel coordinates
+        #         scaled_bbox = self.scale_bbox(raw_bbox, width, height)
+        #         # Skip invalid bounding boxes
+        #         if scaled_bbox[2] <= scaled_bbox[0] or scaled_bbox[3] <= scaled_bbox[1]:
+        #             continue
+        #         # logging.info(f"Track {track.track_id} - Scaled bbox: {scaled_bbox}")
+                
+        #         # # Unpack scaled bbox
+        #         # x1, y1, x2, y2 = scaled_bbox
+
+        #         # # Validate bounding box dimensions
+        #         # if x2 <= x1 or y2 <= y1:
+        #         #     logging.warning(f"Invalid bbox dimensions for track {track.track_id}: {scaled_bbox}")
+        #         #     continue
+
+        #             # Fix and assign sequential ID
+        #         if track.track_id not in self.id_mapping:
+        #             self.id_mapping[track.track_id] = self.next_id
+        #             self.next_id += 1
+
+        #         fixed_id = self.id_mapping[track.track_id]
+
+        #             # Confidence information
+        #         confidence = getattr(track, "confidence", 1.0)  # Default to 1.0 if not provided
+        #         label = f"Person ID: {fixed_id} ({confidence:.2f})"
+
+        #         # Draw bounding box and label
+        #         x1, y1, x2, y2 = map(int, scaled_bbox)
+        #         color = person_colors.setdefault(fixed_id, self.get_random_color())
+        #         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        #         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+        #         # Prepare shape data for canvas
+        #         shape_data = {
+        #             "bbox": [x1, y1, x2, y2],
+        #             "shape_type": "rectangle",
+        #             "shape_id": str(fixed_id),
+        #             "confidence": confidence
+        #         }
+        #         logging.debug(f"Constructed shape_data: {shape_data}")
+
+        #         try:
+        #             shape = self.canvas.createShapeFromData(shape_data)
+        #             if shape:
+        #                 # Validate and log the bounding rectangle
+        #                 bbox = shape.boundingRect()
+        #                 if bbox.isEmpty():
+        #                     logging.warning(f"Shape boundingRect is empty for ID: {shape.id}")
+        #                     continue
+
+        #                 # Ensure shapes are not added twice
+        #                 if not self.canvas.is_shape_duplicate(shape.id):
+        #                     logging.debug(f"Shape bounding box before addition: {bbox}")
+        #                     self.canvas.addShape(shape)
+        #                     logging.info(f"Shape added: ID {fixed_id}, Bbox: {scaled_bbox}")
+        #                 else:
+        #                     logging.debug(f"Duplicate shape detected, skipping: {shape.id}")
+        #             else:
+        #                 logging.error(f"Failed to create valid shape for track ID: {track.track_id}")
+        #         except Exception as canvas_error:
+        #             logging.error(f"Canvas shape creation error for track {track.track_id}: {canvas_error}")
+
+
+        #         # Create the shape and add it to the UI
+        #         label_shape = self.create_labelme_shape(track.track_id, x1, y1, x2, y2, color)
+        #         self.add_labels_to_UI(label_shape, track.track_id, color)
+
+
+        #         # Append annotations for saving
+        #         frame_annotations.append(shape_data)
+
+        #     except Exception as e:
+        #         logging.error(f"Error processing track {track.track_id}: {e}")
+        #         continue
+
+        # return frame_annotations
+        
+        # def annotateVideo(self):
+        # """Annotate video using detection, ReID, and tracking."""
+        # try:
+        #     # Ensure models are loaded
+        #     if not self.detector or not self.reid_model:
+        #         self.load_models()
+
+        #     if not self.video_capture.isOpened():
+        #         logger.warning("No video is loaded for annotation.")
+        #         return
+
+        #     logger.info("Starting video annotation...")
+            
+        #     # Get video metadata
+        #     total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        #     fps = self.video_capture.get(cv2.CAP_PROP_FPS)
+            
+        #     logger.info(f"Video details: {total_frames} frames, {fps} FPS")
+            
+        #     self.initializeTracker()  # Initialize DeepSORT tracker
+        #     person_colors = {}
+        #     all_annotations = []
+        #     processed_frames = 0
+        #     frames = []
+
+        #     while self.video_capture.isOpened():
+        #         ret, frame = self.video_capture.read()
+        #         if not ret:
+        #             logger.info("End of video reached.")
+        #             break
+                
+        #             # Optional: Frame skip for performance
+        #         if processed_frames % self.frame_skip != 0:
+        #             processed_frames += 1
+        #             continue
+        #         try:
+        #             # Step 1: Detect and Extract Features
+        #             frame_detections = self.process_image(frame)
+
+        #             # Step 2: Update Tracker
+        #             self.update_tracker(frame_detections)
+
+        #             # Step 3: Process Tracks for Final Annotations
+        #             frame_annotations = self.process_tracks(frame, person_colors)
+
+        #             # Step 4: Draw Shapes and Update Canvas
+        #             self.canvas.drawShapesForFrame(frame_annotations)
+        #             self.canvas.update()
+        #             self.repaint()
+
+        #             if frame_annotations:
+        #                 all_annotations.extend(frame_annotations)
+        #             frames.append(frame)
+                    
+        #              # Update progress
+        #             processed_frames += 1
+        #             progress = int((processed_frames / total_frames) * 100)
+        #             self.progress_callback.emit(progress)
+                    
+        #             # Optional: Allow cancellation
+        #             if self.is_cancelled:
+        #                 logger.info("Video annotation cancelled by user.")
+        #                 break
+            
+        #         except Exception as frame_error:
+        #             logger.error(f"Error processing frame {processed_frames}: {frame_error}")
+        #             continue
+        #         # Save annotations
+        #     format_choice = self.choose_annotation_format()
+        #     if format_choice:
+        #         self.save_reid_annotations(frames, all_annotations, format_choice)
+        #         self.actions.saveReIDAnnotations.setEnabled(True)
+        #         logger.info(f"Annotations saved successfully in {format_choice} format.")
+        #     else:
+        #         logger.warning("Annotation saving canceled by user.")
+            
+            
+        #     logger.info(f"Video annotation completed. Processed {processed_frames} frames.")
+        #     self.progress_callback.emit(100)
+
+        # except Exception as e:
+        #     logger.error(f"Critical error during video annotation: {e}", exc_info=True)
+        #     self.progress_callback.emit(-1)
+        
+    #     class ImprovedTracker:
+    # def __init__(self):
+    #     self.unique_id_counter = 0
+    #     self.active_tracks = {}  # Track active objects: {id: bbox}
+
+    # def generate_unique_id(self):
+    #     """Generate consistent and unique ID for new tracks."""
+    #     self.unique_id_counter += 1
+    #     return self.unique_id_counter
+
+    # def normalize_bounding_box(self, raw_bbox, frame_shape):
+    #     """
+    #     Normalize and validate bounding box:
+    #     - Clamp negative coordinates.
+    #     - Ensure box is within frame boundaries.
+    #     """
+    #     x, y, w, h = raw_bbox
+    #     frame_width, frame_height = frame_shape[1], frame_shape[0]
+
+    #     x = max(0, x)
+    #     y = max(0, y)
+    #     w = min(w, frame_width - x)
+    #     h = min(h, frame_height - y)
+    #     return [x, y, w, h]
+
+    # def calculate_iou(self, box1, box2):
+    #     """Compute Intersection over Union (IoU) between two bounding boxes."""
+    #     x1, y1, w1, h1 = box1
+    #     x2, y2, w2, h2 = box2
+
+    #     xi1 = max(x1, x2)
+    #     yi1 = max(y1, y2)
+    #     xi2 = min(x1 + w1, x2 + w2)
+    #     yi2 = min(y1 + h1, y2 + h2)
+
+    #     inter_width = max(0, xi2 - xi1)
+    #     inter_height = max(0, yi2 - yi1)
+    #     intersection = inter_width * inter_height
+
+    #     area1 = w1 * h1
+    #     area2 = w2 * h2
+    #     union = area1 + area2 - intersection
+
+    #     return intersection / union if union > 0 else 0
+
+    # def find_matching_track(self, bbox, iou_threshold=0.5):
+    #     """
+    #     Find matching track using IoU (Intersection over Union).
+    #     If no match, generate a new ID.
+    #     """
+    #     for track_id, track_bbox in self.active_tracks.items():
+    #         iou = self.calculate_iou(track_bbox, bbox)
+    #         if iou > iou_threshold:
+    #             return track_id  # Return existing ID for matching track
+
+    #     # If no match is found, create a new ID
+    #     new_id = self.generate_unique_id()
+    #     return new_id
+
+    # def track_objects(self, detections, frame_shape):
+    #     """
+    #     Main tracking logic:
+    #     - Normalize bounding boxes.
+    #     - Assign consistent IDs using IoU matching.
+    #     """
+    #     new_tracks = {}
+    #     for detection in detections:
+    #         raw_bbox = detection['raw_bbox']
+    #         confidence = detection['confidence']
+
+    #         # Normalize bounding box
+    #         normalized_bbox = self.normalize_bounding_box(raw_bbox, frame_shape)
+
+    #         # Find or create track
+    #         track_id = self.find_matching_track(normalized_bbox)
+    #         new_tracks[track_id] = {
+    #             'bbox': normalized_bbox,
+    #             'confidence': confidence
+    #         }
+
+    #     self.active_tracks = new_tracks  # Update active tracks
+    #     return new_tracks

@@ -21,3 +21,5 @@ from .unique_label_qlist_widget import UniqueLabelQListWidget
 
 from .zoom_widget import ZoomWidget
 
+from .Dataset_Handler import CUHK03Handler ,Market1501Handler
+

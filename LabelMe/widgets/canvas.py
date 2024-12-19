@@ -1026,6 +1026,14 @@ class Canvas(QtWidgets.QWidget):
         except (TypeError, ValueError):
             return False
 
+    def is_shape_duplicate(self, shape_id):
+        """
+        Check if a shape with the given ID already exists in the canvas.
+        """
+        for shape in self.shapes:
+            if shape.id == shape_id:
+                return True
+        return False
 
 
     
