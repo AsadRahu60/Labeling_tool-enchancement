@@ -190,7 +190,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.first_detected_id=None
         self.person_id_map={}
         self.person={} # track the person across the video
-        self.track_id_manager = ImprovedIDManager()
+        # self.track_id_manager = ImprovedIDManager()
         # Connect the 'annotateVideoButton' to the enable function
         self.expected_embedding_size=2048
         self.addModelSelectors()
@@ -2806,29 +2806,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return inter_area / union_area if union_area > 0 else 0
 ##############################################################################################################################################
-    def initializeTracker(self):
-        """
-        Initialize the DeepSORT tracker with the specified parameters.
-        """
-        max_cosine_distance = 0.5
-        max_age = 30
-        n_init = 3
-        max_iou_distance = 0.7
-
-        # Metric for matching detections to existing tracks
-        metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance)
-
-        # Initialize the tracker
-        if not hasattr(self, 'tracker'):
-            self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init, max_iou_distance=max_iou_distance)
-
-        # Log tracker configuration
-        logger.info("Tracker initialized with parameters:")
-        logger.info(f"Max Cosine Distance: {max_cosine_distance}")
-        logger.info(f"Max Age: {max_age}")
-        logger.info(f"Initialization Frames (n_init): {n_init}")
-        logger.info(f"Max IOU Distance: {max_iou_distance}")
-
+    
+        # Usage example
+    def initialize_tracker(self):
+        
+        
+        self.tracker = EnhancedDeepSORT(
+            model_path=self.reid_model,  # This should match your OSNet weights path
+            max_dist=0.2,
+            config_file=None  # Remove the config_file parameter since we're not using FastReID
+    )
+        
       
     def load_models(self):
         
@@ -2855,28 +2843,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
         
-        
-        # """
-        # Load all necessary models (YOLO and ReID models).
-        # """
-        # try:
-        #     logger.info("Loading YOLO model...")
-        #     self.yolo_model = YOLO("yolov8m.pt")  # Replace with your YOLO model path
-
-        #     logger.info("Loading FastReID model...")
-        #     self.load_fastreid_model()
-            
-        #     logger.info("loading the DeepSort Tracker")
-        #     self.deepsort = DeepSort(max_age=50, n_init=3)
-
-        #     logger.info("All models loaded successfully.")
-        # except Exception as e:
-        #     logger.error(f"Error loading models: {e}", exc_info=True)
-        #     raise RuntimeError("Failed to load necessary models.")
-  
-      
-      
-      # Should output (1, expected_embedding_size)
+       
 #################################################################################################
     def updateProgressBar(self, value):
         """
@@ -2926,7 +2893,7 @@ class MainWindow(QtWidgets.QMainWindow):
             
             logger.info(f"Video details: {total_frames} frames, {fps} FPS")
             
-            self.initializeTracker()  # Initialize DeepSORT tracker
+            self.initialize_tracker() # Initialize DeepSORT tracker
             person_colors = {}
             all_annotations = []
             processed_frames = 0
@@ -4237,18 +4204,61 @@ class MainWindow(QtWidgets.QMainWindow):
             self.log_message(f"{dataset_type.capitalize()} dataset processed successfully.")
         except Exception as e:
             self.log_message(f"Error: {e}")
-# def get_transform(self):
-#         """Create a transformation pipeline for person ReID model input."""
-#         return transforms.Compose([
-#             transforms.ToPILImage(),                # Convert from NumPy array to PIL image
-#             transforms.Resize((128, 256)),          # Resize to a standard size suitable for the model
-#             transforms.ToTensor(),                  # Convert PIL image to Tensor
-#             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Standard normalization
-#         ])
-
-import time
 
 ##########################################################################################################################################################################################################################
-   
-
+"""Tracker and the confidence class """
+class ConfidenceTrack:
+    def __init__(self, track_id):
+        self.track_id = track_id
+        self.confidence = 0.0
+        self.history = []
+        self.missed_frames = 0
         
+    def update(self, detection_conf):
+        # Increase confidence based on detection confidence
+        self.confidence = min(self.confidence + detection_conf * 0.2, 1.0)
+        self.missed_frames = 0
+        self.history.append(detection_conf)
+        if len(self.history) > 30:  # Keep last 30 frames
+            self.history.pop(0)
+            
+    def mark_missed(self):
+        self.missed_frames += 1
+        self.confidence = max(self.confidence - 0.1, 0.0)
+        
+    def is_confirmed(self):
+        return self.confidence > 0.5 and self.missed_frames < 5
+
+class EnhancedDeepSORT(DeepSort):
+    def __init__(self, model_path, max_dist=0.2, config_file=None):  # Made config_file optional
+        super().__init__(model_path, max_dist=max_dist)
+        self.tracks_confidence = {}
+        
+    def update(self, bbox_xywh, confidences, ori_img):
+        # Get the outputs from parent DeepSORT
+        outputs = super().update(bbox_xywh, confidences, ori_img)
+        
+        # Update confidence tracking
+        current_ids = []
+        for track_idx, (x1, y1, x2, y2, track_id) in enumerate(outputs):
+            if track_id not in self.tracks_confidence:
+                self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+            
+            # Update track confidence with detection confidence
+            conf = confidences[track_idx] if track_idx < len(confidences) else 0.5
+            self.tracks_confidence[track_id].update(conf)
+            current_ids.append(track_id)
+            
+        # Mark missed tracks
+        for track_id in self.tracks_confidence:
+            if track_id not in current_ids:
+                self.tracks_confidence[track_id].mark_missed()
+        
+        # Filter outputs based on confidence
+        filtered_outputs = []
+        for output in outputs:
+            track_id = output[4]
+            if self.tracks_confidence[track_id].is_confirmed():
+                filtered_outputs.append(output)
+                
+        return np.array(filtered_outputs)

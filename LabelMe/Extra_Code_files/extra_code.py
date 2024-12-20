@@ -2847,3 +2847,49 @@
 
     #     self.active_tracks = new_tracks  # Update active tracks
     #     return new_tracks
+
+# def initializeTracker(self):
+#         """
+#         Initialize the DeepSORT tracker with the specified parameters.
+#         """
+#         max_cosine_distance = 0.5
+#         max_age = 30
+#         n_init = 3
+#         max_iou_distance = 0.7
+
+#         # Metric for matching detections to existing tracks
+#         metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance)
+
+#         # Initialize the tracker
+#         if not hasattr(self, 'tracker'):
+#             self.tracker = Tracker(metric=metric, max_age=max_age, n_init=n_init, max_iou_distance=max_iou_distance)
+
+#         # Log tracker configuration
+#         logger.info("Tracker initialized with parameters:")
+#         logger.info(f"Max Cosine Distance: {max_cosine_distance}")
+#         logger.info(f"Max Age: {max_age}")
+#         logger.info(f"Initialization Frames (n_init): {n_init}")
+#         logger.info(f"Max IOU Distance: {max_iou_distance}")
+
+ 
+        # """
+        # Load all necessary models (YOLO and ReID models).
+        # """
+        # try:
+        #     logger.info("Loading YOLO model...")
+        #     self.yolo_model = YOLO("yolov8m.pt")  # Replace with your YOLO model path
+
+        #     logger.info("Loading FastReID model...")
+        #     self.load_fastreid_model()
+            
+        #     logger.info("loading the DeepSort Tracker")
+        #     self.deepsort = DeepSort(max_age=50, n_init=3)
+
+        #     logger.info("All models loaded successfully.")
+        # except Exception as e:
+        #     logger.error(f"Error loading models: {e}", exc_info=True)
+        #     raise RuntimeError("Failed to load necessary models.")
+  
+      
+      
+      # Should output (1, expected_embedding_size)
