@@ -169,23 +169,26 @@ class Canvas(QtWidgets.QWidget):
             image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
         )
     def addShape(self, shape):
-        """
-        Add a validated Shape to the canvas.
-        Args:
-            shape (Shape): Shape object to be added.
-        """
         if shape is None:
             logging.error("Attempted to add NoneType shape to canvas.")
             return
 
-        # Use boundingRect() instead of boundingBox()
         bbox = shape.boundingRect()
         if bbox is None or bbox.isEmpty():
-            logging.error(f"Invalid bounding box for shape ID {shape.id}.")
-            return
+            logging.error(f"Invalid bounding box for shape ID {shape.id}. Falling back to default size.")
+            # Fallback: Create a minimal valid bounding rectangle
+            fallback_rect = QtCore.QRectF(0, 0, 10, 10)
+            shape.rect = fallback_rect
+            shape.addPoint(fallback_rect.topLeft())
+            shape.addPoint(fallback_rect.topRight())
+            shape.addPoint(fallback_rect.bottomRight())
+            shape.addPoint(fallback_rect.bottomLeft())
+            logging.info(f"Fallback bounding box applied for shape ID {shape.id}. Rect: {fallback_rect}")
 
         self.shapes.append(shape)
-        logging.info(f"Shape added to canvas: ID {shape.id}, BoundingBox {bbox}")
+        logging.info(f"Shape added to canvas: ID {shape.id}, BoundingBox {shape.boundingRect()}")
+
+
 
 
     def removeShape(self, shape):
@@ -943,38 +946,88 @@ class Canvas(QtWidgets.QWidget):
             shape_data (dict): Dictionary containing shape information.
 
         Returns:
-            Shape: A validated Shape object or None if creation fails.
+            Shape or None: A validated Shape object or None if creation fails.
         """
         try:
+                # Log detailed input
+            logger.debug(f"Creating shape from data: {shape_data}")
             # Extract and validate required fields
-            bbox = shape_data.get("bbox")
+            bbox = shape_data.get("bbox",[])
             shape_type = shape_data.get("shape_type", "rectangle")
-            shape_id = shape_data.get("shape_id")
-            confidence = shape_data.get("confidence")
+            shape_id = shape_data.get("shape_id","unkown")
+            confidence = shape_data.get("confidence",1.0)
 
             # Validate bbox
             if not self.is_bbox_valid(bbox, min_size=1):
                 raise ValueError(f"Invalid bbox: {bbox}")
 
-            # Normalize bbox coordinates
-            x1, y1, x2, y2 = map(int, [
-                min(bbox[0], bbox[2]),
-                min(bbox[1], bbox[3]),
-                max(bbox[0], bbox[2]),
-                max(bbox[1], bbox[3])
-            ])
+            try:
+                # Normalize bbox coordinates
+                x1, y1, x2, y2 = map(float, [
+                    min(bbox[0], bbox[2]),
+                    min(bbox[1], bbox[3]),
+                    max(bbox[0], bbox[2]),
+                    max(bbox[1], bbox[3])
+                ])
+            except ( TypeError,ValueError) as e:
+                    logger.error(f"Failed to convert bbox coordinates: {bbox}")
+                    return None
 
-            # Validate dimensions
-            if x2 <= x1 or y2 <= y1:
-                raise ValueError(f"Invalid rectangle dimensions: ({x1}, {y1}, {x2}, {y2})")
+            
+            
+            # Validate dimensions are within frame bounds
+            if not hasattr(self, 'pixmap') or self.pixmap is None:
+                logger.error("No pixmap available for shape validation")
+                return None
+            
+            
+            frame_width, frame_height = self.pixmap.width(), self.pixmap.height()
 
-            # Create QRectF
-            rect = QtCore.QRectF(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
-            logging.debug(f"Initialized QRectF: TopLeft ({x1}, {y1}), BottomRight ({x2}, {y2}), "
-                        f"Width: {rect.width()}, Height: {rect.height()}")
+            
+            # Normalize and clamp coordinates
+            x1, x2 = sorted([x1, x2])
+            y1, y2 = sorted([y1, y2])
+            
+            
+            # Check for minimum bbox size
+            min_size = 10  # Minimum bbox dimension
+            if (x2 - x1) < min_size or (y2 - y1) < min_size:
+                logger.warning(f"Bbox too small: {[x1, y1, x2, y2]}")
+                # Adjust to minimum size
+                center_x = (x1 + x2) / 2
+                center_y = (y1 + y2) / 2
+                x1 = max(0, center_x - min_size / 2)
+                y1 = max(0, center_y - min_size / 2)
+                x2 = min(frame_width, x1 + min_size)
+                y2 = min(frame_height, y1 + min_size)
 
-            # Initialize Shape object
-            shape = Shape(rect=rect, shape_id=shape_id, confidence=confidence)
+            # Clamp coordinates to frame bounds
+            if not (0 <= x1 < frame_width and 0 <= x2 <= frame_width and
+                    0 <= y1 < frame_height and 0 <= y2 <= frame_height):
+                logger.error(f"Bounding box out of frame bounds: {[x1, y1, x2, y2]}")
+                return None
+
+            # # Validate dimensions
+            # if x2 <= x1 or y2 <= y1:
+            #     raise ValueError(f"Invalid rectangle dimensions: ({x1}, {y1}, {x2}, {y2})")
+
+                # Create QRectF with validated coordinates
+            try:
+                rect = QtCore.QRectF(
+                    QtCore.QPointF(x1, y1), 
+                    QtCore.QPointF(x2, y2)
+                )
+            except Exception as rect_error:
+                logger.error(f"Failed to create QRectF: {rect_error}")
+                return None
+
+            # Additional QRectF validation
+            if rect.isNull() or rect.isEmpty():
+                logger.error(f"Invalid QRectF for shape ID {shape_id}")
+                return None
+
+            # Initialize Shape object with the specified shape type
+            shape = Shape(rect=rect, shape_id=shape_id, shape_type=shape_type, confidence=confidence)
 
             # Add bounding box points
             shape.addPoint(QtCore.QPointF(x1, y1))  # Top-left
@@ -982,17 +1035,14 @@ class Canvas(QtWidgets.QWidget):
             shape.addPoint(QtCore.QPointF(x2, y2))  # Bottom-right
             shape.addPoint(QtCore.QPointF(x1, y2))  # Bottom-left
 
-            # Validate boundingRect
-            if shape.boundingRect().isEmpty():
-                raise ValueError(f"BoundingRect is empty for shape ID {shape_id}.")
-
-            logging.info(f"Successfully created shape: ID {shape_id}, Bbox {bbox}")
+            logger.info(f"Successfully created shape: ID {shape_id}, Bbox {[x1, y1, x2, y2]}, Type {shape_type}")
             return shape
 
         except Exception as e:
-            logging.error(f"Shape creation failed: {e}")
-            logging.error(f"Problematic shape data: {shape_data}")
+            logger.error(f"Shape creation failed: {e}")
+            logger.error(f"Problematic shape data: {shape_data}")
             return None
+
 
 
 

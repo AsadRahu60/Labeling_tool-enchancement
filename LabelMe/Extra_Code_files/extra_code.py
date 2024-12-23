@@ -2892,4 +2892,793 @@
   
       
       
-      # Should output (1, expected_embedding_size)
+    #   # Should output (1, expected_embedding_size)
+      
+    #    def process_image(self, frame):
+    #     """Detect persons, extract features, and prepare detections for tracking."""
+    #     detections = []
+
+    #     # Step 1: Run Detection
+    #     results = self.detector(frame)
+    #     boxes = []
+    #     confidences = []
+
+    #     # Extract bounding boxes and confidences
+    #     for det in results[0].boxes:
+    #         if int(det.cls[0]) == 0:  # Person class
+    #             box = det.xyxy[0].tolist()
+    #             confidence = float(det.conf[0])
+
+    #             # Validate the bounding box
+    #             if len(box) == 4:
+    #                 boxes.append(box)
+    #                 confidences.append(confidence)
+    #             else:
+    #                 logger.warning(f"Skipping invalid detection: {box}")
+
+    #     if not boxes:
+    #         logger.warning("No valid bounding boxes found.")
+    #         return []
+
+    #     # Step 2: Extract ReID Features
+    #     features = self.extract_reid_features(frame, boxes)
+
+    #     # Step 3: Prepare Detections
+    #     for box, confidence, feature in zip(boxes, confidences, features):
+    #         if feature is not None:
+    #             x1, y1, x2, y2 = map(int, box)  # Ensure integer coordinates
+    #             detection = Detection(
+    #                 (x1 / frame.shape[1], y1 / frame.shape[0], x2 / frame.shape[1], y2 / frame.shape[0]),
+    #                 confidence,
+    #                 feature
+    #             )
+    #             detections.append(detection)
+
+    #     logger.info(f"Processed {len(detections)} detections in the frame.")
+    #     return detections
+    
+    # def update_tracker(self, detections):
+    #     """Update tracker with new detections."""
+    #     try:
+    #         if not detections or not isinstance(detections, dict):
+    #             return
+
+    #         bbox_xywh = detections.get('bbox_xywh', [])
+    #         if not bbox_xywh:
+    #             return
+
+    #         # Get confidences from detections
+    #         confidences = detections.get('confidence', np.ones(len(bbox_xywh)))
+            
+    #         # Get current frame
+    #         current_frame = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+            
+    #         # Predict next state
+    #         self.tracker.predict()
+            
+    #         # Update tracker
+    #         self.tracking_outputs = self.tracker.update(bbox_xywh, confidences, current_frame)
+            
+    #     except Exception as e:
+    #         logger.error(f"Error updating tracker: {e}")
+    #         self.tracking_outputs = []
+    
+    # class EnhancedDeepSORT:
+    # def __init__(self, model_path):
+    #     self.tracker = DeepSort(model_path)
+    #     self.tracks_confidence = {}
+
+    # @property
+    # def tracks(self):
+    #     """Access the base tracker's tracks."""
+    #     return self.tracker.tracker.tracks if hasattr(self.tracker, 'tracker') else []
+
+    # def predict(self):
+    #     """Delegate predict to base tracker."""
+    #     return self.tracker.predict()
+
+    # def update(self, bbox_xywh, confidences, ori_img):
+    #     # Get outputs from base tracker
+    #     outputs = self.tracker.update(bbox_xywh, confidences, ori_img)
+        
+    #     # Update confidence tracking
+    #     current_ids = []
+    #     for track_idx, (x1, y1, x2, y2, track_id) in enumerate(outputs):
+    #         if track_id not in self.tracks_confidence:
+    #             self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+            
+    #         conf = confidences[track_idx] if track_idx < len(confidences) else 0.5
+    #         self.tracks_confidence[track_id].update(conf)
+    #         current_ids.append(track_id)
+            
+    #     for track_id in list(self.tracks_confidence.keys()):
+    #         if track_id not in current_ids:
+    #             self.tracks_confidence[track_id].mark_missed()
+        
+    #     filtered_outputs = []
+    #     for output in outputs:
+    #         track_id = output[4]
+    #         if track_id in self.tracks_confidence and self.tracks_confidence[track_id].is_confirmed():
+    #             filtered_outputs.append(output)
+                
+    #     return np.array(filtered_outputs) if filtered_outputs else np.array([])
+
+    # def increment_ages(self):
+    #     """Delegate increment_ages to base tracker if it exists."""
+    #     if hasattr(self.tracker, 'increment_ages'):
+    #         self.tracker.increment_ages()
+    
+    
+    #  def process_image(self, frame):
+    #     """Process frame with detection and ReID."""
+    #     try:
+    #         # YOLOv8 detection
+    #         detections = self.detector(frame)
+    #         person_detections = []
+            
+    #         for det in detections[0].boxes.data:
+    #             cls, conf = det[5], det[4]
+    #             if cls == 0:  # person class
+    #                 x1, y1, x2, y2 = det[0:4]
+    #                 person_detections.append({
+    #                     'bbox': [x1, y1, x2, y2],
+    #                     'confidence': conf
+    #                 })
+            
+    #         if not person_detections:
+    #             return None
+                
+    #         # Convert to formats needed for tracking
+    #         bbox_xywh = []
+    #         confidences = []
+    #         for det in person_detections:
+    #             x1, y1, x2, y2 = det['bbox']
+    #             w = x2 - x1
+    #             h = y2 - y1
+    #             bbox_xywh.append([x1, y1, w, h])
+    #             confidences.append(det['confidence'])
+                
+    #         # Extract ReID features
+    #         features = self.extract_reid_features(frame, bbox_xywh)
+            
+    #         return {
+    #             'bbox_xywh': np.array(bbox_xywh),
+    #             'confidence': np.array(confidences),
+    #             'features': features
+    #         }
+            
+    #     except Exception as e:
+    #         logger.error(f"Error in process_image: {e}")
+    #         return None
+    
+    # def update(self, bbox_xywh, confidences, features):
+    #     logger.debug(f"Updating with {len(bbox_xywh)} detections")
+        
+    #     # Update base tracker
+    #     outputs = self.tracker.update(bbox_xywh, confidences, features)
+    #     logger.debug(f"Base tracker returned {len(outputs)} outputs")
+        
+    #     # Update confidence tracking
+    #     current_ids = []
+    #     filtered_outputs = []
+        
+    #     for track_idx, output in enumerate(outputs):
+    #         track_id = output[4]
+            
+    #         if track_id not in self.tracks_confidence:
+    #             self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+    #             logger.debug(f"Created new confidence track for ID {track_id}")
+            
+    #         conf = confidences[track_idx] if track_idx < len(confidences) else 0.5
+    #         self.tracks_confidence[track_id].update(conf)
+    #         current_ids.append(track_id)
+            
+    #         if self.tracks_confidence[track_id].is_confirmed():
+    #             filtered_outputs.append(output)
+        
+    #     logger.debug(f"After confidence filtering: {len(filtered_outputs)} tracks")
+    #     return np.array(filtered_outputs) if filtered_outputs else np.array([])
+
+    # @property
+    # def tracks(self):
+    #     base_tracks = self.tracker.tracker.tracks if hasattr(self.tracker, 'tracker') else []
+    #     logger.debug(f"Number of base tracks: {len(base_tracks)}")
+    #     return base_tracks
+    
+    ####################################now######################################
+    # self.tracker.predict()
+        
+    #     # Create detections with features
+    #     detections = [Detection(bbox, conf, feat) 
+    #                  for bbox, conf, feat in zip(bbox_xywh, confidences, features)]
+        
+    #     # Update tracker
+    #     self.tracker.update(detections)
+        
+    #     # Get results
+    #     outputs = []
+    #     for track in self.tracker.tracks:
+    #         if not track.is_confirmed():
+    #             continue
+                
+    #         box = track.to_tlbr()
+    #         track_id = track.track_id
+            
+    #         # Store detection confidence instead of trying to access track.confidence
+    #         if track_id not in self.tracks_confidence:
+    #             self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+            
+    #         # Use the latest detection confidence if available
+    #         matched_det = next((det for det in detections 
+    #                           if np.array_equal(det.tlwh, track.tlwh)), None)
+    #         conf = matched_det.confidence if matched_det else 0.5
+            
+    #         self.tracks_confidence[track_id].update(conf)
+            
+    #         if self.tracks_confidence[track_id].is_confirmed():
+    #             outputs.append([*box, track_id])
+        
+    #     return np.array(outputs) if outputs else np.array([])
+    
+    # def update_tracker(self, bbox_xywh, confidences, features=None):
+    #     """
+    #     Updates the tracker with bounding boxes, confidences, and optional features.
+    #     """
+    #     try:
+    #         logger.debug(f"Updating tracker with {len(bbox_xywh)} detections.")
+    #         detections = []
+    #         for i, bbox in enumerate(bbox_xywh):
+    #             detection = {
+    #                 'bbox': bbox.tolist(),  # Ensure bbox is a list
+    #                 'confidence': confidences[i]
+    #             }
+    #             if features is not None and len(features) > i:
+    #                 detection['feature'] = features[i]
+    #             detections.append(detection)
+            
+    #         # Perform the tracker update (e.g., DeepSORT)
+    #         self.tracker.update(detections)
+    #         logger.debug(f"Tracker updated successfully.")
+    #     except Exception as e:
+    #         logger.error(f"Error updating tracker: {e}")
+    # def process_tracks(self, frame, person_colors):
+    # """
+    #     Process tracks and create annotations with robust tracking and ID management.
+        
+    #     Args:
+    #         frame (numpy.ndarray): Current video frame
+    #         person_colors (dict): Dictionary to store unique colors for each track
+        
+    #     Returns:
+    #         list: Annotations for the current frame
+    #     """
+    #     frame_annotations = []
+        
+    #     # Validate frame and tracker
+    #     if frame is None:
+    #         logger.error("Received None frame in process_tracks")
+    #         return frame_annotations
+        
+    #     # Extract frame dimensions
+    #     try:
+    #         height, width, _ = frame.shape
+    #     except Exception as e:
+    #         logger.error(f"Error extracting frame dimensions: {e}")
+    #         return frame_annotations
+        
+    #     # Validate tracker
+    #     if not hasattr(self, 'tracker') or self.tracker is None:
+    #         logger.error("Tracker not initialized")
+    #         return frame_annotations
+        
+    #     # Track management
+    #     used_ids = set()
+    #     max_tracks = 4  # Limit to 4 persons
+        
+    #     # Iterate through confirmed tracks
+    #     for track in self.tracker.tracks:
+    #         # Skip unconfirmed or old tracks
+    #         if not track.is_confirmed() or track.time_since_update > 1:
+    #             continue
+            
+    #         try:
+    #             # Get raw bounding box
+    #             raw_bbox = track.to_tlbr().tolist()
+                
+    #             # Validate bounding box
+    #             if len(raw_bbox) != 4:
+    #                 logger.warning(f"Invalid bounding box: {raw_bbox}")
+    #                 continue
+                
+    #             # Scale bbox to pixel coordinates
+    #             scaled_bbox = self.scale_bbox(raw_bbox, width, height)
+                
+    #             # Validate scaled bbox
+    #             if scaled_bbox[2] <= scaled_bbox[0] or scaled_bbox[3] <= scaled_bbox[1]:
+    #                 logger.debug(f"Invalid scaled bbox: {scaled_bbox}")
+    #                 continue
+                
+    #             # Manage track IDs
+    #             if track.track_id not in self.id_mapping:
+    #                 # Assign new ID, ensuring it's unique and within 1-4 range
+    #                 new_id = self.get_next_available_id()
+    #                 if new_id is None:
+    #                     logger.warning("Maximum number of tracks reached")
+    #                     break
+                    
+    #                 self.id_mapping[track.track_id] = new_id
+                
+    #             # Get fixed ID
+    #             fixed_id = self.id_mapping[track.track_id]
+                
+    #             # Prevent duplicate IDs
+    #             if fixed_id in used_ids:
+    #                 logger.debug(f"Skipping duplicate ID: {fixed_id}")
+    #                 continue
+                
+    #             used_ids.add(fixed_id)
+                
+    #             # Ensure coordinates are within frame bounds
+    #             x1, y1, x2, y2 = map(int, scaled_bbox)
+    #             x1 = max(0, min(x1, width-1))
+    #             x2 = max(x1+1, min(x2, width))
+    #             y1 = max(0, min(y1, height-1))
+    #             y2 = max(y1+1, min(y2, height))
+                
+    #             # Get track confidence
+    #             try:
+    #                 confidence = self.tracker.tracks_confidence.get(track.track_id, 1.0)
+    #                 confidence = confidence.confidence if hasattr(confidence, 'confidence') else confidence
+    #             except Exception:
+    #                 confidence = 1.0
+                
+    #             # Generate or retrieve color for this track
+    #             color = person_colors.setdefault(fixed_id, self.get_random_color())
+                
+    #             # Create annotation
+    #             annotation = {
+    #                 "track_id": fixed_id,
+    #                 "bbox": [x1, y1, x2, y2],
+    #                 "confidence": float(confidence),
+    #                 "class": "person",
+    #                 "color": color
+    #             }
+                
+    #             # Add to frame annotations
+    #             frame_annotations.append(annotation)
+
+    #             # Create and add shape to canvas
+    #             try:
+                    
+    #                 shape_data = {
+    #                 "bbox": [x1, y1, x2, y2],
+    #                 "shape_type": "rectangle",
+    #                 "shape_id": str(fixed_id),
+    #                 "confidence": confidence,
+    #                 "label": f"Person ID: {fixed_id} ({confidence:.2f})"
+    #             }
+                    
+                    
+                    
+                    
+    #                 shape = self.canvas.createShapeFromData(shape_data)
+    #                 if shape and shape.boundingRect() and not self.canvas.is_shape_duplicate(shape.id):
+    #                     self.canvas.addShape(shape)
+    #                     logging.info(f"Shape added: ID {fixed_id}, Bbox: {[x1, y1, x2, y2]}")
+                        
+    #                     # Create and add UI labels
+    #                     label_shape = self.create_labelme_shape(fixed_id, x1, y1, x2, y2, color)
+    #                     self.add_labels_to_UI(label_shape, fixed_id, color)
+                        
+    #                     # Add to annotations
+    #                     frame_annotations.append(shape_data)
+    #                 else:
+    #                     logging.debug(f"Shape not added - duplicate or invalid: {shape.id if shape else 'None'}")
+    #             except Exception as canvas_error:
+    #                 logging.error(f"Canvas shape creation error for track {track.track_id}: {canvas_error}")
+
+    #         except Exception as e:
+    #             logging.error(f"Error processing track {track.track_id}: {e}")
+    #             continue
+
+    #     return frame_annotations
+    #######################################################New ##########################################################################
+    #     """ 
+    #     The Method for annotating the video and automating the annotation process
+    #     """
+    # def annotateVideo(self):
+    #     """
+    #     Annotate video using detection, ReID, and tracking.
+    #     Comprehensive method with robust error handling and logging.
+    #     """
+    #     try:
+    #         # Validate video capture
+    #         if not hasattr(self, 'video_capture') or not self.video_capture.isOpened():
+    #             logger.error("No video is loaded or video capture is not opened.")
+    #             QtWidgets.QMessageBox.warning(self, "Error", "Please load a video first.")
+    #             return
+
+    #         # Validate models
+    #         if not self.load_models():
+    #             logger.error("Failed to load detection or ReID models.")
+    #             QtWidgets.QMessageBox.critical(self, "Model Error", "Could not load required models.")
+    #             return
+    #             # Initialize Tracker (CRITICAL STEP)
+    #         if not self.initialize_tracker():
+    #             logger.error("Failed to initialize tracker")
+    #             QtWidgets.QMessageBox.critical(self, "Tracker Error", "Could not initialize tracking.")
+    #             return
+
+    #         # Reset tracking-related attributes
+    #         self.id_mapping = {}  # Reset ID mapping
+    #         self.person_tracks = {}  # Reset person tracks
+    #         self.next_id = 1  # Reset next available ID
+
+    #         # Video metadata
+    #         total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+    #         fps = self.video_capture.get(cv2.CAP_PROP_FPS)
+    #         logger.info(f"Video Details: {total_frames} frames, {fps} FPS")
+
+    #         # Tracking setup
+    #         max_tracks = 4  # Limit to 4 persons
+    #         person_colors = {}
+    #         all_annotations = []
+    #         processed_frames = []
+
+    #         # Progress tracking
+    #         self.is_cancelled = False
+    #         self.progress_callback.emit(0)  # Initialize progress
+
+    #         # Main video processing loop
+    #         frame_number = 0
+    #         while self.video_capture.isOpened() and not self.is_cancelled:
+    #             ret, frame = self.video_capture.read()
+    #             if not ret:
+    #                 logger.info("Reached end of video.")
+    #                 break
+
+    #             # Optional: Frame skipping for performance
+    #             if frame_number % self.frame_skip != 0:
+    #                 frame_number += 1
+    #                 continue
+
+    #             try:
+    #                 # Detect and process current frame
+    #                 frame_detections = self.process_image(frame)
+
+    #                 if frame_detections is None or len(frame_detections['bbox_xywh']) == 0:
+    #                     logger.warning(f"No detections for frame {frame_number}")
+    #                     frame_number += 1
+    #                     continue
+
+    #                 # Extract detection details
+    #                 bbox_xywh = frame_detections['bbox_xywh']
+    #                 confidences = frame_detections['confidence']
+    #                 features = frame_detections.get('features', [])
+
+    #                 # Update tracker
+    #                 tracked_objects = self.update_tracker(bbox_xywh, confidences, features)
+
+    #                 if len(tracked_objects) > 0:
+    #                     # Process and annotate tracks
+    #                     frame_annotations = self.process_tracks(frame, person_colors)
+                        
+    #                     if frame_annotations:
+    #                         all_annotations.append({
+    #                             'frame_number': frame_number,
+    #                             'annotations': frame_annotations
+    #                         })
+    #                         processed_frames.append(frame)
+
+    #                 # Update progress
+    #                 progress = int((frame_number / total_frames) * 100)
+    #                 self.progress_callback.emit(progress)
+
+    #             except Exception as frame_error:
+    #                 logger.error(f"Error processing frame {frame_number}: {frame_error}")
+    #                 traceback.print_exc()
+
+    #             frame_number += 1
+
+    #             # Break if max tracks reached or cancelled
+    #             if len(person_colors) >= max_tracks or self.is_cancelled:
+    #                 break
+
+    #         # Post-processing
+    #         self.progress_callback.emit(100)
+
+    #         # Save annotations if available
+    #         if all_annotations:
+    #             format_choice = self.choose_annotation_format()
+    #             if format_choice:
+    #                 self.save_reid_annotations(processed_frames, all_annotations, format_choice)
+    #                 logger.info(f"Annotations saved in {format_choice} format")
+    #             else:
+    #                 logger.warning("Annotation saving cancelled")
+
+    #         logger.info(f"Video annotation completed. Processed {frame_number} frames.")
+
+    #     except Exception as e:
+    #         logger.critical(f"Critical error during video annotation: {e}")
+    #         traceback.print_exc()
+    #         self.progress_callback.emit(-1)  # Indicate error
+    #         QtWidgets.QMessageBox.critical(self, "Annotation Error", str(e)) 
+    
+    # def scale_bbox(self, bbox, frame_width, frame_height):
+    #     """
+    #     Scale bounding box coordinates to pixel coordinates and validate.
+    #     """
+    #     try:
+    #         bbox = list(map(float, bbox))
+            
+    #         # Clamp bounding box values to frame dimensions
+    #         x1 = max(0, min(bbox[0], frame_width - 1))
+    #         y1 = max(0, min(bbox[1], frame_height - 1))
+    #         x2 = max(x1 + 1, min(bbox[2], frame_width))  # Ensure x2 > x1
+    #         y2 = max(y1 + 1, min(bbox[3], frame_height))  # Ensure y2 > y1
+            
+    #         if x1 >= x2 or y1 >= y2:
+    #             logger.warning(f"Invalid scaled bbox: {bbox}")
+    #             return [0, 0, frame_width // 2, frame_height // 2]  # Fallback to default bbox
+            
+    #         return [x1, y1, x2, y2]
+        
+    #     except Exception as e:
+    #         logger.error(f"Bounding box scaling error: {e}")
+    #         return [0, 0, frame_width // 2, frame_height // 2]  # Fallback to default bbox
+############################## Now #############################################################
+# "def createShapeFromData(self, shape_data):
+#         """
+#         Convert annotation data into a Shape object with robust error handling.
+        
+#         Args:
+#             shape_data (dict): Dictionary containing shape information.
+
+#         Returns:
+#             Shape or None: A validated Shape object or None if creation fails.
+#         """
+#         try:
+#             # Extract and validate required fields
+#             bbox = shape_data.get("bbox")
+#             shape_type = shape_data.get("shape_type", "rectangle")
+#             shape_id = shape_data.get("shape_id")
+#             confidence = shape_data.get("confidence", 1.0)
+
+#             # Validate bbox presence and size
+#             if not bbox or len(bbox) != 4:
+#                 raise ValueError(f"Invalid bbox format: {bbox}")
+
+#             # Normalize bbox coordinates
+#             x1, y1, x2, y2 = map(int, [
+#                 min(bbox[0], bbox[2]),
+#                 min(bbox[1], bbox[3]),
+#                 max(bbox[0], bbox[2]),
+#                 max(bbox[1], bbox[3])
+#             ])
+
+#             # Validate dimensions are within frame bounds
+#             frame_width, frame_height = self.pixmap.width(), self.pixmap.height()
+#             x1 = max(0, min(x1, frame_width - 1))
+#             x2 = max(x1 + 1, min(x2, frame_width))
+#             y1 = max(0, min(y1, frame_height - 1))
+#             y2 = max(y1 + 1, min(y2, frame_height))
+
+#             # Check for valid rectangle dimensions
+#             if x2 <= x1 or y2 <= y1:
+#                 logger.warning(f"Invalid rectangle dimensions: ({x1}, {y1}, {x2}, {y2})")
+#                 # Fallback to default bounding box
+#                 x1, y1, x2, y2 = frame_width // 4, frame_height // 4, frame_width // 2, frame_height // 2
+#                 logger.info(f"Using fallback bbox: ({x1}, {y1}, {x2}, {y2})")
+
+#             # Create QRectF
+#             rect = QtCore.QRectF(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
+#             if rect.isEmpty():
+#                 raise ValueError(f"BoundingRect is empty for shape ID {shape_id}.")
+
+#             # Initialize Shape object
+#             shape = Shape(rect=rect, shape_id=shape_id, shape_type=shape_type, confidence=confidence)
+
+#             # Add bounding box points
+#             shape.addPoint(QtCore.QPointF(x1, y1))  # Top-left
+#             shape.addPoint(QtCore.QPointF(x2, y1))  # Top-right
+#             shape.addPoint(QtCore.QPointF(x2, y2))  # Bottom-right
+#             shape.addPoint(QtCore.QPointF(x1, y2))  # Bottom-left
+
+#             logger.info(f"Successfully created shape: ID {shape_id}, Bbox {bbox}, Type {shape_type}")
+#             return shape
+
+#         except Exception as e:
+#             logger.error(f"Shape creation failed: {e}")
+#             logger.error(f"Problematic shape data: {shape_data}")
+#             return None"
+
+
+
+####################################################12/23/2024###################################################################################################
+# def process_tracks(self, frame, person_colors):
+#         """
+#         Process tracks from the tracker, assign IDs, annotate the frame, and update the LabelMe UI.
+#         """
+#         frame_annotations = []
+#         frame_height, frame_width = frame.shape[:2]
+#         logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
+#         logger.info(f"Processing tracks. Frame dimensions: {frame.shape[:2]}")
+#         logger.info(f"Number of tracks: {len(self.tracker.tracks)}")
+        
+#         used_track_ids = set()  # Track processed track IDs
+        
+#         for track in self.tracker.tracks:
+#              # Detailed track logging
+#             logger.debug(f"Track details: ID={track.track_id}, "
+#                          f"Confirmed={track.is_confirmed()}, "
+#                          f"Time since update={track.time_since_update}")
+            
+#             if not track.is_confirmed() or track.time_since_update > 1:
+#                 logger.warning(f"Skipping unconfirmed or stale track: {track.track_id}")
+                    
+#                 continue
+            
+#             # Skip if track ID already processed
+#             if track.track_id in used_track_ids:
+#                 logger.debug(f"Skipping already processed track ID: {track.track_id}")
+#                 continue
+            
+            
+#             raw_bbox = track.to_tlbr()
+#             logger.debug(f"Raw bbox: {raw_bbox}")
+
+#              # Scale bbox
+#             try:
+#                 scaled_bbox = self.scale_bbox(raw_bbox, frame_width, frame_height)
+#                 logger.debug(f"Scaled bbox: {scaled_bbox}")
+#             except Exception as scaling_error:
+#                 logger.error(f"Bbox scaling error for track {track.track_id}: {scaling_error}")
+#                 continue
+
+#             try:   # Create a Shape object with the scaled bounding box
+#                 shape = self.canvas.createShapeFromData({
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track.track_id),
+#                     "confidence": getattr(track, "confidence", 1.0)
+#                 })
+
+#                 if shape is None:
+#                     logger.warning(f"Failed to create shape for track ID {track.track_id}")
+#                     continue
+
+#                 # Assign unique ID and color
+#                 track_id = self.get_next_available_id(used_track_ids)
+#                 color = person_colors.setdefault(track_id, self.get_random_color())
+                
+
+#                 # Prepare shape data
+#                 shape_data = {
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track_id),
+#                     "confidence": getattr(track, "confidence", 1.0),
+#                     "label": f"Person ID: {track_id}"
+#                 }
+
+#                 # Create and add shape to canvas
+#                 if not self.canvas.is_shape_duplicate(shape.id):
+#                     self.canvas.addShape(shape)
+#                     logger.info(f"Shape added: ID {track_id}, Bbox: {scaled_bbox}")
+#                      # Mark track ID as processed
+#                     used_track_ids.add(track.track_id)
+#                     frame_annotations.append(track,shape)
+#                     logger.info(f"Successfully processed track: {track.track_id}")
+
+#                     # Create LabelMe-compatible shape
+#                     label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
+#                     self.add_labels_to_UI(label_shape, track_id, color)
+#                 else:
+#                     logger.warning(f"Failed to create shape for track ID: {track_id}")
+
+#             except Exception as e:
+#                 logger.error(f"Error processing track {track.track_id}: {e}")
+#                 continue
+#         logging.info(f"Processed {len(frame_annotations)} trucks succesfully")
+#         return frame_annotations
+
+# def process_tracks(self, frame, person_colors, tracked_objects):
+#         """
+#         Process tracks from the tracker, assign IDs, annotate the frame, and update the LabelMe UI.
+
+#         Args:
+#             frame (np.ndarray): The current frame being processed.
+#             person_colors (dict): Dictionary of assigned colors for track IDs.
+#             track_objects (list): List of tracked objects returned by self.update_tracker.
+#         """
+#         frame_annotations = []
+#         frame_height, frame_width = frame.shape[:2]
+#         logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
+#         logger.info(f"Number of tracked objects: {len(tracked_objects)}")
+
+#         processed_track_ids = set()
+
+#         for track in tracked_objects:
+#             track_id = None  # Ensure track_id is always defined
+#             try:
+#                 # Ensure track has required attributes
+#                 if not hasattr(track, 'is_confirmed') or not hasattr(track, 'track_id'):
+#                     logger.error(f"Invalid track object structure: {track}")
+#                     continue
+
+#                 track_id = getattr(track, 'track_id', 'Unknown')
+#                 if not track.is_confirmed():
+#                     logger.warning(f"Skipping unconfirmed track: {track_id}")
+#                     continue
+#                 # Prevent duplicate processing
+#                 if track_id in processed_track_ids:
+#                     logger.debug(f"Skipping already processed track ID: {track_id}")
+#                     continue
+#                 # Get raw bounding box
+#                 raw_bbox = getattr(track, 'to_tlbr', lambda: None)()
+#                 if raw_bbox is None:
+#                     logger.error(f"Track {track_id} does not have a valid bounding box; skipping.")
+#                     continue
+
+#                 logger.debug(f"Raw bbox for track {track_id}: {raw_bbox}")
+
+                
+
+#                 # # Extract bounding box
+#                 # raw_bbox = track['bbox']  # [x1, y1, x2, y2]
+#                 # logger.debug(f"Raw bbox for track {track_id}: {raw_bbox}")
+
+                
+                
+
+               
+                
+                
+#                 # Scale bbox with robust method
+#                 try:
+#                     scaled_bbox = self.scale_bbox(raw_bbox, frame_width, frame_height)
+#                     logger.debug(f"Scaled bbox for track {track_id}: {scaled_bbox}")
+#                 except Exception as scaling_error:
+#                     logger.error(f"Bbox scaling error for track {track_id}: {scaling_error}")
+#                     continue
+
+#                 # Create shape from data
+#                 shape = self.canvas.createShapeFromData({
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track_id),
+#                     "confidence": track.get("confidence", 1.0)
+#                 })
+
+#                 if shape is None:
+#                     logger.warning(f"Failed to create shape for track ID: {track_id}")
+#                     continue
+
+#                 # Assign unique color
+#                 color = person_colors.setdefault(track_id, self.get_random_color())
+
+#                 # Prepare shape data
+#                 shape_data = {
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track_id),
+#                     "confidence": track.get("confidence", 1.0),
+#                     "label": f"Person ID: {track_id}"
+#                 }
+
+#                 # Add shape to canvas and process
+#                 if not self.canvas.is_shape_duplicate(shape.id):
+#                     self.canvas.addShape(shape)
+#                     processed_track_ids.add(track_id)
+#                     frame_annotations.append(shape_data)
+
+#                     # Create LabelMe-compatible shape
+#                     label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
+#                     self.add_labels_to_UI(label_shape, track_id, color)
+
+#             except Exception as e:
+#                 logger.error(f"Unexpected error processing track {track_id}: {e}")
+
+#         # Log successful tracks
+#         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
+#         return frame_annotations

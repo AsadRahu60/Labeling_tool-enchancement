@@ -371,27 +371,43 @@ class Shape(object):
         return rectangle
 
     def makePath(self):
-        
-        if not self.points:
-            logging.warning("Shape has no points; returning empty path.")
+        if not self.points or len(self.points) < 2:
+            logging.warning(f"Shape has insufficient points; returning empty path. Points: {self.points}")
             return QtGui.QPainterPath()
 
         path = QtGui.QPainterPath()
-        if self.shape_type in ["rectangle", "mask"]:
-            path = QtGui.QPainterPath()
-            if len(self.points) == 2:
-                rectangle = self.getRectFromLine(*self.points)
-                path.addRect(rectangle)
-        elif self.shape_type == "circle":
-            path = QtGui.QPainterPath()
-            if len(self.points) == 2:
-                rectangle = self.getCircleRectFromLine(self.points)
-                path.addEllipse(rectangle)
-        else:
-            path = QtGui.QPainterPath(self.points[0])
-            for p in self.points[1:]:
-                path.lineTo(p)
+        try:
+            if self.shape_type in ["rectangle", "mask"]:
+                if len(self.points) == 2:
+                    rectangle = self.getRectFromLine(*self.points)
+                    if rectangle.isEmpty():
+                        raise ValueError(f"Generated rectangle is empty for shape ID {self.shape_id}")
+                    path.addRect(rectangle)
+                else:
+                    raise ValueError(f"Invalid number of points for rectangle/mask shape. Points: {self.points}")
+            elif self.shape_type == "circle":
+                if len(self.points) == 2:
+                    rectangle = self.getCircleRectFromLine(self.points)
+                    if rectangle.isEmpty():
+                        raise ValueError(f"Generated ellipse rectangle is empty for shape ID {self.shape_id}")
+                    path.addEllipse(rectangle)
+                else:
+                    raise ValueError(f"Invalid number of points for circle shape. Points: {self.points}")
+            else:
+                path.moveTo(self.points[0])
+                for p in self.points[1:]:
+                    path.lineTo(p)
+                path.closeSubpath()
+        except Exception as e:
+            logging.error(f"Error generating path for shape ID {self.shape_id}: {e}")
+            return QtGui.QPainterPath()
+
+        if path.isEmpty():
+            logging.error(f"Generated path is empty for shape ID {self.shape_id}. Points: {self.points}")
+
         return path
+
+
 
     
 
@@ -403,7 +419,21 @@ class Shape(object):
         self.rect.translate(dx, dy)
     
     def boundingRect(self):
-        return self.makePath().boundingRect()
+        """
+        Return the bounding rectangle of the shape.
+        Returns:
+            QRectF: The bounding rectangle of the shape, or None if invalid.
+        """
+        path = self.makePath()
+        if path.isEmpty():
+            logging.error(f"BoundingRect is empty for shape ID {self.shape_id}.")
+            return QtCore.QRectF()  # Return an empty QRectF
+
+        rect = path.boundingRect()
+        if rect.isEmpty():
+            logging.error(f"Generated QRectF is empty for shape ID {self.shape_id}.")
+        return rect
+
 
     def moveBy(self, offset):
         self.points = [p + offset for p in self.points]

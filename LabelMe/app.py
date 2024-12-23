@@ -66,6 +66,7 @@ from torchvision import transforms
 import scipy.io as sio
 from pathlib import Path
 import h5py
+import traceback
 
 
 
@@ -82,21 +83,33 @@ from sklearn.metrics.pairwise import cosine_similarity
 from xml.etree.ElementTree import Element, SubElement, ElementTree
 
 ###############################################################################
-import logging
+
 from labelme.widgets.Dataset_Handler import CUHK03Handler, Market1501Handler
+####################################################################################################
 
+import logging
 
-# Configure logging
 logging.basicConfig(
-    level=logging.INFO,  # Set to DEBUG for more detailed logs
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),  # Logs to console
-        logging.FileHandler("annotate_video.log"),  # Logs to file
+        logging.StreamHandler(),
+        logging.FileHandler('A:/data/Project-Skills/Labeling_tool-enchancement/labelme/reid_debug.log')
     ]
 )
 
 logger = logging.getLogger(__name__)
+
+# Test logging
+try:
+  with open('A:/data/Project-Skills/Labeling_tool-enchancement/labelme/reid_debug.log', 'r') as f:
+    # Check if there's content in the file
+    if f.read():
+      print("Logs are being written to the file.")
+    else:
+      print("The file is empty. Check for permission or log level issues.")
+except FileNotFoundError:
+  print("The file 'reid_debug.log' was not found. Check the file path.")
 ################################################################################
 
 
@@ -2807,39 +2820,58 @@ class MainWindow(QtWidgets.QMainWindow):
         return inter_area / union_area if union_area > 0 else 0
 ##############################################################################################################################################
     
-        # Usage example
     def initialize_tracker(self):
+        """
+        Initialize the DeepSORT tracker with the ReID model.
         
+        Returns:
+            bool: True if tracker is successfully initialized, False otherwise
+        """
+        try:
+            # Validate ReID model
+            if self.reid_model is None:
+                logger.error("ReID model is not loaded. Cannot initialize tracker.")
+                return False
+            
+            # Create Enhanced DeepSORT tracker
+            try:
+                self.tracker = EnhancedDeepSORT(self.reid_model)
+                logger.info("Tracker successfully initialized")
+                return True
+            except Exception as tracker_init_error:
+                logger.error(f"Failed to initialize tracker: {tracker_init_error}")
+                return False
         
-        self.tracker = EnhancedDeepSORT(
-            model_path=self.reid_model,  # This should match your OSNet weights path
-            max_dist=0.2,
-            config_file=None  # Remove the config_file parameter since we're not using FastReID
-    )
+        except Exception as e:
+            logger.critical(f"Critical error during tracker initialization: {e}")
+            return False
         
       
     def load_models(self):
-        
-        """Load Detection and ReID Models Dynamically."""
-        # Retrieve the selected model names
-        selected_detection_model = self.detectionModelSelector.currentText()
-        selected_reid_model = self.reidModelSelector.currentText()
+        """
+        Dynamically load detection and ReID models.
+        Returns True if models are successfully loaded, False otherwise.
+        """
+        try:
+            # Detection model
+            detection_model = self.detectionModelSelector.currentText()
+            self.detector = self._load_detection_model(detection_model)
 
-        # Load detection model
-        self.detector = self._load_detection_model(selected_detection_model)
+            # ReID model
+            reid_model = self.reidModelSelector.currentText()
+            self.reid_model = self._load_reid_model(reid_model)
 
-        # Load ReID model
-        self.reid_model = self._load_reid_model(selected_reid_model)
+            # Validate models
+            if self.detector is None or self.reid_model is None:
+                logger.error("Failed to load one or more models")
+                return False
 
-        if self.detector:
-            logger.info(f"Detection model {selected_detection_model} loaded successfully.")
-        else:
-            logger.warning(f"Detection model {selected_detection_model} not recognized.")
+            logger.info(f"Models loaded: Detection={detection_model}, ReID={reid_model}")
+            return True
 
-        if self.reid_model:
-            logger.info(f"ReID model {selected_reid_model} loaded successfully.")
-        else:
-            logger.warning(f"ReID model {selected_reid_model} not recognized.")
+        except Exception as e:
+            logger.error(f"Model loading error: {e}")
+            return False
         
         
         
@@ -2871,92 +2903,111 @@ class MainWindow(QtWidgets.QMainWindow):
         logging.info("Annotation process cancelled by user.")
 
  #################################################################################################################   
-        """ 
-        The Method for annotating the video and automating the annotation process
+    def annotateVideo(self, video_path=None, batch_size=16):
         """
-    def annotateVideo(self):
-        """Annotate video using detection, ReID, and tracking."""
+        Annotate a video using detection, ReID, and tracking with batch processing.
+        
+        Args:
+            video_path (str, optional): Path to the video file. If not provided, the user will be prompted to select a video.
+            batch_size (int, optional): Number of frames to process in a single batch. Default is 16.
+        """
         try:
-            # Ensure models are loaded
-            if not self.detector or not self.reid_model:
-                self.load_models()
+            
 
-            if not self.video_capture.isOpened():
-                logger.warning("No video is loaded for annotation.")
+            # Initialize video capture
+            # Validate video capture
+            if not hasattr(self, 'video_capture') or not self.video_capture.isOpened():
+                logger.error("No video is loaded or video capture is not opened.")
+                QtWidgets.QMessageBox.warning(self, "Error", "Please load a video first.")
                 return
 
-            logger.info("Starting video annotation...")
-            
             # Get video metadata
             total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
             fps = self.video_capture.get(cv2.CAP_PROP_FPS)
-            
-            logger.info(f"Video details: {total_frames} frames, {fps} FPS")
-            
-            self.initialize_tracker() # Initialize DeepSORT tracker
-            person_colors = {}
+            logger.info(f"Video Details: {total_frames} frames, {fps} FPS")
+
+            # Load models
+            if not self.load_models():
+                logger.error("Failed to load detection or ReID models.")
+                QtWidgets.QMessageBox.critical(self, "Model Error", "Could not load required models.")
+                return
+
+            # Initialize tracker
+            if not self.initialize_tracker():
+                logger.error("Failed to initialize tracker")
+                QtWidgets.QMessageBox.critical(self, "Tracker Error", "Could not initialize tracking.")
+                return
+
+            # Reset tracking-related attributes
+            self.id_mapping = {}
+            self.person_tracks = {}
+            self.next_id = 1
+            person_colors={}
+
+            # Process the video in batches
+            self.is_cancelled = False
+            self.progress_callback.emit(0)
+            frame_number = 0
             all_annotations = []
-            processed_frames = 0
             frames = []
 
-            while self.video_capture.isOpened():
-                ret, frame = self.video_capture.read()
-                if not ret:
-                    logger.info("End of video reached.")
-                    break
-                
-                    # Optional: Frame skip for performance
-                if processed_frames % self.frame_skip != 0:
-                    processed_frames += 1
-                    continue
-                try:
-                    # Step 1: Detect and Extract Features
-                    frame_detections = self.process_image(frame)
-
-                    # Step 2: Update Tracker
-                    self.update_tracker(frame_detections)
-
-                    # Step 3: Process Tracks for Final Annotations
-                    frame_annotations = self.process_tracks(frame, person_colors)
-
-                    # Step 4: Draw Shapes and Update Canvas
-                    self.canvas.drawShapesForFrame(frame_annotations)
-                    self.canvas.update()
-                    self.repaint()
-
-                    if frame_annotations:
-                        all_annotations.extend(frame_annotations)
-                    frames.append(frame)
-                    
-                     # Update progress
-                    processed_frames += 1
-                    progress = int((processed_frames / total_frames) * 100)
-                    self.progress_callback.emit(progress)
-                    
-                    # Optional: Allow cancellation
-                    if self.is_cancelled:
-                        logger.info("Video annotation cancelled by user.")
+            while self.video_capture.isOpened() and not self.is_cancelled:
+                batch_frames = []
+                for _ in range(batch_size):
+                    ret, frame = self.video_capture.read()
+                    if not ret:
+                        logger.info("Reached end of video.")
                         break
-            
+                    batch_frames.append(frame)
+
+                try:
+                    for frame in batch_frames:
+                        frame_detections = self.process_image(frame)
+                        if frame_detections is None or len(frame_detections['bbox_xywh']) == 0:
+                            logger.warning(f"No detections for frame {frame_number}")
+                        else:
+                            # Update tracker and process tracks
+                            tracked_objects = self.update_tracker(frame_detections['bbox_xywh'],
+                                                                frame_detections['confidence'],
+                                                                frame_detections['features'])
+                            
+                            frame_annotations = self.process_tracks(frame, person_colors, tracked_objects)
+
+                            if frame_annotations:
+                                all_annotations.append({
+                                    'frame_number': frame_number,
+                                    'annotations': frame_annotations
+                                })
+                                frames.append(frame)
+
+                        frame_number += 1
+
                 except Exception as frame_error:
-                    logger.error(f"Error processing frame {processed_frames}: {frame_error}")
-                    continue
-                # Save annotations
-            format_choice = self.choose_annotation_format()
-            if format_choice:
-                self.save_reid_annotations(frames, all_annotations, format_choice)
-                self.actions.saveReIDAnnotations.setEnabled(True)
-                logger.info(f"Annotations saved successfully in {format_choice} format.")
-            else:
-                logger.warning("Annotation saving canceled by user.")
-            
-            
-            logger.info(f"Video annotation completed. Processed {processed_frames} frames.")
+                    logger.error(f"Error processing batch of frames starting from {frame_number}: {frame_error}")
+                    traceback.print_exc()
+
+                # Update progress
+                progress = int((frame_number / total_frames) * 100)
+                self.progress_callback.emit(progress)
+
             self.progress_callback.emit(100)
 
+            if all_annotations:
+                format_choice = self.choose_annotation_format()
+                if format_choice:
+                    self.save_reid_annotations(frames, all_annotations, format_choice)
+                    logger.info(f"Annotations saved successfully in {format_choice} format.")
+                else:
+                    logger.warning("Annotation saving cancelled by user.")
+
+            logger.info(f"Video annotation completed. Processed {frame_number} frames.")
+
         except Exception as e:
-            logger.error(f"Critical error during video annotation: {e}", exc_info=True)
-            self.progress_callback.emit(-1) 
+            logger.critical(f"Critical error during video annotation: {e}")
+            self.progress_callback.emit(-1)
+            QtWidgets.QMessageBox.critical(self, "Annotation Error", str(e))
+
+
 
 
         #############################################################################################################
@@ -3016,57 +3067,87 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     ###############################################################################################################################
-    def extract_reid_features(self, frame, boxes):
-        """
-        Extract ReID features for detected bounding boxes.
-
-        Args:
-            frame (np.ndarray): Current video frame (H, W, C).
-            boxes (list of tuples): Detected bounding boxes [(x1, y1, x2, y2), ...].
-
-        Returns:
-            list: ReID feature vectors for each bounding box or None for invalid boxes.
-        """
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+    def extract_reid_features(self, frame, bbox_xywh):
+        """Extract ReID features from detected persons."""
         features = []
-
-        for box in boxes:
-            try:
-                x1, y1, x2, y2 = box
-
-                # # Validate bounding box dimensions
-                # if x2 <= x1 or y2 <= y1:
-                #     logger.warning(f"Invalid bounding box skipped: {box}")
-                #     features.append(None)
-                #     continue
-
-                # Step 1: Crop and preprocess the region of interest
-                crop = self._preprocess_crop(frame, x1, y1, x2, y2, device)
-
-                if crop is None:
-                    logger.warning(f"Skipping empty or invalid crop for box: {box}")
+        height, width = frame.shape[:2]
+        
+        try:
+            for i, box in enumerate(bbox_xywh):
+                x_center, y_center, w, h = box
+                
+                # Convert to top-left coordinates
+                x1 = int(max(0, x_center - w/2))
+                y1 = int(max(0, y_center - h/2))
+                x2 = int(min(width, x_center + w/2))
+                y2 = int(min(height, y_center + h/2))
+                
+                # Validate box dimensions
+                if x2 <= x1 or y2 <= y1:
+                    logger.warning(f"Invalid box dimensions for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
                     features.append(None)
                     continue
-
-                # Step 2: Extract features using the ReID model
-                with torch.no_grad():
-                    output = self.reid_model(crop)
                 
-                # Handle FastReID-specific outputs (dict with 'features' key)
-                feature = output.get("features") if isinstance(output, dict) else output
-
-                # Flatten the feature if it's batched
-                if len(feature.shape) == 2:
-                    feature = feature[0]
-
-                features.append(feature.cpu().numpy())
-
-            except Exception as e:
-                logger.warning(f"Error processing box {box}: {e}")
-                features.append(None)
-
-        logger.info(f"Extracted features for {len(features)} bounding boxes.")
-        return features
+                # Extract and resize person image
+                try:
+                    person_img = frame[y1:y2, x1:x2]
+                    if person_img.size == 0:
+                        logger.warning(f"Empty person crop at coordinates for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
+                        features.append(None)
+                        continue
+                    
+                    # Preprocess for ReID
+                    img = cv2.resize(person_img, (128, 256))
+                    
+                    # Log preprocessing details
+                    logger.debug(f"Detection {i} - Preprocessed image shape: {img.shape}")
+                    
+                    img = torch.from_numpy(img).float().permute(2, 0, 1).unsqueeze(0)
+                    if torch.cuda.is_available():
+                        img = img.cuda()
+                    
+                    # Extract features
+                    with torch.no_grad():
+                        # Ensure feature extraction works with the specific ReID model
+                        if hasattr(self.reid_model, 'module'):
+                            feature = self.reid_model.module(img)
+                        else:
+                            feature = self.reid_model(img)
+                        
+                        # Log feature extraction details
+                        logger.debug(f"Detection {i} - Raw feature type: {type(feature)}")
+                        
+                        # Normalize and flatten the feature
+                        if isinstance(feature, dict):
+                            feature = feature['features']
+                        
+                        # Ensure feature is a numpy array with consistent shape
+                        feature = feature.cpu().numpy().flatten()
+                        
+                        # Log feature details
+                        # logger.debug(f"Detection {i} - Processed feature shape: {feature.shape}, values: {feature}")
+                        
+                        # Ensure feature has expected dimensionality
+                        if len(feature) != 512:
+                            logger.warning(f"Detection {i} - Unexpected feature size: {len(feature)}")
+                            features.append(None)
+                            continue
+                        
+                        features.append(feature)
+                    
+                except Exception as e:
+                    logger.error(f"Detection {i} - Error processing person crop: {e}")
+                    traceback.print_exc()
+                    features.append(None)
+                    continue
+                    
+            logger.debug(f"Extracted features for {len(features)} detections")
+            return features
+            
+        except Exception as e:
+            logger.error(f"Overall feature extraction error: {e}")
+            traceback.print_exc()
+            return [None] * len(bbox_xywh)
     ##########################################################################################
     def _preprocess_crop(self, frame, x1, y1, x2, y2, device):
         """
@@ -3075,6 +3156,7 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # Ensure bounding box coordinates are integers
             x1, y1, x2, y2 = map(int, (x1, y1, x2, y2))
+            
 
             # Validate bounding box dimensions
             if x2 <= x1 or y2 <= y1:
@@ -3111,24 +3193,53 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     #######################################################################################################################################
-    def update_tracker(self, detections):
+    def update_tracker(self, bbox_xywh, confidences, features):
         """
-        Update the DeepSORT tracker with validated detections.
+        Wrapper method to update the tracker in the MainWindow class.
+        
         Args:
-            detections (list): List of Detection objects.
+            bbox_xywh (numpy.ndarray): Bounding boxes in center format [x_center, y_center, width, height]
+            confidences (numpy.ndarray): Confidence scores for each detection
+            features (list): ReID features for each detection
+        
+        Returns:
+            numpy.ndarray: Tracked objects with their bounding boxes and IDs
         """
         try:
-            # Predict the next state for the tracker
-            self.tracker.predict()
+            # Validate inputs
+            if len(bbox_xywh) == 0:
+                logger.warning("No detections to update tracker")
+                return []
 
-            # Update tracker with current detections
-            self.tracker.update(detections=detections)
-            logger.info(f"Tracker updated with {len(detections)} detections.")
+            # Ensure numpy arrays
+            bbox_xywh = np.asarray(bbox_xywh)
+            confidences = np.asarray(confidences)
+
+            # Validate input sizes
+            if len(bbox_xywh) != len(confidences) or len(bbox_xywh) != len(features):
+                logger.error(f"Input size mismatch: bbox={len(bbox_xywh)}, confidences={len(confidences)}, features={len(features)}")
+                return []
+
+            # Ensure tracker is initialized
+            if not hasattr(self, 'tracker') or self.tracker is None:
+                logger.error("Tracker not initialized. Attempting to initialize.")
+                if not self.initialize_tracker():
+                    logger.critical("Failed to initialize tracker")
+                    return []
+
+            # Delegate to the tracker's update method
+            tracked_objects = self.tracker.update(bbox_xywh, confidences, features)
             
-            
-                
+            logger.debug(f"Tracked {len(tracked_objects)} objects")
+            return tracked_objects
+
         except Exception as e:
-            logger.error(f"Error updating tracker: {e}", exc_info=True)
+            logger.error(f"Tracker update error: {e}")
+            traceback.print_exc()
+            return []
+
+
+    
 
 
     ############################################################################################################################
@@ -3179,231 +3290,265 @@ class MainWindow(QtWidgets.QMainWindow):
 
     #########################################################################################################################
     def process_image(self, frame):
-        """Detect persons, extract features, and prepare detections for tracking."""
-        detections = []
-
-        # Step 1: Run Detection
-        results = self.detector(frame)
-        boxes = []
-        confidences = []
-
-        # Extract bounding boxes and confidences
-        for det in results[0].boxes:
-            if int(det.cls[0]) == 0:  # Person class
-                box = det.xyxy[0].tolist()
-                confidence = float(det.conf[0])
-
-                # Validate the bounding box
-                if len(box) == 4:
-                    boxes.append(box)
-                    confidences.append(confidence)
-                else:
-                    logger.warning(f"Skipping invalid detection: {box}")
-
-        if not boxes:
-            logger.warning("No valid bounding boxes found.")
-            return []
-
-        # Step 2: Extract ReID Features
-        features = self.extract_reid_features(frame, boxes)
-
-        # Step 3: Prepare Detections
-        for box, confidence, feature in zip(boxes, confidences, features):
-            if feature is not None:
-                x1, y1, x2, y2 = map(int, box)  # Ensure integer coordinates
-                detection = Detection(
-                    (x1 / frame.shape[1], y1 / frame.shape[0], x2 / frame.shape[1], y2 / frame.shape[0]),
-                    confidence,
-                    feature
-                )
-                detections.append(detection)
-
-        logger.info(f"Processed {len(detections)} detections in the frame.")
-        return detections
+        try:
+            # YOLOv8 detection
+            detections = self.detector(frame)
+            bbox_xywh = []
+            confidences = []
+            
+            height, width = frame.shape[:2]
+            
+            for det in detections[0].boxes.data:
+                if det[5] == 0:  # person class
+                    # Get YOLO detections (normalized or pixel coordinates)
+                    x1, y1, x2, y2 = det[0:4].cpu().numpy()
+                    
+                    # Check if coordinates are already in pixel space
+                    if x1 > 1 or x2 > 1:
+                        # Already in pixel coordinates
+                        x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+                    else:
+                        # Scale to pixel coordinates
+                        x1 = int(x1 * width)
+                        y1 = int(y1 * height)
+                        x2 = int(x2 * width)
+                        y2 = int(y2 * height)
+                    
+                    # Convert to center format
+                    w = x2 - x1
+                    h = y2 - y1
+                    x_center = x1 + w/2
+                    y_center = y1 + h/2
+                    
+                    # Only add valid detections
+                    if w > 0 and h > 0:
+                        bbox_xywh.append([x_center, y_center, w, h])
+                        confidences.append(float(det[4].cpu().numpy()))
+            
+            if not bbox_xywh:
+                logger.debug("No valid detections found")
+                return None
+                
+            bbox_xywh = np.array(bbox_xywh, dtype=np.float32)
+            confidences = np.array(confidences, dtype=np.float32)
+            
+            # Extract features with properly scaled coordinates
+            features = self.extract_reid_features(frame, bbox_xywh)
+            
+            return {
+                'bbox_xywh': bbox_xywh,
+                'confidence': confidences,
+                'features': features if features is not None else []
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in process_image: {e}")
+            logger.error(f"Stack trace: {traceback.format_exc()}")
+            return None
 ##########################################################################################################################################################################
-    def scale_bbox(self, bbox, width, height):
+    def scale_bbox(self, bbox, frame_width, frame_height):
         """
-        Scale bounding box coordinates to pixel coordinates.
+        Scale and validate bounding box coordinates.
         
         Args:
-            bbox (list): Bounding box coordinates 
-            width (int): Frame width in pixels
-            height (int): Frame height in pixels
+            bbox (list): Raw bounding box coordinates [x1, y1, x2, y2]
+            frame_width (int): Width of the frame
+            frame_height (int): Height of the frame
         
         Returns:
-            list: Scaled bounding box coordinates [x1, y1, x2, y2]
+            list: Validated and scaled bounding box coordinates
         """
-        # Ensure input bbox is a list with 4 coordinates
-        if not isinstance(bbox, list) or len(bbox) != 4:
-            raise ValueError(f"Invalid bbox format. Expected list of 4 coordinates, got {bbox}")
-        
-        # Unpack coordinates
-        x1, y1, x2, y2 = bbox
-        
-        # Normalize coordinates if they exceed 1
-        if x1 > 1 or y1 > 1 or x2 > 1 or y2 > 1:
-            # Find the maximum coordinate to determine scaling factor
-            max_coord = max(x1, y1, x2, y2)
+        try:
+            # Ensure coordinates are numeric and convert to float
+            bbox = list(map(float, bbox))
             
-            # Normalize based on the maximum coordinate
-            x1_norm = x1 / max_coord
-            y1_norm = y1 / max_coord
-            x2_norm = x2 / max_coord
-            y2_norm = y2 / max_coord
-        else:
-            # Already normalized
-            x1_norm, y1_norm, x2_norm, y2_norm = bbox
-        
-        # Clamp normalized coordinates between 0 and 1
-        x1_norm = max(0, min(x1_norm, 1))
-        y1_norm = max(0, min(y1_norm, 1))
-        x2_norm = max(0, min(x2_norm, 1))
-        y2_norm = max(0, min(y2_norm, 1))
-        
-        # Scale to pixel coordinates
-        x1 = int(x1_norm * width)
-        y1 = int(y1_norm * height)
-        x2 = int(x2_norm * width)
-        y2 = int(y2_norm * height)
-        
-        # Validate scaled coordinates
-        x1 = max(0, x1)
-        y1 = max(0, y1)
-        x2 = min(width, x2)
-        y2 = min(height, y2)
-        
-        # Ensure bbox has valid dimensions
-        if x2 <= x1 or y2 <= y1:
-            # If dimensions are invalid, return an empty or default bbox
-            return [0, 0, 0, 0]
-        
-        return [x1, y1, x2, y2]
+            # Validate input length
+            if len(bbox) != 4:
+                logger.warning(f"Invalid bbox input: {bbox}. Expected 4 coordinates.")
+                return [0, 0, frame_width, frame_height]
+
+            # Unpack coordinates
+            x1, y1, x2, y2 = bbox
+
+            # Ensure coordinates are within frame boundaries
+            x1 = max(0, min(x1, frame_width - 1))
+            y1 = max(0, min(y1, frame_height - 1))
+            x2 = max(x1 + 1, min(x2, frame_width))
+            y2 = max(y1 + 1, min(y2, frame_height))
+
+            # Validate box dimensions
+            min_box_size = 10  # Minimum box size in pixels
+            if (x2 - x1) < min_box_size or (y2 - y1) < min_box_size:
+                logger.warning(f"Bbox too small: {[x1, y1, x2, y2]}")
+                # Fallback to a centered, minimum-sized box
+                center_x, center_y = frame_width // 2, frame_height // 2
+                x1 = max(0, center_x - min_box_size // 2)
+                y1 = max(0, center_y - min_box_size // 2)
+                x2 = min(frame_width, x1 + min_box_size)
+                y2 = min(frame_height, y1 + min_box_size)
+
+            return [x1, y1, x2, y2]
+
+        except Exception as e:
+            logger.error(f"Bounding box scaling error: {e}")
+            # Return a safe default box in the center of the frame
+            return [
+                frame_width // 4, 
+                frame_height // 4, 
+                frame_width * 3 // 4, 
+                frame_height * 3 // 4
+            ]
+
+
+
 
 
 
     ###########################################################################################################
-    def process_tracks(self, frame, person_colors):
-        """Process tracks from the tracker and annotate frame."""
+    def process_tracks(self, frame, person_colors, tracked_objects):
+        """
+        Process tracks from the tracker, assign IDs, annotate the frame, and update the LabelMe UI.
+
+        Args:
+            frame (np.ndarray): The current frame being processed.
+            person_colors (dict): Dictionary of assigned colors for track IDs.
+            tracked_objects (list): List of tracked objects returned by self.update_tracker.
+        """
         frame_annotations = []
-        frame_shape = frame.shape
-        logging.info(f"frame shape: {frame_shape}")
-        height, width, _ = frame.shape
+        frame_height, frame_width = frame.shape[:2]
+        logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
+        logger.info(f"Number of tracked objects: {len(tracked_objects)}")
 
-        for track in self.tracker.tracks:
-            # Skip unconfirmed or old tracks
-            if not track.is_confirmed() or track.time_since_update > 1:
-                continue
+        processed_track_ids = set()
 
-            # Get raw bounding box (normalized)
-            raw_bbox = track.to_tlbr().tolist()
-            logging.info(f"Track {track.track_id} - Raw bbox: {raw_bbox}")
-
+        for track in tracked_objects:
+            track_id = None  # Ensure track_id is always defined for logging
             try:
-                # Scale bbox to pixel coordinates
-                scaled_bbox = self.scale_bbox(raw_bbox, width, height)
-                # Skip invalid bounding boxes
-                if scaled_bbox[2] <= scaled_bbox[0] or scaled_bbox[3] <= scaled_bbox[1]:
+                # Check if track is a dictionary or a valid object with expected attributes
+                if isinstance(track, dict):
+                    track_id = track.get('track_id', 'Unknown')
+                    is_confirmed = track.get('is_confirmed', False)
+                    raw_bbox = track.get('bbox', None)
+                elif hasattr(track, 'is_confirmed') and hasattr(track, 'track_id') and hasattr(track, 'to_tlbr'):
+                    track_id = getattr(track, 'track_id', 'Unknown')
+                    is_confirmed = track.is_confirmed()
+                    raw_bbox = track.to_tlbr()
+                else:
+                    logger.error(f"Invalid track object structure: {track}")
                     continue
-                # logging.info(f"Track {track.track_id} - Scaled bbox: {scaled_bbox}")
-                
-                # # Unpack scaled bbox
-                # x1, y1, x2, y2 = scaled_bbox
 
-                # # Validate bounding box dimensions
-                # if x2 <= x1 or y2 <= y1:
-                #     logging.warning(f"Invalid bbox dimensions for track {track.track_id}: {scaled_bbox}")
-                #     continue
+                if not is_confirmed:
+                    logger.warning(f"Skipping unconfirmed track: {track_id}")
+                    continue
 
-                    # Fix and assign sequential ID
-                if track.track_id not in self.id_mapping:
-                    self.id_mapping[track.track_id] = self.next_id
-                    self.next_id += 1
+                if raw_bbox is None or len(raw_bbox) != 4:
+                    logger.error(f"Track {track_id} does not have a valid bounding box; skipping.")
+                    continue
 
-                fixed_id = self.id_mapping[track.track_id]
+                logger.debug(f"Raw bbox for track {track_id}: {raw_bbox}")
 
-                    # Confidence information
-                confidence = getattr(track, "confidence", 1.0)  # Default to 1.0 if not provided
-                label = f"Person ID: {fixed_id} ({confidence:.2f})"
-
-                # Draw bounding box and label
-                x1, y1, x2, y2 = map(int, scaled_bbox)
-                color = person_colors.setdefault(fixed_id, self.get_random_color())
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-
-                # Prepare shape data for canvas
-                shape_data = {
-                    "bbox": [x1, y1, x2, y2],
-                    "shape_type": "rectangle",
-                    "shape_id": str(fixed_id),
-                    "confidence": confidence
-                }
-                logging.debug(f"Constructed shape_data: {shape_data}")
-
+                # Scale bbox
                 try:
-                    shape = self.canvas.createShapeFromData(shape_data)
-                    if shape:
-                        # Validate and log the bounding rectangle
-                        bbox = shape.boundingRect()
-                        if bbox.isEmpty():
-                            logging.warning(f"Shape boundingRect is empty for ID: {shape.id}")
-                            continue
+                    scaled_bbox = self.scale_bbox(raw_bbox, frame_width, frame_height)
+                    logger.debug(f"Scaled bbox for track {track_id}: {scaled_bbox}")
+                except Exception as scaling_error:
+                    logger.error(f"Bbox scaling error for track {track_id}: {scaling_error}")
+                    continue
 
-                        # Ensure shapes are not added twice
-                        if not self.canvas.is_shape_duplicate(shape.id):
-                            logging.debug(f"Shape bounding box before addition: {bbox}")
-                            self.canvas.addShape(shape)
-                            logging.info(f"Shape added: ID {fixed_id}, Bbox: {scaled_bbox}")
-                        else:
-                            logging.debug(f"Duplicate shape detected, skipping: {shape.id}")
-                    else:
-                        logging.error(f"Failed to create valid shape for track ID: {track.track_id}")
-                except Exception as canvas_error:
-                    logging.error(f"Canvas shape creation error for track {track.track_id}: {canvas_error}")
+                # Create shape
+                shape = self.canvas.createShapeFromData({
+                    "bbox": scaled_bbox,
+                    "shape_type": "rectangle",
+                    "shape_id": str(track_id),
+                    "confidence": track.get('confidence', 1.0) if isinstance(track, dict) else getattr(track, 'confidence', 1.0)
+                })
 
+                if shape is None:
+                    logger.warning(f"Failed to create shape for track ID: {track_id}")
+                    continue
 
-                # Create the shape and add it to the UI
-                label_shape = self.create_labelme_shape(track.track_id, x1, y1, x2, y2, color)
-                self.add_labels_to_UI(label_shape, track.track_id, color)
+                # Assign unique color
+                color = person_colors.setdefault(track_id, self.get_random_color())
 
+                # Prepare shape data
+                shape_data = {
+                    "bbox": scaled_bbox,
+                    "shape_type": "rectangle",
+                    "shape_id": str(track_id),
+                    "confidence": track.get('confidence', 1.0) if isinstance(track, dict) else getattr(track, 'confidence', 1.0),
+                    "label": f"Person ID: {track_id}"
+                }
 
-                # Append annotations for saving
-                frame_annotations.append(shape_data)
+                # Add shape to canvas and process
+                if not self.canvas.is_shape_duplicate(shape.id):
+                    self.canvas.addShape(shape)
+                    processed_track_ids.add(track_id)
+                    frame_annotations.append(shape_data)
+
+                    # Create LabelMe-compatible shape
+                    label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
+                    self.add_labels_to_UI(label_shape, track_id, color)
 
             except Exception as e:
-                logging.error(f"Error processing track {track.track_id}: {e}")
-                continue
+                logger.error(f"Unexpected error processing track {track_id}: {e}")
 
+        # Log successful tracks
+        logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
         return frame_annotations
+
+
+###########################################################################################################################################################
+    def get_next_available_id(self,used_ids):
+        """
+        Get the next available unique ID for tracking. Reuses IDs that are no longer active.
+        """
+        used_ids = set(self.id_mapping.values())  # IDs currently in use
+        next_id = 1  # Start checking from ID 1
+
+        # Find the first unused ID
+        while next_id in used_ids:
+            next_id += 1
+
+        return next_id
+
+    
+    
+    
 
     def create_labelme_shape(self, track_id, x1, y1, x2, y2, color):
         """
-        Create a LabelMe-compatible shape for the given track ID and bounding box coordinates.
-
+        Create a LabelMe-compatible shape for the given track.
+        
         Args:
-            track_id (int): Unique ID of the track.
-            x1, y1, x2, y2 (float): Bounding box coordinates.
-            color (tuple): Color associated with the track.
-
+            track_id (int): Unique track ID
+            x1, y1, x2, y2 (int): Bounding box coordinates
+            color (tuple): RGB color for the shape
+        
         Returns:
-            Shape: A configured Shape object.
+            Shape: Configured Shape object
         """
-        label = f"person{track_id}"
-        shape = Shape(label=label, shape_id=track_id)
+        try:
+            # Create shape with person label and track ID
+            label = f"person{track_id}"
+            shape = Shape(label=label, shape_id=track_id)
+            
+            # Define bounding box points
+            bounding_points = [
+                QtCore.QPointF(x1, y1),  # Top-left
+                QtCore.QPointF(x2, y1),  # Top-right
+                QtCore.QPointF(x2, y2),  # Bottom-right
+                QtCore.QPointF(x1, y2)   # Bottom-left
+            ]
+            
+            # Add points to shape
+            for point in bounding_points:
+                shape.addPoint(point)
+            
+            return shape
         
-        # Define the bounding box points
-        bounding_points = [
-            QtCore.QPointF(x1, y1),  # Top-left
-            QtCore.QPointF(x2, y1),  # Top-right
-            QtCore.QPointF(x2, y2),  # Bottom-right
-            QtCore.QPointF(x1, y2)   # Bottom-left
-        ]
-        
-        # Add points to the shape
-        for point in bounding_points:
-            shape.addPoint(point)
-        
-        return shape
+        except Exception as e:
+            logger.error(f"Error creating LabelMe shape: {e}")
+            return None
 
     def add_labels_to_UI(self, shape, track_id, color):
         """
@@ -4207,6 +4352,191 @@ class MainWindow(QtWidgets.QMainWindow):
 
 ##########################################################################################################################################################################################################################
 """Tracker and the confidence class """
+class EnhancedDeepSORT:
+    def __init__(self, reid_model, tracking_config=None):
+        """
+        Initialize Enhanced DeepSORT tracker with flexible configuration.
+        
+        Args:
+            reid_model: ReID model for feature extraction
+            tracking_config (dict, optional): Custom tracking configuration
+        """
+        # Default configuration
+        default_config = {
+            'max_cosine_distance': 0.3,
+            'nn_budget': 100,
+            'max_iou_distance': 0.7,
+            'max_age': 30,
+            'n_init': 3
+        }
+        
+        # Merge default and custom configurations
+        self.config = {**default_config, **(tracking_config or {})}
+        
+        # Create distance metric
+        self.metric = NearestNeighborDistanceMetric(
+            metric='cosine', 
+            matching_threshold=self.config['max_cosine_distance'], 
+            budget=self.config['nn_budget']
+        )
+        
+        # Initialize tracker
+        self.tracker = Tracker(
+            self.metric,
+            max_iou_distance=self.config['max_iou_distance'],
+            max_age=self.config['max_age'],
+            n_init=self.config['n_init']
+        )
+        
+        self.reid_model = reid_model
+        self.tracks_confidence = {}
+            
+        logger.info("Enhanced DeepSORT tracker initialized successfully")
+        
+        
+
+    def _xywh_to_tlwh(self, bbox_xywh):
+        """
+        Convert [x_center, y_center, w, h] to [top_left_x, top_left_y, w, h]
+        
+        Args:
+            bbox_xywh (array or list): Bounding box(es) in center format
+        
+        Returns:
+            array: Bounding box(es) in top-left format
+        """
+        # Ensure input is a numpy array
+        bbox_xywh = np.asarray(bbox_xywh)
+        
+        # Handle single bounding box (1D array)
+        if bbox_xywh.ndim == 1:
+            # Single bounding box case
+            if len(bbox_xywh) != 4:
+                raise ValueError(f"Invalid bounding box format. Expected 4 elements, got {len(bbox_xywh)}")
+            
+            # Convert single bbox
+            x_center, y_center, width, height = bbox_xywh
+            x_top_left = x_center - width / 2.
+            y_top_left = y_center - height / 2.
+            return np.array([x_top_left, y_top_left, width, height])
+        
+        # Handle multiple bounding boxes (2D array)
+        elif  bbox_xywh.ndim == 2:
+            bbox_tlwh = bbox_xywh.copy()
+            bbox_tlwh[:, 0] = bbox_xywh[:, 0] - bbox_xywh[:, 2] / 2.
+            bbox_tlwh[:, 1] = bbox_xywh[:, 1] - bbox_xywh[:, 3] / 2.
+            return bbox_tlwh
+        
+        else:
+            raise ValueError(f"Unexpected bounding box array dimension: {bbox_xywh.ndim}")
+
+    def update(self, bbox_xywh, confidences, features):
+        """
+        Update tracker with new detections.
+        
+        Args:
+            bbox_xywh (numpy.ndarray): Bounding boxes in center format
+            confidences (numpy.ndarray): Detection confidences
+            features (list): ReID features
+        
+        Returns:
+            list: Tracked objects with their bounding boxes and IDs
+        """
+        try:
+            # Log input details
+            logger.debug(f"Update inputs: bbox={len(bbox_xywh)}, confidences={len(confidences)}, features={len(features)}")
+            
+            # Validate inputs
+            if len(bbox_xywh) == 0:
+                logger.warning("No detections to update tracker")
+                return []
+           
+                # Ensure numpy arrays
+            bbox_xywh = np.asarray(bbox_xywh)
+            confidences = np.asarray(confidences)
+
+            # Validate input sizes
+            if len(bbox_xywh) != len(confidences) or len(bbox_xywh) != len(features):
+                logger.error(f"Input size mismatch: bbox={len(bbox_xywh)}, confidences={len(confidences)}, features={len(features)}")
+                return []
+            # Predict next states
+            self.tracker.predict()
+            
+            # Create detections
+            detections = []
+            for bbox, conf, feat in zip(bbox_xywh, confidences, features):
+                
+                try:    
+                    if feat is not None and len(feat) == 512:
+                        # Convert bbox to tlwh format
+                        tlwh = self._xywh_to_tlwh(np.asarray(bbox).flatten())
+                        
+                        # Create detection
+                        from deep_sort_realtime.deep_sort.detection import Detection
+                        detection = Detection(tlwh, conf, feat)
+                        detections.append(detection)
+                    else:
+                        logger.warning(f"Invalid feature for detection {i}")
+                except Exception as detection_error:
+                    logger.error(f"Error processing detection {i}: {detection_error}")
+            
+            # Log detection details
+            logger.debug(f"Created {len(detections)} valid detections")
+            
+            # Update tracker with detections
+            if detections:
+                self.tracker.update(detections)
+            
+            # Process tracked objects
+            outputs = []
+            for track in self.tracker.tracks:
+                try:
+                    if not track.is_confirmed():
+                        continue
+                    
+                    # Log track details
+                    logger.debug(f"Track: ID={track.track_id}, Confirmed={track.is_confirmed()}, Age={track.age}")
+                    
+                    # Get bounding box and track ID
+                    bbox = track.to_tlbr()
+                    track_id = track.track_id
+                    
+                    # Manage track confidence
+                    if track_id not in self.tracks_confidence:
+                        self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+                        
+                    
+                        # Update confidence (simplified)
+                    conf = confidences[np.where(bbox_xywh[:, :4] == bbox)[0][0]] if len(np.where(bbox_xywh[:, :4] == bbox)[0]) > 0 else 0.5
+                    self.tracks_confidence[track_id].update(conf)
+                    
+                    # Add to outputs if confirmed
+                    if self.tracks_confidence[track_id].is_confirmed():
+                       outputs.append(np.append(bbox, track_id))
+                
+                except Exception as track_error:
+                    logger.error(f"Error processing track: {track_error}")
+                        
+
+            logger.debug(f"Tracked {len(outputs)} objects")
+            return outputs
+        
+        except Exception as e:
+            logger.error(f"Tracker update error: {e}")
+            traceback.print_exc()
+            return []
+
+    @property
+    def tracks(self):
+        """
+        Provide access to tracker's tracks.
+        
+        Returns:
+            list: Current tracks
+        """
+        return self.tracker.tracks if hasattr(self.tracker, 'tracks') else []
+
+
 class ConfidenceTrack:
     def __init__(self, track_id):
         self.track_id = track_id
@@ -4215,7 +4545,7 @@ class ConfidenceTrack:
         self.missed_frames = 0
         
     def update(self, detection_conf):
-        # Increase confidence based on detection confidence
+        """Update track confidence with new detection."""
         self.confidence = min(self.confidence + detection_conf * 0.2, 1.0)
         self.missed_frames = 0
         self.history.append(detection_conf)
@@ -4223,42 +4553,10 @@ class ConfidenceTrack:
             self.history.pop(0)
             
     def mark_missed(self):
+        """Mark track as missed in current frame."""
         self.missed_frames += 1
         self.confidence = max(self.confidence - 0.1, 0.0)
         
     def is_confirmed(self):
+        """Check if track is confirmed based on confidence."""
         return self.confidence > 0.5 and self.missed_frames < 5
-
-class EnhancedDeepSORT(DeepSort):
-    def __init__(self, model_path, max_dist=0.2, config_file=None):  # Made config_file optional
-        super().__init__(model_path, max_dist=max_dist)
-        self.tracks_confidence = {}
-        
-    def update(self, bbox_xywh, confidences, ori_img):
-        # Get the outputs from parent DeepSORT
-        outputs = super().update(bbox_xywh, confidences, ori_img)
-        
-        # Update confidence tracking
-        current_ids = []
-        for track_idx, (x1, y1, x2, y2, track_id) in enumerate(outputs):
-            if track_id not in self.tracks_confidence:
-                self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
-            
-            # Update track confidence with detection confidence
-            conf = confidences[track_idx] if track_idx < len(confidences) else 0.5
-            self.tracks_confidence[track_id].update(conf)
-            current_ids.append(track_id)
-            
-        # Mark missed tracks
-        for track_id in self.tracks_confidence:
-            if track_id not in current_ids:
-                self.tracks_confidence[track_id].mark_missed()
-        
-        # Filter outputs based on confidence
-        filtered_outputs = []
-        for output in outputs:
-            track_id = output[4]
-            if self.tracks_confidence[track_id].is_confirmed():
-                filtered_outputs.append(output)
-                
-        return np.array(filtered_outputs)

@@ -1,0 +1,119 @@
+[
+    {
+        "frame_number": 7,
+        "annotations": [
+            {
+                "track_id": 1,
+                "bbox": [
+                    2425,
+                    233,
+                    3840,
+                    1553
+                ],
+                "confidence": 0.6,
+                "class": "person",
+                "color": [
+                    9,
+                    112,
+                    121
+                ]
+            },
+            {
+                "bbox": [
+                    2425,
+                    233,
+                    3840,
+                    1553
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "1",
+                "confidence": 0.6,
+                "label": "Person ID: 1 (0.60)"
+            },
+            {
+                "track_id": 2,
+                "bbox": [
+                    1867,
+                    1095,
+                    3840,
+                    1927
+                ],
+                "confidence": 0.6,
+                "class": "person",
+                "color": [
+                    136,
+                    42,
+                    135
+                ]
+            },
+            {
+                "bbox": [
+                    1867,
+                    1095,
+                    3840,
+                    1927
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 0.6,
+                "label": "Person ID: 2 (0.60)"
+            },
+            {
+                "track_id": 3,
+                "bbox": [
+                    3341,
+                    689,
+                    3840,
+                    1204
+                ],
+                "confidence": 0.6,
+                "class": "person",
+                "color": [
+                    4,
+                    212,
+                    65
+                ]
+            },
+            {
+                "bbox": [
+                    3341,
+                    689,
+                    3840,
+                    1204
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 0.6,
+                "label": "Person ID: 3 (0.60)"
+            },
+            {
+                "track_id": 4,
+                "bbox": [
+                    1082,
+                    1525,
+                    2579,
+                    2160
+                ],
+                "confidence": 0.6,
+                "class": "person",
+                "color": [
+                    10,
+                    68,
+                    169
+                ]
+            },
+            {
+                "bbox": [
+                    1082,
+                    1525,
+                    2579,
+                    2160
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "4",
+                "confidence": 0.6,
+                "label": "Person ID: 4 (0.60)"
+            }
+        ]
+    }
+]
