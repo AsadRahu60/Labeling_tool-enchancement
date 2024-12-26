@@ -112,7 +112,7 @@ class Canvas(QtWidgets.QWidget):
         self.hShapeIsSelected = False
         self._painter = QtGui.QPainter()
         self._cursor = CURSOR_DEFAULT
-        shape = Shape(QtCore.QRectF(0, 0, 100, 100))
+        shape = Shape()
         
         
         # Menus:
@@ -169,8 +169,8 @@ class Canvas(QtWidgets.QWidget):
             image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
         )
     def addShape(self, shape):
-        if shape is None:
-            logging.error("Attempted to add NoneType shape to canvas.")
+        if not shape  or shape.boundingRect().isEmpty() or not shape.isValid() :
+            logging.error(f"Invalid shape or bounding box for shape ID {shape.id}")
             return
 
         bbox = shape.boundingRect()
@@ -660,7 +660,8 @@ class Canvas(QtWidgets.QWidget):
 
     def selectShapes(self, shapes):
         self.setHiding()
-        self.selectedShapes.append(shapes)
+        if shapes not in self.selectedShapes:
+            self.selectedShapes.append(shapes)
         self.selectionChanged.emit(True)
         self.update()
 
@@ -949,91 +950,51 @@ class Canvas(QtWidgets.QWidget):
             Shape or None: A validated Shape object or None if creation fails.
         """
         try:
-                # Log detailed input
             logger.debug(f"Creating shape from data: {shape_data}")
-            # Extract and validate required fields
-            bbox = shape_data.get("bbox",[])
-            shape_type = shape_data.get("shape_type", "rectangle")
-            shape_id = shape_data.get("shape_id","unkown")
-            confidence = shape_data.get("confidence",1.0)
-
-            # Validate bbox
-            if not self.is_bbox_valid(bbox, min_size=1):
-                raise ValueError(f"Invalid bbox: {bbox}")
-
-            try:
-                # Normalize bbox coordinates
-                x1, y1, x2, y2 = map(float, [
-                    min(bbox[0], bbox[2]),
-                    min(bbox[1], bbox[3]),
-                    max(bbox[0], bbox[2]),
-                    max(bbox[1], bbox[3])
-                ])
-            except ( TypeError,ValueError) as e:
-                    logger.error(f"Failed to convert bbox coordinates: {bbox}")
-                    return None
-
             
+            # Extract and validate required fields
+            bbox = shape_data.get("bbox", [])
+            if not isinstance(bbox, list) or len(bbox) != 4:
+                raise ValueError(f"Invalid bbox format: {bbox}")
+            
+            shape_type = shape_data.get("shape_type", "rectangle")
+            shape_id = shape_data.get("shape_id", "unknown")
+            confidence = shape_data.get("confidence", 1.0)
+
+            # Validate and normalize bbox
+            x1, y1, x2, y2 = self.normalize_bbox(bbox)
             
             # Validate dimensions are within frame bounds
-            if not hasattr(self, 'pixmap') or self.pixmap is None:
-                logger.error("No pixmap available for shape validation")
-                return None
-            
+            if not self.pixmap:
+                raise ValueError("No pixmap available for shape validation")
             
             frame_width, frame_height = self.pixmap.width(), self.pixmap.height()
-
             
-            # Normalize and clamp coordinates
-            x1, x2 = sorted([x1, x2])
-            y1, y2 = sorted([y1, y2])
-            
-            
-            # Check for minimum bbox size
-            min_size = 10  # Minimum bbox dimension
-            if (x2 - x1) < min_size or (y2 - y1) < min_size:
-                logger.warning(f"Bbox too small: {[x1, y1, x2, y2]}")
-                # Adjust to minimum size
-                center_x = (x1 + x2) / 2
-                center_y = (y1 + y2) / 2
-                x1 = max(0, center_x - min_size / 2)
-                y1 = max(0, center_y - min_size / 2)
-                x2 = min(frame_width, x1 + min_size)
-                y2 = min(frame_height, y1 + min_size)
-
             # Clamp coordinates to frame bounds
-            if not (0 <= x1 < frame_width and 0 <= x2 <= frame_width and
-                    0 <= y1 < frame_height and 0 <= y2 <= frame_height):
-                logger.error(f"Bounding box out of frame bounds: {[x1, y1, x2, y2]}")
-                return None
-
-            # # Validate dimensions
-            # if x2 <= x1 or y2 <= y1:
-            #     raise ValueError(f"Invalid rectangle dimensions: ({x1}, {y1}, {x2}, {y2})")
-
-                # Create QRectF with validated coordinates
-            try:
-                rect = QtCore.QRectF(
-                    QtCore.QPointF(x1, y1), 
-                    QtCore.QPointF(x2, y2)
-                )
-            except Exception as rect_error:
-                logger.error(f"Failed to create QRectF: {rect_error}")
-                return None
-
-            # Additional QRectF validation
+            x1, y1, x2, y2 = self.clamp_coordinates(x1, y1, x2, y2, frame_width, frame_height)
+            
+            # Create QRectF with validated coordinates
+            rect = QtCore.QRectF(QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y2))
+            
             if rect.isNull() or rect.isEmpty():
-                logger.error(f"Invalid QRectF for shape ID {shape_id}")
-                return None
+                raise ValueError(f"Invalid QRectF for shape ID {shape_id}")
 
-            # Initialize Shape object with the specified shape type
-            shape = Shape(rect=rect, shape_id=shape_id, shape_type=shape_type, confidence=confidence)
+            # Initialize Shape object
+            shape = Shape(
+                label=shape_data.get("label", "person"),
+                shape_type=shape_data.get("shape_type", "rectangle"),
+                shape_id=shape_data.get("shape_id", "unknown"),
+                confidence=shape_data.get("confidence", 1.0)
+            )
+                
 
-            # Add bounding box points
-            shape.addPoint(QtCore.QPointF(x1, y1))  # Top-left
-            shape.addPoint(QtCore.QPointF(x2, y1))  # Top-right
-            shape.addPoint(QtCore.QPointF(x2, y2))  # Bottom-right
-            shape.addPoint(QtCore.QPointF(x1, y2))  # Bottom-left
+            for point in [QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y1), 
+                  QtCore.QPointF(x2, y2), QtCore.QPointF(x1, y2)]:
+                shape.addPoint(point)
+
+            # Validate the shape
+            if not shape.isValid():
+                raise ValueError(f"Invalid shape created for ID {shape_id}")
 
             logger.info(f"Successfully created shape: ID {shape_id}, Bbox {[x1, y1, x2, y2]}, Type {shape_type}")
             return shape
@@ -1042,6 +1003,19 @@ class Canvas(QtWidgets.QWidget):
             logger.error(f"Shape creation failed: {e}")
             logger.error(f"Problematic shape data: {shape_data}")
             return None
+
+    def normalize_bbox(self, bbox):
+        """Normalize bbox coordinates."""
+        x1, y1, x2, y2 = map(float, bbox)
+        return min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)
+
+    def clamp_coordinates(self, x1, y1, x2, y2, width, height):
+        """Clamp coordinates to frame bounds."""
+        x1 = max(0, min(x1, width - 1))
+        y1 = max(0, min(y1, height - 1))
+        x2 = max(x1 + 1, min(x2, width))
+        y2 = max(y1 + 1, min(y2, height))
+        return x1, y1, x2, y2
 
 
 
@@ -1076,15 +1050,27 @@ class Canvas(QtWidgets.QWidget):
         except (TypeError, ValueError):
             return False
 
-    def is_shape_duplicate(self, shape_id):
-        """
-        Check if a shape with the given ID already exists in the canvas.
-        """
+    def is_shape_duplicate(self, shape_id, bbox):
         for shape in self.shapes:
-            if shape.id == shape_id:
+            if shape.id == shape_id and shape.boundingRect() == QtCore.QRectF(*bbox):
+                return True
+            # Check bounding box overlap
+            if self.is_bbox_overlap(shape.bbox, bbox):
                 return True
         return False
 
+    def is_bbox_overlap(self, bbox1, bbox2, threshold=0.5):
+        x1, y1, x2, y2 = bbox1
+        x1_, y1_, x2_, y2_ = bbox2
+        inter_x1 = max(x1, x1_)
+        inter_y1 = max(y1, y1_)
+        inter_x2 = min(x2, x2_)
+        inter_y2 = min(y2, y2_)
+        inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
+        bbox1_area = (x2 - x1) * (y2 - y1)
+        bbox2_area = (x2_ - x1_) * (y2_ - y1_)
+        union_area = bbox1_area + bbox2_area - inter_area
+        return inter_area / union_area > threshold
 
     
     def getShapes(self):

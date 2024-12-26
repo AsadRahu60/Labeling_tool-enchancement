@@ -1,0 +1,174 @@
+[
+    {
+        "frame_number": 7,
+        "annotations": [
+            {
+                "bbox": [
+                    1879.9171202226185,
+                    321.5633627821859,
+                    2975.6382902505675,
+                    2139.827744476485
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "1",
+                "confidence": 1.0,
+                "label": "Person ID: 1"
+            },
+            {
+                "bbox": [
+                    1167.9350242211708,
+                    1218.332136076977,
+                    2401.488598011063,
+                    2142.97254402553
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 1.0,
+                "label": "Person ID: 2"
+            },
+            {
+                "bbox": [
+                    3341.575340400805,
+                    1225.002926981631,
+                    3840,
+                    2140.930857034188
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0,
+                "label": "Person ID: 3"
+            },
+            {
+                "bbox": [
+                    606.2588903147273,
+                    1518.686320566514,
+                    1444.435096604113,
+                    2150.0202964387713
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "4",
+                "confidence": 1.0,
+                "label": "Person ID: 4"
+            }
+        ]
+    },
+    {
+        "frame_number": 41,
+        "annotations": [
+            {
+                "bbox": [
+                    515.5754527878787,
+                    1571.6495052968664,
+                    1823.5286799405687,
+                    2147.2447498964357
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "8",
+                "confidence": 1.0,
+                "label": "Person ID: 8"
+            }
+        ]
+    },
+    {
+        "frame_number": 52,
+        "annotations": [
+            {
+                "bbox": [
+                    471.81043763974594,
+                    1362.777808568355,
+                    1798.3418394042792,
+                    2144.3439352832265
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "9",
+                "confidence": 1.0,
+                "label": "Person ID: 9"
+            }
+        ]
+    },
+    {
+        "frame_number": 162,
+        "annotations": [
+            {
+                "bbox": [
+                    2995.2436943695093,
+                    970.4234808836824,
+                    3840,
+                    2149.0777569079687
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "10",
+                "confidence": 1.0,
+                "label": "Person ID: 10"
+            }
+        ]
+    },
+    {
+        "frame_number": 201,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1465.069137142511,
+                    957.5759329373783,
+                    2145.4127307619033
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0,
+                "label": "Person ID: 13"
+            }
+        ]
+    },
+    {
+        "frame_number": 263,
+        "annotations": [
+            {
+                "bbox": [
+                    3697.340139206548,
+                    1327.2040606249743,
+                    3790.7632026193974,
+                    2133.1728648422695
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0,
+                "label": "Person ID: 15"
+            }
+        ]
+    },
+    {
+        "frame_number": 288,
+        "annotations": [
+            {
+                "bbox": [
+                    10.063843455078164,
+                    1570.729799446833,
+                    103.90750550207221,
+                    2153.017874680672
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "17",
+                "confidence": 1.0,
+                "label": "Person ID: 17"
+            }
+        ]
+    },
+    {
+        "frame_number": 298,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1431.3796356685086,
+                    101.8597757090368,
+                    2147.7661307835097
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "19",
+                "confidence": 1.0,
+                "label": "Person ID: 19"
+            }
+        ]
+    }
+]

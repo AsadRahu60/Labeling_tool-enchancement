@@ -3682,3 +3682,120 @@
 #         # Log successful tracks
 #         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
 #         return frame_annotations
+
+# def process_tracks(self, frame, person_colors, tracked_objects):
+#         frame_annotations = []
+#         frame_height, frame_width = frame.shape[:2]
+#         logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
+#         logger.info(f"Number of tracked objects: {len(tracked_objects)}")
+
+#         processed_track_ids = set()
+
+#         for track in tracked_objects:
+#             track_id = None  # Ensure track_id is always definedtrack_id = track.get("track_id", None)
+#             logger.debug(f"Processing track: {track}")
+#             try:
+#                 # Ensure track has required attributes
+#                 if not isinstance(track, dict) or "track_id" not in track or "bbox" not in track:
+#                     logger.error(f"Invalid track object structure: {track}")
+#                     continue
+
+#                 track_id = track["track_id"]
+#                 if not track_id or not track.get("confidence", 0) > 0:
+#                     logger.warning(f"Skipping invalid track: {track_id}")
+#                     continue
+
+#                  # Filter non-person tracks if class information is available
+#                 if "class" in track:
+#                     if track["class"] != "person":
+#                         logger.warning(f"Skipping non-person track: {track_id}")
+#                         continue
+#                 elif self.default_class_to_person:
+#                     logger.debug(f"Missing 'class' for track {track_id}, defaulting to 'person'.")
+#                 else:
+#                     logger.warning(f"Skipping track {track_id} due to missing 'class' attribute.")
+#                     continue
+
+
+#                 # Validate and scale bounding box
+#                 bbox = track.get("bbox", [])
+#                 if not bbox or len(bbox) != 4 or bbox[2] <= bbox[0] or bbox[3] <= bbox[1]:
+#                     logger.error(f"Invalid bounding box for track {track_id}: {bbox}")
+#                     continue
+
+                
+                
+#                 # Get raw bounding box
+#                 raw_bbox = track["bbox"]
+#                 logger.debug(f"Raw bbox for track {track_id}: {raw_bbox}")
+
+#                     # Scale bbox with robust method
+#                 try:
+#                     scaled_bbox = self.scale_bbox(raw_bbox, frame_width, frame_height)
+#                     if scaled_bbox[2] - scaled_bbox[0] <= 0 or scaled_bbox[3] - scaled_bbox[1] <= 0:
+#                         raise ValueError(f"Scaled bbox has invalid dimensions: {scaled_bbox}")
+#                     logger.debug(f"Scaled bbox for track {track_id}: {scaled_bbox}")
+#                 except Exception as scaling_error:
+#                     logger.error(f"Bbox scaling error for track {track_id}: {scaling_error}")
+#                     continue
+
+                
+#                 # Check if this track has already been processed
+#                 track_id = track.get("track_id", "unknown")
+#                 if track_id in processed_track_ids:
+#                     logger.debug(f"Skipping duplicate track: {track_id}")
+#                     continue
+#                 processed_track_ids.add(track_id)
+
+                
+                
+                
+#                 # Create shape from data
+#                 shape = self.canvas.createShapeFromData({
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track_id),
+#                     "confidence": track.get("confidence", 1.0)
+#                 })
+
+#                 if shape is None:
+#                     logger.warning(f"Failed to create shape for track ID: {track_id}")
+#                     continue
+
+#                 # Assign unique color
+#                 color = person_colors.setdefault(track_id, self.get_random_color())
+#                 try:
+#                     # Create shape from validated data
+#                     shape = self.canvas.createShapeFromData({
+#                         "bbox": bbox,
+#                         "shape_id": str(track_id),
+#                         "confidence": track.get("confidence", 1.0)
+#                     })
+
+#                     if shape:
+#                         if not self.canvas.is_shape_duplicate(shape.id,shape.boundingRect().getCoords()):
+#                             logger.debug(f"Track {track_id} is not a duplicate.")
+#                             logger.debug(f"Checking duplicate for Shape ID: {shape.id}, Bbox: {shape.boundingRect()}")
+#                             self.canvas.addShape(shape)
+#                             frame_annotations.append(shape)
+#                             logger.info(f"Track {track_id} processed")
+#                             self.addLabel(shape)
+
+#                             # # Create LabelMe-compatible shape
+#                             # label_shape = self.create_labelme_shape(track_id, *shape.boundingRect().getCoords(), person_colors.setdefault(track_id, self.get_random_color()))
+#                             # self.add_labels_to_UI(label_shape, track_id, person_colors[track_id])
+#                         else:
+#                             logger.warning(f"Track {track_id} is a duplicate.")
+#                 except Exception as e:
+#                     logger.error(f"Unexpected error processing track {track_id}: {e}")
+                
+
+#             except AssertionError as assertion_error:
+#                 logger.error(f"Assertion failed for track {track_id}: {assertion_error}")
+#             except Exception as e:
+#                 logger.error(f"Unexpected error processing track {track_id}: {e}")
+
+#         # Log successful tracks
+#         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
+#         return frame_annotations
+

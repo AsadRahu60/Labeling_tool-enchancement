@@ -60,7 +60,10 @@ class Shape(object):
         description=None,
         mask=None,
         rect=None,
-        confidence=None
+        confidence=None,
+        bbox=None
+        
+        
     ):
         # if rect is None:
         #     # raise ValueError("Shape cannot be initialized with a NoneType rect.")
@@ -74,23 +77,24 @@ class Shape(object):
         self.label = label
         self.group_id = group_id
         self.id= shape_id
-        self.rect=rect if rect else None
+        self.rect= rect if rect else QtCore.QRectF()
         self.shape_id = shape_id  # Add this line
         self.confidence=confidence
         # Log shape creation
         logging.debug(f"Created Shape: ID {shape_id}, BoundingBox {self.rect}, Confidence {confidence}")
         self.points = []
         self.point_labels = []
-        self.shape_type = shape_type
+        self.shape_type = shape_type 
         self._shape_raw = None
         self._points_raw = []
         self._shape_type_raw = None
         self.fill = False
         self.selected = False
-        self.flags = flags
+        self.flags = flags or {}
         self.description = description
         self.other_data = {}
         self.mask = mask
+        self._bbox = bbox  # Ensure this is set
 
         self._highlightIndex = None
         self._highlightMode = self.NEAR_VERTEX
@@ -127,7 +131,9 @@ class Shape(object):
         logging.warning("Bounding box is invalid or empty.")
         return None
     
-    
+    @property
+    def bbox(self):
+        return self._bbox
     @property
     def shape_type(self):
         return self._shape_type
@@ -160,6 +166,7 @@ class Shape(object):
             self.close()
         else:
             self.points.append(point)
+            self._updateBoundingRect()
             self.point_labels.append(label)
 
     def canAddPoint(self):
@@ -203,6 +210,16 @@ class Shape(object):
         self.points.pop(i)
         self.point_labels.pop(i)
 
+    def _updateBoundingRect(self):
+        if len(self.points) < 2:
+            return
+        x_coords = [p.x() for p in self.points]
+        y_coords = [p.y() for p in self.points]
+        self.rect = QtCore.QRectF(min(x_coords), min(y_coords), 
+                                  max(x_coords) - min(x_coords), 
+                                  max(y_coords) - min(y_coords))
+    
+    
     def isClosed(self):
         return self._closed
 
@@ -434,7 +451,18 @@ class Shape(object):
             logging.error(f"Generated QRectF is empty for shape ID {self.shape_id}.")
         return rect
 
-
+    def isValid(self):
+        """Check if the shape is valid."""
+        # if not self.rect or self.rect.isNull() or self.rect.isEmpty():
+        #     return False
+        # if len(self.points) != 4:
+        #     return False
+        # return all(isinstance(p, QtCore.QPointF) for p in self.points)
+       
+        return (len(self.points) >= 4 and
+                not self.boundingRect().isEmpty() and
+                self.points[0] != self.points[-1])
+    
     def moveBy(self, offset):
         self.points = [p + offset for p in self.points]
 

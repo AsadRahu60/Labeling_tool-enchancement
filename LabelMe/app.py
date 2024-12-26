@@ -68,7 +68,7 @@ from pathlib import Path
 import h5py
 import traceback
 
-
+# from transreid.utils.serialization import load_checkpoint
 
 # import torch.nn as nn
 # from torchvision.models import resnet50, ResNet50_Weights
@@ -208,6 +208,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.expected_embedding_size=2048
         self.addModelSelectors()
         self.detector=None
+        # Default class mapping to 'person'
+        self.default_class_to_person = True
+        
         # Set the device for model inference
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
@@ -2912,8 +2915,6 @@ class MainWindow(QtWidgets.QMainWindow):
             batch_size (int, optional): Number of frames to process in a single batch. Default is 16.
         """
         try:
-            
-
             # Initialize video capture
             # Validate video capture
             if not hasattr(self, 'video_capture') or not self.video_capture.isOpened():
@@ -2942,7 +2943,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.id_mapping = {}
             self.person_tracks = {}
             self.next_id = 1
-            person_colors={}
+            person_colors = {}
 
             # Process the video in batches
             self.is_cancelled = False
@@ -2957,8 +2958,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     ret, frame = self.video_capture.read()
                     if not ret:
                         logger.info("Reached end of video.")
+                        self.video_capture.release()  # Release video capture to prevent infinite loop
                         break
                     batch_frames.append(frame)
+
+                if not batch_frames:
+                    break
 
                 try:
                     for frame in batch_frames:
@@ -2970,7 +2975,8 @@ class MainWindow(QtWidgets.QMainWindow):
                             tracked_objects = self.update_tracker(frame_detections['bbox_xywh'],
                                                                 frame_detections['confidence'],
                                                                 frame_detections['features'])
-                            
+                            logger.debug(f"Tracked objects output: {tracked_objects}")
+
                             frame_annotations = self.process_tracks(frame, person_colors, tracked_objects)
 
                             if frame_annotations:
@@ -2990,6 +2996,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 progress = int((frame_number / total_frames) * 100)
                 self.progress_callback.emit(progress)
 
+            # Ensure progress callback reaches 100%
             self.progress_callback.emit(100)
 
             if all_annotations:
@@ -3006,6 +3013,7 @@ class MainWindow(QtWidgets.QMainWindow):
             logger.critical(f"Critical error during video annotation: {e}")
             self.progress_callback.emit(-1)
             QtWidgets.QMessageBox.critical(self, "Annotation Error", str(e))
+
 
 
 
@@ -3067,87 +3075,62 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     ###############################################################################################################################
-    def extract_reid_features(self, frame, bbox_xywh):
+    def extract_reid_features(self, frame, bbox_xywh, expected_feature_size):
         """Extract ReID features from detected persons."""
         features = []
         height, width = frame.shape[:2]
-        
+        expected_feature_size=self.output_feature_size
+
         try:
             for i, box in enumerate(bbox_xywh):
                 x_center, y_center, w, h = box
-                
-                # Convert to top-left coordinates
-                x1 = int(max(0, x_center - w/2))
-                y1 = int(max(0, y_center - h/2))
-                x2 = int(min(width, x_center + w/2))
-                y2 = int(min(height, y_center + h/2))
-                
-                # Validate box dimensions
+                x1 = int(max(0, x_center - w / 2))
+                y1 = int(max(0, y_center - h / 2))
+                x2 = int(min(width, x_center + w / 2))
+                y2 = int(min(height, y_center + h / 2))
+
                 if x2 <= x1 or y2 <= y1:
                     logger.warning(f"Invalid box dimensions for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
                     features.append(None)
                     continue
-                
-                # Extract and resize person image
+
                 try:
                     person_img = frame[y1:y2, x1:x2]
                     if person_img.size == 0:
-                        logger.warning(f"Empty person crop at coordinates for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
+                        logger.warning(f"Empty person crop for detection {i}")
                         features.append(None)
                         continue
-                    
-                    # Preprocess for ReID
+
                     img = cv2.resize(person_img, (128, 256))
-                    
-                    # Log preprocessing details
-                    logger.debug(f"Detection {i} - Preprocessed image shape: {img.shape}")
-                    
                     img = torch.from_numpy(img).float().permute(2, 0, 1).unsqueeze(0)
                     if torch.cuda.is_available():
                         img = img.cuda()
-                    
-                    # Extract features
+
                     with torch.no_grad():
-                        # Ensure feature extraction works with the specific ReID model
-                        if hasattr(self.reid_model, 'module'):
-                            feature = self.reid_model.module(img)
-                        else:
-                            feature = self.reid_model(img)
-                        
-                        # Log feature extraction details
-                        logger.debug(f"Detection {i} - Raw feature type: {type(feature)}")
-                        
-                        # Normalize and flatten the feature
+                        feature = self.reid_model(img)
                         if isinstance(feature, dict):
                             feature = feature['features']
-                        
-                        # Ensure feature is a numpy array with consistent shape
                         feature = feature.cpu().numpy().flatten()
-                        
-                        # Log feature details
-                        # logger.debug(f"Detection {i} - Processed feature shape: {feature.shape}, values: {feature}")
-                        
-                        # Ensure feature has expected dimensionality
-                        if len(feature) != 512:
-                            logger.warning(f"Detection {i} - Unexpected feature size: {len(feature)}")
+
+                        if len(feature) != expected_feature_size:
+                            logger.warning(f"Unexpected feature size {len(feature)} for detection {i}")
                             features.append(None)
                             continue
-                        
+
                         features.append(feature)
-                    
+
                 except Exception as e:
-                    logger.error(f"Detection {i} - Error processing person crop: {e}")
-                    traceback.print_exc()
+                    logger.error(f"Error processing detection {i}: {e}")
                     features.append(None)
                     continue
-                    
+
             logger.debug(f"Extracted features for {len(features)} detections")
             return features
-            
+
         except Exception as e:
             logger.error(f"Overall feature extraction error: {e}")
-            traceback.print_exc()
             return [None] * len(bbox_xywh)
+
     ##########################################################################################
     def _preprocess_crop(self, frame, x1, y1, x2, y2, device):
         """
@@ -3228,7 +3211,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     return []
 
             # Delegate to the tracker's update method
-            tracked_objects = self.tracker.update(bbox_xywh, confidences, features)
+            tracked_objects = self.tracker.update(bbox_xywh, confidences, features,self.output_feature_size)
             
             logger.debug(f"Tracked {len(tracked_objects)} objects")
             return tracked_objects
@@ -3295,6 +3278,8 @@ class MainWindow(QtWidgets.QMainWindow):
             detections = self.detector(frame)
             bbox_xywh = []
             confidences = []
+            expected_feature_size=self.output_feature_size
+            
             
             height, width = frame.shape[:2]
             
@@ -3333,7 +3318,7 @@ class MainWindow(QtWidgets.QMainWindow):
             confidences = np.array(confidences, dtype=np.float32)
             
             # Extract features with properly scaled coordinates
-            features = self.extract_reid_features(frame, bbox_xywh)
+            features = self.extract_reid_features(frame, bbox_xywh,expected_feature_size)
             
             return {
                 'bbox_xywh': bbox_xywh,
@@ -3356,7 +3341,7 @@ class MainWindow(QtWidgets.QMainWindow):
             frame_height (int): Height of the frame
         
         Returns:
-            list: Validated and scaled bounding box coordinates
+            list: Validated and scaled bounding box coordinates, or None if invalid
         """
         try:
             # Ensure coordinates are numeric and convert to float
@@ -3365,139 +3350,129 @@ class MainWindow(QtWidgets.QMainWindow):
             # Validate input length
             if len(bbox) != 4:
                 logger.warning(f"Invalid bbox input: {bbox}. Expected 4 coordinates.")
-                return [0, 0, frame_width, frame_height]
-
+                return None
+            
             # Unpack coordinates
             x1, y1, x2, y2 = bbox
-
-            # Ensure coordinates are within frame boundaries
+            
+            # Ensure correct order (x1 < x2 and y1 < y2)
+            x1, x2 = min(x1, x2), max(x1, x2)
+            y1, y2 = min(y1, y2), max(y1, y2)
+            
+            # Clip coordinates to frame boundaries
             x1 = max(0, min(x1, frame_width - 1))
             y1 = max(0, min(y1, frame_height - 1))
             x2 = max(x1 + 1, min(x2, frame_width))
             y2 = max(y1 + 1, min(y2, frame_height))
-
+            
             # Validate box dimensions
             min_box_size = 10  # Minimum box size in pixels
             if (x2 - x1) < min_box_size or (y2 - y1) < min_box_size:
                 logger.warning(f"Bbox too small: {[x1, y1, x2, y2]}")
-                # Fallback to a centered, minimum-sized box
-                center_x, center_y = frame_width // 2, frame_height // 2
-                x1 = max(0, center_x - min_box_size // 2)
-                y1 = max(0, center_y - min_box_size // 2)
+                # Adjust to minimum size while maintaining center
+                center_x, center_y = (x1 + x2) / 2, (y1 + y2) / 2
+                x1 = max(0, center_x - min_box_size / 2)
+                y1 = max(0, center_y - min_box_size / 2)
                 x2 = min(frame_width, x1 + min_box_size)
                 y2 = min(frame_height, y1 + min_box_size)
-
+            
+            # Final clipping to ensure bbox is within frame
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(frame_width, x2), min(frame_height, y2)
+            
             return [x1, y1, x2, y2]
-
+        
         except Exception as e:
             logger.error(f"Bounding box scaling error: {e}")
-            # Return a safe default box in the center of the frame
-            return [
-                frame_width // 4, 
-                frame_height // 4, 
-                frame_width * 3 // 4, 
-                frame_height * 3 // 4
-            ]
+            return None
 
 
 
-
+    
 
 
     ###########################################################################################################
     def process_tracks(self, frame, person_colors, tracked_objects):
-        """
-        Process tracks from the tracker, assign IDs, annotate the frame, and update the LabelMe UI.
-
-        Args:
-            frame (np.ndarray): The current frame being processed.
-            person_colors (dict): Dictionary of assigned colors for track IDs.
-            tracked_objects (list): List of tracked objects returned by self.update_tracker.
-        """
         frame_annotations = []
         frame_height, frame_width = frame.shape[:2]
-        logger.info(f"Frame dimensions: {frame_width}x{frame_height}")
-        logger.info(f"Number of tracked objects: {len(tracked_objects)}")
-
+        logger.info(f"Frame dimensions: {frame_width}x{frame_height}, Tracked objects: {len(tracked_objects)}")
         processed_track_ids = set()
 
         for track in tracked_objects:
-            track_id = None  # Ensure track_id is always defined for logging
             try:
-                # Check if track is a dictionary or a valid object with expected attributes
-                if isinstance(track, dict):
-                    track_id = track.get('track_id', 'Unknown')
-                    is_confirmed = track.get('is_confirmed', False)
-                    raw_bbox = track.get('bbox', None)
-                elif hasattr(track, 'is_confirmed') and hasattr(track, 'track_id') and hasattr(track, 'to_tlbr'):
-                    track_id = getattr(track, 'track_id', 'Unknown')
-                    is_confirmed = track.is_confirmed()
-                    raw_bbox = track.to_tlbr()
-                else:
-                    logger.error(f"Invalid track object structure: {track}")
+                if not self.validate_track(track):
                     continue
 
-                if not is_confirmed:
-                    logger.warning(f"Skipping unconfirmed track: {track_id}")
+                track_id = track["track_id"]
+                if track_id in processed_track_ids:
+                    continue
+                processed_track_ids.add(track_id)
+
+                scaled_bbox = self.scale_bbox(track["bbox"], frame_width, frame_height)
+                if not scaled_bbox:
                     continue
 
-                if raw_bbox is None or len(raw_bbox) != 4:
-                    logger.error(f"Track {track_id} does not have a valid bounding box; skipping.")
-                    continue
-
-                logger.debug(f"Raw bbox for track {track_id}: {raw_bbox}")
-
-                # Scale bbox
-                try:
-                    scaled_bbox = self.scale_bbox(raw_bbox, frame_width, frame_height)
-                    logger.debug(f"Scaled bbox for track {track_id}: {scaled_bbox}")
-                except Exception as scaling_error:
-                    logger.error(f"Bbox scaling error for track {track_id}: {scaling_error}")
-                    continue
-
-                # Create shape
-                shape = self.canvas.createShapeFromData({
-                    "bbox": scaled_bbox,
-                    "shape_type": "rectangle",
-                    "shape_id": str(track_id),
-                    "confidence": track.get('confidence', 1.0) if isinstance(track, dict) else getattr(track, 'confidence', 1.0)
-                })
-
-                if shape is None:
-                    logger.warning(f"Failed to create shape for track ID: {track_id}")
-                    continue
-
-                # Assign unique color
-                color = person_colors.setdefault(track_id, self.get_random_color())
-
-                # Prepare shape data
                 shape_data = {
                     "bbox": scaled_bbox,
                     "shape_type": "rectangle",
                     "shape_id": str(track_id),
-                    "confidence": track.get('confidence', 1.0) if isinstance(track, dict) else getattr(track, 'confidence', 1.0),
-                    "label": f"Person ID: {track_id}"
+                    "confidence": track["confidence"]
                 }
 
-                # Add shape to canvas and process
-                if not self.canvas.is_shape_duplicate(shape.id):
-                    self.canvas.addShape(shape)
-                    processed_track_ids.add(track_id)
-                    frame_annotations.append(shape_data)
+                shape = self.canvas.createShapeFromData(shape_data)
+                if not shape or not self.validate_shape(shape, track_id):
+                    continue
 
-                    # Create LabelMe-compatible shape
+                color = person_colors.setdefault(track_id, self.get_random_color())
+                if not self.canvas.is_shape_duplicate(shape.id, scaled_bbox):
+                    self.canvas.addShape(shape)
+                    frame_annotations.append(shape_data)
                     label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
                     self.add_labels_to_UI(label_shape, track_id, color)
+                    logger.info(f"Track {track_id} processed")
+                else:
+                    logger.warning(f"Track {track_id} is a duplicate.")
 
             except Exception as e:
-                logger.error(f"Unexpected error processing track {track_id}: {e}")
+                logger.error(f"Error processing track {track.get('track_id', 'unknown')}: {e}")
 
-        # Log successful tracks
         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
         return frame_annotations
 
+    def validate_track(self, track):
+        if not isinstance(track, dict) or "track_id" not in track or "bbox" not in track:
+            logger.error(f"Invalid track structure: {track}")
+            return False
+        if not track["track_id"] or track.get("confidence", 0) <= 0:
+            logger.warning(f"Skipping invalid track: {track.get('track_id', 'unknown')}")
+            return False
+        if "class" in track and track["class"] != "person":
+            logger.warning(f"Skipping non-person track: {track['track_id']}")
+            return False
+        return True
 
-###########################################################################################################################################################
+    def validate_shape(self, shape, track_id):
+        if not shape:
+            logger.error(f"Failed to create shape for track {track_id}")
+            return False
+        if not shape.boundingRec() or shape.boundingRect().isEmpty():
+            logger.error(f"BoundingRect is empty for shape ID {track_id}")
+            return False
+        path = self.canvas.generatePathFromShape(shape)
+        if not path or len(path) != 4:
+            logger.error(f"Invalid path generated for shape ID {track_id}")
+            return False
+        return True
+    ###########################################################################################################################################################
+    def is_valid_track(self, track):
+        """Validate track data integrity"""
+        required_keys = ['track_id', 'bbox', 'confidence']
+        return all(key in track for key in required_keys) and \
+            len(track['bbox']) == 4 and \
+            0 <= track['confidence'] <= 1
+    
+    
+    
     def get_next_available_id(self,used_ids):
         """
         Get the next available unique ID for tracking. Reuses IDs that are no longer active.
@@ -4264,29 +4239,76 @@ class MainWindow(QtWidgets.QMainWindow):
             return None
 
     def _load_reid_model(self, model_name):
-        """Load ReID model dynamically."""
+        """Load ReID model dynamically and set output feature size."""
+
         if isinstance(model_name, int):
             model_name = str(model_name)
+
         if "osnet" in model_name.lower():
             import torchreid
             model = torchreid.models.build_model(
-                name="osnet_x1_0", num_classes=1000, pretrained=True)
-            logging.debug("loading OSNet ReID model...")
-            
+                name="osnet_x1_0", num_classes=1000, pretrained=True
+            )
+            logger.debug("Loading OSNet ReID model...")
             model.eval().to(self.device)
+            self.output_feature_size = 512  # Assign feature size
             return model
+
+        elif "mgn" in model_name.lower():
+            logger.debug("Loading MGN ReID model...")
+            model = torch.hub.load(
+                'KaiyangZhou/deep-person-reid', 'mgn_r50_ibn', pretrained=True
+            )
+            model.eval().to(self.device)
+            self.output_feature_size = 12288  # Assign feature size
+            return model
+
         elif "fastreid" in model_name.lower():
             from fastreid.config import get_cfg
             from fastreid.engine.defaults import DefaultPredictor
             cfg = get_cfg()
+            logger.debug("Loading FastReID model...")
             cfg.merge_from_file("A:/data/Project-Skills/Labeling_tool-enchancement/labelme/fastreid/fast-reid/configs/Market1501/bagtricks_R50.yml")
-            cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth"  # Path to trained FastReID weights
+            cfg.MODEL.WEIGHTS = "A:/data/Project-Skills/Labeling_tool-enchancement/labelme/market_bot_R50.pth" 
             cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+            self.output_feature_size = 2048  # Assign feature size
             return DefaultPredictor(cfg)
-            logging.debug("loading Fastreid ReID model...")
+
+        elif "agw" in model_name.lower():
+            logger.debug("Loading AGW ReID model...")
+            model = torch.hub.load(
+                'KaiyangZhou/deep-person-reid', 'agw_r50_ibn', pretrained=True
+            )
+            model.eval().to(self.device)
+            self.output_feature_size = 2048  # Assign feature size
+            return model
+
+        elif "baseline" in model_name.lower():
+            logger.debug("Loading Strong Baseline ReID model...")
+            model = torch.hub.load(
+                'KaiyangZhou/deep-person-reid', 'resnet50_ibn_a', pretrained=True
+            )
+            model.eval().to(self.device)
+            self.output_feature_size = 2048  # Assign feature size
+            return model
+
+        elif "transreid" in model_name.lower():
+            logger.debug("Loading TransReID model...")
+            model = build_model(
+                name="transreid_vit_base", pretrain_path="transreid_checkpoint.pth"
+            )
+            load_checkpoint("transreid_checkpoint.pth", model)
+            model.eval().to(self.device)
+            self.output_feature_size = 768  # Assign feature size
+            return model
+
         else:
             logger.warning(f"ReID model {model_name} not recognized.")
+            self.output_feature_size = None  # Assign None if not recognized
             return None
+
+
+
         
     def addModelSelectors(self):
         """Add dropdowns for selecting detection and ReID models."""
@@ -4307,7 +4329,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # ReID Model Selector
         self.reidModelSelector = QtWidgets.QComboBox(self)
-        self.reidModelSelector.addItems(["OSNet", "FastReID"])
+        self.reidModelSelector.addItems(["OSNet", "FastReID", "MGN", "AGW", "Baseline", "TransReID"])
+
         self.reidModelSelector.setCurrentIndex(0)  # Default to OSNet
         self.tools.addWidget(QtWidgets.QLabel("ReID Model:"))
         self.tools.addWidget(self.reidModelSelector)
@@ -4430,15 +4453,16 @@ class EnhancedDeepSORT:
         else:
             raise ValueError(f"Unexpected bounding box array dimension: {bbox_xywh.ndim}")
 
-    def update(self, bbox_xywh, confidences, features):
+    def update(self, bbox_xywh, confidences, features, expected_feature_size):
         """
         Update tracker with new detections.
-        
+
         Args:
             bbox_xywh (numpy.ndarray): Bounding boxes in center format
             confidences (numpy.ndarray): Detection confidences
             features (list): ReID features
-        
+            expected_feature_size (int): Expected size of ReID features
+
         Returns:
             list: Tracked objects with their bounding boxes and IDs
         """
@@ -4462,12 +4486,12 @@ class EnhancedDeepSORT:
             # Predict next states
             self.tracker.predict()
             
-            # Create detections
+                # Create detections
             detections = []
-            for bbox, conf, feat in zip(bbox_xywh, confidences, features):
-                
-                try:    
-                    if feat is not None and len(feat) == 512:
+            for i, (bbox, conf, feat) in enumerate(zip(bbox_xywh, confidences, features)):
+                try:
+                    # Validate feature size
+                    if feat is not None and len(feat) == expected_feature_size:
                         # Convert bbox to tlwh format
                         tlwh = self._xywh_to_tlwh(np.asarray(bbox).flatten())
                         
@@ -4476,7 +4500,7 @@ class EnhancedDeepSORT:
                         detection = Detection(tlwh, conf, feat)
                         detections.append(detection)
                     else:
-                        logger.warning(f"Invalid feature for detection {i}")
+                        logger.warning(f"Invalid feature size for detection {i}. Expected: {expected_feature_size}, Got: {len(feat) if feat else 'None'}")
                 except Exception as detection_error:
                     logger.error(f"Error processing detection {i}: {detection_error}")
             
@@ -4487,40 +4511,34 @@ class EnhancedDeepSORT:
             if detections:
                 self.tracker.update(detections)
             
-            # Process tracked objects
             outputs = []
             for track in self.tracker.tracks:
                 try:
                     if not track.is_confirmed():
                         continue
                     
-                    # Log track details
-                    logger.debug(f"Track: ID={track.track_id}, Confirmed={track.is_confirmed()}, Age={track.age}")
-                    
-                    # Get bounding box and track ID
                     bbox = track.to_tlbr()
                     track_id = track.track_id
-                    
-                    # Manage track confidence
+
                     if track_id not in self.tracks_confidence:
                         self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
-                        
-                    
-                        # Update confidence (simplified)
+
                     conf = confidences[np.where(bbox_xywh[:, :4] == bbox)[0][0]] if len(np.where(bbox_xywh[:, :4] == bbox)[0]) > 0 else 0.5
                     self.tracks_confidence[track_id].update(conf)
-                    
-                    # Add to outputs if confirmed
+
                     if self.tracks_confidence[track_id].is_confirmed():
-                       outputs.append(np.append(bbox, track_id))
-                
+                        outputs.append({
+                            "track_id": track_id,
+                            "bbox": bbox.tolist() if isinstance(bbox, np.ndarray) else bbox,
+                            "confidence": getattr(track, "confidence", 1.0),
+                        })
+
                 except Exception as track_error:
                     logger.error(f"Error processing track: {track_error}")
-                        
 
             logger.debug(f"Tracked {len(outputs)} objects")
             return outputs
-        
+            
         except Exception as e:
             logger.error(f"Tracker update error: {e}")
             traceback.print_exc()
