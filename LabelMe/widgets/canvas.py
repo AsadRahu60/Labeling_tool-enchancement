@@ -3,7 +3,7 @@ from qtpy import QtCore
 from qtpy.QtCore import Qt
 from qtpy import QtGui
 from qtpy import QtWidgets
-from shapely.geometry import box
+from shapely.geometry import box # type: ignore
 
 import labelme.ai
 import labelme.utils
@@ -14,6 +14,7 @@ import random
 # TODO(unknown):
 # - [maybe] Find optimal epsilon value.
 import logging
+
 
 # Configure logging
 logging.basicConfig(
@@ -113,6 +114,8 @@ class Canvas(QtWidgets.QWidget):
         self._painter = QtGui.QPainter()
         self._cursor = CURSOR_DEFAULT
         shape = Shape()
+        print(type (shape))
+        print(dir(shape))
         
         
         # Menus:
@@ -169,9 +172,11 @@ class Canvas(QtWidgets.QWidget):
             image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
         )
     def addShape(self, shape):
-        if not shape  or shape.boundingRect().isEmpty() or not shape.isValid() :
-            logging.error(f"Invalid shape or bounding box for shape ID {shape.id}")
+        if not shape or not shape.isValid() :
+            logger.error(f"Cannot add invalid shape: {shape}")
             return
+        self.shapes.append(shape)
+        logger.info(f"Shape added: ID={shape.shape_id}, bbox={shape.boundingRect()}")
 
         bbox = shape.boundingRect()
         if bbox is None or bbox.isEmpty():
@@ -978,6 +983,8 @@ class Canvas(QtWidgets.QWidget):
             
             if rect.isNull() or rect.isEmpty():
                 raise ValueError(f"Invalid QRectF for shape ID {shape_id}")
+            
+       
 
             # Initialize Shape object
             shape = Shape(
@@ -986,22 +993,22 @@ class Canvas(QtWidgets.QWidget):
                 shape_id=shape_data.get("shape_id", "unknown"),
                 confidence=shape_data.get("confidence", 1.0)
             )
+            # print(type(shape))
+            # print(dir(shape))
                 
 
             for point in [QtCore.QPointF(x1, y1), QtCore.QPointF(x2, y1), 
                   QtCore.QPointF(x2, y2), QtCore.QPointF(x1, y2)]:
                 shape.addPoint(point)
 
-            # Validate the shape
-            if not shape.isValid():
-                raise ValueError(f"Invalid shape created for ID {shape_id}")
+            if not shape:
+                raise ValueError(f"Invalid shape created: points={shape.points}, bbox={shape.boundingRect()}")
 
-            logger.info(f"Successfully created shape: ID {shape_id}, Bbox {[x1, y1, x2, y2]}, Type {shape_type}")
+
+            logger.debug(f"Shape created successfully: ID={shape.shape_id}, bbox={shape.boundingRect()}")
             return shape
-
         except Exception as e:
             logger.error(f"Shape creation failed: {e}")
-            logger.error(f"Problematic shape data: {shape_data}")
             return None
 
     def normalize_bbox(self, bbox):

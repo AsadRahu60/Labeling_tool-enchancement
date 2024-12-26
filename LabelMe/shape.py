@@ -110,6 +110,13 @@ class Shape(object):
             # with an object attribute. Currently this
             # is used for drawing the pending line a different color.
             self.line_color = line_color
+    
+    def isValid(self):
+        """Check if the shape is valid."""
+        valid =len(self.points) == 4 and not self.boundingRect().isEmpty() 
+        if not valid :
+            logger.warning(f"Invalid shape: points={len(self.points)}, bbox={self._boundingRect}")
+        return valid
 
     def setShapeRefined(self, shape_type, points, point_labels, mask=None):
         self._shape_raw = (self.shape_type, self.points, self.point_labels)
@@ -211,13 +218,15 @@ class Shape(object):
         self.point_labels.pop(i)
 
     def _updateBoundingRect(self):
-        if len(self.points) < 2:
-            return
-        x_coords = [p.x() for p in self.points]
-        y_coords = [p.y() for p in self.points]
-        self.rect = QtCore.QRectF(min(x_coords), min(y_coords), 
-                                  max(x_coords) - min(x_coords), 
-                                  max(y_coords) - min(y_coords))
+            if len(self.points) < 2:
+                return
+            x_coords = [p.x() for p in self.points]
+            y_coords = [p.y() for p in self.points]
+            self._boundingRect = QtCore.QRectF(
+                min(x_coords), min(y_coords),
+                max(x_coords) - min(x_coords),
+                max(y_coords) - min(y_coords)
+        )
     
     
     def isClosed(self):
@@ -395,11 +404,11 @@ class Shape(object):
         path = QtGui.QPainterPath()
         try:
             if self.shape_type in ["rectangle", "mask"]:
-                if len(self.points) == 2:
-                    rectangle = self.getRectFromLine(*self.points)
-                    if rectangle.isEmpty():
-                        raise ValueError(f"Generated rectangle is empty for shape ID {self.shape_id}")
-                    path.addRect(rectangle)
+                if len(self.points) == 4:
+                    path.moveTo(self.points[0])
+                    for point in self.points[1:]:
+                        path.lineTo(point)
+                    path.closeSubpath()
                 else:
                     raise ValueError(f"Invalid number of points for rectangle/mask shape. Points: {self.points}")
             elif self.shape_type == "circle":
@@ -451,17 +460,7 @@ class Shape(object):
             logging.error(f"Generated QRectF is empty for shape ID {self.shape_id}.")
         return rect
 
-    def isValid(self):
-        """Check if the shape is valid."""
-        # if not self.rect or self.rect.isNull() or self.rect.isEmpty():
-        #     return False
-        # if len(self.points) != 4:
-        #     return False
-        # return all(isinstance(p, QtCore.QPointF) for p in self.points)
-       
-        return (len(self.points) >= 4 and
-                not self.boundingRect().isEmpty() and
-                self.points[0] != self.points[-1])
+    
     
     def moveBy(self, offset):
         self.points = [p + offset for p in self.points]

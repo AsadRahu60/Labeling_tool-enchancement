@@ -2804,7 +2804,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def normalize_bbox(self, bbox):
-        return tuple(map(int, bbox))
+        x1, y1, x2, y2 = map(float, bbox)
+        return min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)
 
     def iou(self,box1, box2):
         x1, y1, x2, y2 = box1
@@ -3410,6 +3411,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 scaled_bbox = self.scale_bbox(track["bbox"], frame_width, frame_height)
                 if not scaled_bbox:
+                    logger.error(f"Failed to scale bbox for track {track_id}: {track['bbox']}")
                     continue
 
                 shape_data = {
@@ -3421,13 +3423,30 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 shape = self.canvas.createShapeFromData(shape_data)
                 if not shape or not self.validate_shape(shape, track_id):
+                    logger.warning(f"Skipping track {track_id} due to invalid shape.")
                     continue
 
                 color = person_colors.setdefault(track_id, self.get_random_color())
+                
+                    # Create LabelMe-compatible shape
+                label_shape = self.create_labelme_shape(
+                    track_id, 
+                    *scaled_bbox, 
+                    color
+                )
+                if not label_shape:
+                    logger.warning(f"Skipping track {track_id} due to invalid LabelMe shape.")
+                    continue
+                
+                
+                
                 if not self.canvas.is_shape_duplicate(shape.id, scaled_bbox):
                     self.canvas.addShape(shape)
                     frame_annotations.append(shape_data)
-                    label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
+                    # label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
+                    # if label_shape is None:
+                    #     logger.error(f"Failed to create LabelMe shape for track {track_id}")
+                    #     continue
                     self.add_labels_to_UI(label_shape, track_id, color)
                     logger.info(f"Track {track_id} processed")
                 else:
@@ -3455,13 +3474,14 @@ class MainWindow(QtWidgets.QMainWindow):
         if not shape:
             logger.error(f"Failed to create shape for track {track_id}")
             return False
-        if not shape.boundingRec() or shape.boundingRect().isEmpty():
+        if not shape.boundingRect() or shape.boundingRect().isEmpty():
             logger.error(f"BoundingRect is empty for shape ID {track_id}")
             return False
-        path = self.canvas.generatePathFromShape(shape)
-        if not path or len(path) != 4:
-            logger.error(f"Invalid path generated for shape ID {track_id}")
-            return False
+        if hasattr(self.canvas, "generatePathFromShape"):
+            path = self.canvas.generatePathFromShape(shape)
+            if not path or len(path) != 4:
+                logger.error(f"Invalid path generated for shape ID {track_id}")
+                return False
         return True
     ###########################################################################################################################################################
     def is_valid_track(self, track):
@@ -3493,37 +3513,47 @@ class MainWindow(QtWidgets.QMainWindow):
     def create_labelme_shape(self, track_id, x1, y1, x2, y2, color):
         """
         Create a LabelMe-compatible shape for the given track.
-        
+
         Args:
-            track_id (int): Unique track ID
-            x1, y1, x2, y2 (int): Bounding box coordinates
-            color (tuple): RGB color for the shape
-        
+            track_id (int): Unique track ID.
+            x1, y1, x2, y2 (float): Bounding box coordinates.
+            color (tuple): RGB color for the shape.
+
         Returns:
-            Shape: Configured Shape object
+            Shape: Configured Shape object or None if creation fails.
         """
         try:
-            # Create shape with person label and track ID
+            # Normalize and validate coordinates
+            x1, y1, x2, y2 = self.normalize_bbox([x1, y1, x2, y2])
+            if x1 >= x2 or y1 >= y2:
+                raise ValueError(f"Invalid bounding box coordinates: ({x1}, {y1}, {x2}, {y2})")
+
+            # Create LabelMe-compatible shape
             label = f"person{track_id}"
             shape = Shape(label=label, shape_id=track_id)
-            
-            # Define bounding box points
+
+            # Define bounding points
             bounding_points = [
-                QtCore.QPointF(x1, y1),  # Top-left
-                QtCore.QPointF(x2, y1),  # Top-right
-                QtCore.QPointF(x2, y2),  # Bottom-right
-                QtCore.QPointF(x1, y2)   # Bottom-left
+                QtCore.QPointF(x1, y1),
+                QtCore.QPointF(x2, y1),
+                QtCore.QPointF(x2, y2),
+                QtCore.QPointF(x1, y2)
             ]
-            
-            # Add points to shape
+
             for point in bounding_points:
                 shape.addPoint(point)
-            
+
+            logger.debug(f"Successfully created LabelMe shape for track {track_id}: {shape}")
             return shape
-        
+
+        except ValueError as ve:
+            logger.error(f"Value error creating LabelMe shape for track {track_id}: {ve}")
         except Exception as e:
-            logger.error(f"Error creating LabelMe shape: {e}")
-            return None
+            logger.error(f"Unexpected error creating LabelMe shape for track {track_id}: {e}")
+
+        return None
+
+
 
     def add_labels_to_UI(self, shape, track_id, color):
         """
@@ -3589,9 +3619,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     
 
-    def get_random_color(self):
-        """Generate a random color for bounding boxes."""
-        return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+    
     
     def find_bbox_match(self, bbox, boxes, iou_threshold=0.5):
         """
