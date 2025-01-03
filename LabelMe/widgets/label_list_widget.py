@@ -5,6 +5,19 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QPalette
 from qtpy.QtWidgets import QStyle
 
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('A:/data/Project-Skills/Labeling_tool-enchancement/labelme/reid_debug.log')
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 
 # https://stackoverflow.com/a/2039745/4158863
 class HTMLDelegate(QtWidgets.QStyledItemDelegate):
@@ -70,26 +83,45 @@ class LabelListWidgetItem(QtGui.QStandardItem):
         super(LabelListWidgetItem, self).__init__()
         self.setText(text or "")
         self.setShape(shape)
+        
 
         self.setCheckable(True)
         self.setCheckState(Qt.Checked)
         self.setEditable(False)
         self.setTextAlignment(Qt.AlignBottom)
-
+        self._shape=shape
+        if shape:
+            logger.debug(f"Created label item for shape {shape.shape_id}")
+        else:
+            logger.warning("Created label item with no shape")
+    
+    
     def clone(self):
-        return LabelListWidgetItem(self.text(), self.shape())
+        return LabelListWidgetItem(self.text(), self._shape())
 
     def setShape(self, shape):
+        """Set shape with validation and logging."""
+        if shape is None:
+            logger.warning(f"Attempting to set None shape for item: {self.text()}")
+            return False
+            
+        self._shape = shape
         self.setData(shape, Qt.UserRole)
+        logger.debug(f"Shape set for label item: ID={shape.shape_id}")
 
     def shape(self):
-        return self.data(Qt.UserRole)
+        """Get shape with validation and error handling."""
+        shape = self._shape or self.data(Qt.UserRole)
+        if not shape:
+            logger.warning(f"No shape associated with label item: {self.text()}")
+        return shape
 
     def __hash__(self):
         return id(self)
 
     def __repr__(self):
-        return '{}("{}")'.format(self.__class__.__name__, self.text())
+        shape_id = self._shape.shape_id if self._shape else "None"
+        return f'{self.__class__.__name__}("{self.text()}", shape_id={shape_id})'
     
     def isSelected(self):
         return self.checkState() == QtCore.Qt.CheckState.Checked
@@ -114,7 +146,8 @@ class LabelListWidget(QtWidgets.QListView):
         self._selectedItems = []
 
         self.setWindowFlags(Qt.Window)
-        self.setModel(StandardItemModel())
+        self._model=StandardItemModel()
+        self.setModel(self._model)
         self.model().setItemPrototype(LabelListWidgetItem())
         self.setItemDelegate(HTMLDelegate())
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -124,6 +157,11 @@ class LabelListWidget(QtWidgets.QListView):
         self.doubleClicked.connect(self.itemDoubleClickedEvent)
         self.selectionModel().selectionChanged.connect(self.itemSelectionChangedEvent)
 
+    def count(self):
+        """Get number of items in list."""
+        return self.model().rowCount()
+    
+    
     def __len__(self):
         return self.model().rowCount()
 
@@ -193,19 +231,28 @@ class LabelListWidget(QtWidgets.QListView):
                 matching_items.append(item)
         return matching_items
     
-    def addPersonLabel(self, track_id, color):
-        """
-        Add a person label with a unique ID to the label list.
-        Args:
-            person_id: Unique ID for the person (e.g., Person ID 1).
-            color: Tuple representing the color (R, G, B) for the label.
-        """
-        label_text = f"Person ID {track_id}"
-        existing_items = self.findItems(label_text, QtCore.Qt.MatchExactly)
-        if not existing_items:  # Add only if it doesn't already exist
-            label_item = LabelListWidgetItem(label_text)
+    def addPersonLabel(self, track_id, color, shape=None):
+        """Add a person label with shape association."""
+        try:
+            label_text = f"Person ID {track_id}"
+            
+            # Create item with shape
+            label_item = LabelListWidgetItem(label_text, shape)
+            if not label_item.shape():
+                logger.warning(f"Failed to set shape for {label_text}")
+                return None
+                
+            # Set background color
             label_item.setBackground(QtGui.QColor(*color))
+            
+            # Add to list
             self.addItem(label_item)
+            logger.debug(f"Added person label: {label_text} with shape")
+            return label_item
+            
+        except Exception as e:
+            logger.error(f"Error adding person label: {e}")
+            return None
 
     def updatePersonLabel(self, person_id, color):
         """
@@ -226,6 +273,50 @@ class LabelListWidget(QtWidgets.QListView):
     
     def clear(self):
         self.model().clear()
-        
     
     
+    def validateItems(self):
+        """Validate all items have proper shape associations."""
+        invalid_items = []
+        for i in range(self.count()):
+            item = self.model().item(i)
+            if not item.shape():
+                invalid_items.append(item.text())
+                
+        if invalid_items:
+            logger.warning(f"Items missing shape associations: {invalid_items}")
+        return len(invalid_items) == 0        
+    
+    def hasTrackID(self, track_id):
+        """Check if track ID exists."""
+        return any(item.shape() and item.shape().shape_id == track_id 
+                for item in self.getAllItems())
+              
+    def removeTrackID(self, track_id):
+        """Remove items with specific track ID."""
+        items_to_remove = []
+        for item in self.getAllItems():
+            if item.shape() and item.shape().shape_id == track_id:
+                items_to_remove.append(item)
+                
+        for item in items_to_remove:
+            self.removeItem(item)
+            
+    def getAllTrackIDs(self):
+        """Get set of all track IDs."""
+        return {item.shape().shape_id for item in self.getAllItems() 
+                if item.shape() and item.shape().shape_id}
+    
+
+    def getAllItems(self):
+        """
+        Retrieve all items from the LabelListWidget.
+        Returns:
+            List of all LabelListWidgetItem objects.
+        """
+        items = []
+        for row in range(self.count()):
+            item = self.model().item(row)
+            if isinstance(item, LabelListWidgetItem):
+                items.append(item)
+        return items

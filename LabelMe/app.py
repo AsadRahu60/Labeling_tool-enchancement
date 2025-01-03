@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+## -*- coding: utf-8 -*-
 
 
 
@@ -18,6 +18,7 @@ import sys
 sys.path.append('c:\\users\\aasad\\appdata\\local\\programs\\python\\python312\\lib\\site-packages')
 PY3 = sys.version[0] == "3.12.4"
 
+from fastreid.modeling.meta_arch.build import build_model
 import imgviz
 import natsort
 
@@ -81,6 +82,7 @@ from fastreid.config import get_cfg
 from fastreid.engine import DefaultPredictor
 from sklearn.metrics.pairwise import cosine_similarity
 from xml.etree.ElementTree import Element, SubElement, ElementTree
+from labelme.dataset_processing import DatasetProcessor 
 
 ###############################################################################
 
@@ -152,7 +154,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progressBar.setValue(0)  # Initialize to 0%
         self.progressBar.setMaximum(100)  # Set maximum to 100%
         self.statusBar().addWidget(self.progressBar)
-
+        self.dataset_processor = DatasetProcessor(self)
+            # With
+        self.centralWidget = QtWidgets.QWidget(self)
+        self.setCentralWidget(self.centralWidget)
+        
         
         # Apply styles for a modern look
         self.setStyleSheet("""
@@ -199,6 +205,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_video = False  # This flag will be set to True when loading a video
         self.yolo_model=None
         self.fastreid_model=None
+        self.person_colors={}
+        self.person_tracks={}
+        self.tracks_confidence={}
         
         self.first_detected_id=None
         self.person_id_map={}
@@ -210,6 +219,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.detector=None
         # Default class mapping to 'person'
         self.default_class_to_person = True
+        # Add this line
+        self.tracks_confidence = {}
         
         # Set the device for model inference
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -233,10 +244,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Initialize the UI components, including frame controls, video controls,
         and playback functionalities.
-        """
-        # Central widget
-        self.centralWidget = QWidget(self)
-        self.mainLayout = QVBoxLayout(self.centralWidget)
+                """
+        # Initialize main window layout
+        self.centralWidget = QtWidgets.QWidget(self)
+        self.mainLayout = QtWidgets.QVBoxLayout(self.centralWidget)
         self.setCentralWidget(self.centralWidget)
 
         
@@ -555,6 +566,24 @@ class MainWindow(QtWidgets.QMainWindow):
             
             
         )
+        # Create Annotate Images action
+        annotateImages = action(
+            text=self.tr("Annotate Images"),
+            slot=self.annotateImages,
+            shortcut="Ctrl+I",
+            icon="annotation",
+            tip=self.tr("Batch process loaded images with detection and ReID"),
+            enabled=False  # Will be enabled when images are loaded
+        )
+        
+                # Add to your MainWindow.__init__
+        load_test_data = action(
+            self.tr("Load Test Dataset"),
+            self.load_test_dataset,
+            None,
+            "open",
+            self.tr("Load test dataset for ReID"),
+)
         save = action(
             self.tr("&Save\n"),
             self.saveFile,
@@ -1001,7 +1030,9 @@ class MainWindow(QtWidgets.QMainWindow):
             openNextFrame=openNextFrame,
             AnnotateVideo=AnnotateVideo,
             saveReIDAnnotations=saveReIDAnnotationsAction,
+            load_test_data=load_test_data,
             UploadDataset=UploadDataset,
+            annotateImages=annotateImages,
             fileMenuActions=(open_, opendir, save, saveAs, close, quit),
             tool=(),
             # XXX: need to add some actions here to activate the shortcut
@@ -1185,7 +1216,10 @@ class MainWindow(QtWidgets.QMainWindow):
             zoom,
             None,
             selectAiModel,
-            UploadDataset
+            UploadDataset,
+            load_test_data,
+            annotateImages,
+            
             # selectDetectionModel,SelectReIDModel
             
         )
@@ -1629,19 +1663,90 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def fileSelectionChanged(self):
-        items = self.fileListWidget.selectedItems()
-        if not items:
-            return
-        item = items[0]
+        try:
+            if hasattr(self, '_processing') and self._processing:
+                return
+                
+            items = self.fileListWidget.selectedItems()
+            if not items:
+                return
 
-        if not self.mayContinue():
-            return
+            if not self.mayContinue():
+                return
 
-        currIndex = self.imageList.index(str(item.text()))
-        if currIndex < len(self.imageList):
-            filename = self.imageList[currIndex]
-            if filename:
-                self.loadFile(filename)
+            currIndex = self.imageList.index(str(items[0].text()))
+            if currIndex < len(self.imageList):
+                filename = self.imageList[currIndex]
+                if filename:
+                    try:
+                        # First ensure central widget exists
+                        if not hasattr(self, 'centralWidget') or not self.centralWidget:
+                            self.centralWidget = QtWidgets.QWidget(self)
+                            self.setCentralWidget(self.centralWidget)
+                            
+                        # Create scroll area if needed
+                        if not hasattr(self, 'scrollArea'):
+                            self.scrollArea = QtWidgets.QScrollArea()
+                            self.scrollArea.setWidget(self.canvas)
+                            self.scrollArea.setWidgetResizable(True)
+                            layout = QtWidgets.QVBoxLayout(self.centralWidget)
+                            layout.addWidget(self.scrollArea)
+                            
+                        # Check if canvas needs to be recreated
+                        if not hasattr(self, 'canvas') or not self.canvas:
+                            self.canvas = Canvas(
+                                epsilon=self._config["epsilon"],
+                                double_click=self._config["canvas"]["double_click"],
+                                num_backups=self._config["canvas"]["num_backups"],
+                                crosshair=self._config["canvas"]["crosshair"],
+                            )
+                            self.scrollArea.setWidget(self.canvas)
+                            
+                            # Reconnect canvas signals
+                            self.canvas.zoomRequest.connect(self.zoomRequest)
+                            self.canvas.scrollRequest.connect(self.scrollRequest)
+                            self.canvas.newShape.connect(self.newShape)
+                            self.canvas.shapeMoved.connect(self.setDirty)
+                            self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
+                            self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
+
+                        self.resetState()
+                        self.loadFile(filename)
+                        
+                    except RuntimeError as e:
+                        if "wrapped C/C++ object" in str(e):
+                            # Full widget hierarchy recreation
+                            self.centralWidget = QtWidgets.QWidget(self)
+                            self.setCentralWidget(self.centralWidget)
+                            
+                            self.canvas = Canvas(
+                                epsilon=self._config["epsilon"],
+                                double_click=self._config["canvas"]["double_click"],
+                                num_backups=self._config["canvas"]["num_backups"],
+                                crosshair=self._config["canvas"]["crosshair"],
+                            )
+                            
+                            self.scrollArea = QtWidgets.QScrollArea()
+                            self.scrollArea.setWidget(self.canvas)
+                            self.scrollArea.setWidgetResizable(True)
+                            
+                            layout = QtWidgets.QVBoxLayout(self.centralWidget)
+                            layout.addWidget(self.scrollArea)
+                            
+                            # Reconnect all necessary signals
+                            self.canvas.zoomRequest.connect(self.zoomRequest)
+                            self.canvas.scrollRequest.connect(self.scrollRequest)
+                            self.canvas.newShape.connect(self.newShape)
+                            self.canvas.shapeMoved.connect(self.setDirty)
+                            self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
+                            self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
+                            
+                            self.loadFile(filename)
+                        else:
+                            raise
+                            
+        except Exception as e:
+            logger.error(f"Error in file selection: {e}")
 
     def shapeSelectionChanged(self, selected_shapes):
         self._noSelectionSlot = True
@@ -1713,27 +1818,39 @@ class MainWindow(QtWidgets.QMainWindow):
         Add a label to the label list and ensure it's unique.
        # Construct the instance-specific label text
        """
-        label_text = f"{shape.label} - ID: {shape.shape_id}"  # Label with ID
+        try:
+       
+            label_text = f"{shape.label} - ID: {shape.shape_id}"  # Label with ID
 
-        # Maintain a dictionary to track existing labels for fast lookup
-        if not hasattr(self, "labelSet"):
-            self.labelSet = set()
+            # Maintain a dictionary to track existing labels for fast lookup
+            if not hasattr(self, "labelSet"):
+                self.labelSet = set()
 
-        # Check if the label already exists
-        if label_text in self.labelSet:
-            return  # Avoid adding duplicates
-        self.labelSet.add(label_text)  # Add to the set
+            # Check if the label already exists
+            if label_text in self.labelSet:
+                return  # Avoid adding duplicates
+            self.labelSet.add(label_text)  # Add to the set
 
-        # Add the label to the LabelListWidget
-        label_list_item = LabelListWidgetItem(label_text, shape)
-        self.labelList.addItem(label_list_item)
+            # Add the label to the LabelListWidget
+            label_list_item = LabelListWidgetItem(label_text, shape)
+            
+            # Verify shape association immediately
+            if not label_list_item.shape():
+                logger.error(f"Failed to associate shape with label item: {shape.shape_id}")
+                return
+            
+            self.labelList.addItem(label_list_item)
 
-        # Ensure the label is added to the Unique Label List (track the base label)
-        if self.uniqLabelList.findItemByLabel(shape.label) is None:
-            uniq_item = self.uniqLabelList.createItemFromLabel(shape.label)
-            self.uniqLabelList.addItem(uniq_item)
-            rgb = self._get_rgb_by_label(shape.label)  # Generate label-specific color
-            self.uniqLabelList.setItemLabel(uniq_item, shape.label, rgb)
+            # Ensure the label is added to the Unique Label List (track the base label)
+            if self.uniqLabelList.findItemByLabel(shape.label) is None:
+                uniq_item = self.uniqLabelList.createItemFromLabel(shape.label)
+                self.uniqLabelList.addItem(uniq_item)
+                rgb = self._get_rgb_by_label(shape.label)  # Generate label-specific color
+                self.uniqLabelList.setItemLabel(uniq_item, shape.label, rgb)
+            
+            logger.debug(f"Label added successfully for shape {shape.shape_id}")
+        except Exception as e:
+           logger.error(f" Error addign label:{e}")
 
         # Add label to the label dialog history
         self.labelDialog.addLabelHistory(shape.label)
@@ -1750,7 +1867,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-
+#######################################################################################################
 
     def _update_shape_color(self, shape):
         r, g, b = self._get_rgb_by_label(shape.label)
@@ -1926,52 +2043,65 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.canvas.deSelectShape()
 
     def labelItemChanged(self, item):
-        """Handle changes in the label list item (e.g., visibility or selection)."""
-        # Get the associated shape object
-        shape = item.shape()
+        """Handle changes in the label list item with better error handling."""
+        try:
+            # Get and validate shape association
+            shape = item.shape()
+            if not shape:
+                logger.warning(f"No shape associated with item: {item.text()}")
+                self.validateShapeAssociations()  # Check all associations
+                return
 
-        # Ensure the shape exists
-        if not shape:
-            print("Warning: No shape associated with this item.")
-            return
+            # Update visibility
+            is_visible = item.checkState() == QtCore.Qt.CheckState.Checked
+            self.canvas.setShapeVisible(shape, is_visible)
 
-        # Update visibility based on check state
-        is_visible = item.checkState() == QtCore.Qt.CheckState.Checked
-        self.canvas.setShapeVisible(shape, is_visible)
+            # Handle selection
+            if self.labelList.selectedItems() and item in self.labelList.selectedItems():
+                self.handleShapeSelection(shape, item)
 
-        # Handle item selection (click or confirmation action)
-        if self.labelList.selectedItems() and item in self.labelList.selectedItems():
-            # Deselect all shapes and select the current one
-            self.canvas.deselectAllShapes()  # Deselect all shapes
-            shape.selected = True  # Mark the current shape as selected
-            self.canvas.selectedShapes = [shape]  # Update the selectedShapes list
-            self.canvas.update()  # Refresh the canvas to reflect changes
+            self.canvas.update()
 
-            # Optional: Center the canvas view on the selected shape
+        except Exception as e:
+            logger.error(f"Error in labelItemChanged: {e}")
+
+    def handleShapeSelection(self, shape, item):
+        """Handle shape selection and confirmation."""
+        try:
+            # Update canvas selection
+            self.canvas.deselectAllShapes()
+            shape.selected = True
+            self.canvas.selectedShapes = [shape]
+
+            # Center and highlight
             if hasattr(self.canvas, "centerOnShape"):
                 self.canvas.centerOnShape(shape)
-
-            # Optional: Provide visual feedback (e.g., change color to highlight)
             if hasattr(self.canvas, "highlightShape"):
                 self.canvas.highlightShape(shape)
 
-            # Log or confirm the action (e.g., print or show a confirmation dialog)
-            print(f"Person ID {shape.shape_id} selected.")
+            # Confirm selection
+            logger.info(f"Person ID {shape.shape_id} selected")
+            self.confirmShapeSelection(shape)
 
-            # Display a dialog to confirm the selected person
-            response = QtWidgets.QMessageBox.question(
-                self,
-                "Confirm Selection",
-                f"Do you confirm Person ID {shape.shape_id}?",
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
-            )
-            if response == QtWidgets.QMessageBox.Yes:
-                print(f"Person ID {shape.shape_id} confirmed.")
-            else:
-                print(f"Person ID {shape.shape_id} not confirmed.")
+        except Exception as e:
+            logger.error(f"Error handling shape selection: {e}")
 
-        # Update the canvas to reflect changes
-        self.canvas.update()
+    def validateShapeAssociations(self):
+        """Validate all shape-label associations."""
+        try:
+            issues_found = False
+            for i in range(self.labelList.count()):
+                item = self.labelList.item(i)
+                shape = item.shape()
+                if not shape:
+                    logger.warning(f"Invalid association found for item: {item.text()}")
+                    issues_found = True
+
+            if issues_found:
+                logger.error("Shape association issues detected. Consider reloading annotations.")
+
+        except Exception as e:
+            logger.error(f"Error validating shape associations: {e}")
 
 
 
@@ -2117,131 +2247,186 @@ class MainWindow(QtWidgets.QMainWindow):
     def loadFile(self, filename=None):
         """Load the specified file, or the last opened file if None."""
         # changing fileListWidget loads file
-        if filename in self.imageList and (
-            self.fileListWidget.currentRow() != self.imageList.index(filename)
-        ):
-            self.fileListWidget.setCurrentRow(self.imageList.index(filename))
-            self.fileListWidget.repaint()
-            return
+        
+        try:
+            logger.debug(f"Loading file: {filename}")
+            
+                # Ensure canvas exists
+            if not hasattr(self, 'canvas') or not self.canvas:
+                self.canvas = Canvas(
+                    epsilon=self._config["epsilon"],
+                    double_click=self._config["canvas"]["double_click"],
+                    num_backups=self._config["canvas"]["num_backups"],
+                    crosshair=self._config["canvas"]["crosshair"],
+                )
+                logger.debug("Canvas initialized.")
+            
+            # File name and the other 
+            if filename in self.imageList and (
+                self.fileListWidget.currentRow() != self.imageList.index(filename)
+            ):
+                self.fileListWidget.setCurrentRow(self.imageList.index(filename))
+                self.fileListWidget.repaint()
+                return
 
-        self.resetState()
-        self.canvas.setEnabled(False)
-        if filename is None:
-            filename = self.settings.value("filename", "")
-        filename = str(filename)
-        if not QtCore.QFile.exists(filename):
-            self.errorMessage(
-                self.tr("Error opening file"),
-                self.tr("No such file: <b>%s</b>") % filename,
-            )
-            return False
-        # assumes same name, but json extension
-        self.status(str(self.tr("Loading %s...")) % osp.basename(str(filename)))
-        label_file = osp.splitext(filename)[0] + ".json"
-        if self.output_dir:
-            label_file_without_path = osp.basename(label_file)
-            label_file = osp.join(self.output_dir, label_file_without_path)
-        if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
-            try:
-                self.labelFile = LabelFile(label_file)
-            except LabelFileError as e:
+            self.resetState()
+            self.canvas.setEnabled(False)
+            
+            
+            if filename is None:
+                filename = self.settings.value("filename", "")
+            filename = str(filename)
+            if not QtCore.QFile.exists(filename):
+                self.errorMessage(
+                    self.tr("Error opening file"),
+                    self.tr("No such file: <b>%s</b>") % filename,
+                )
+                return False
+            
+            
+            # assumes same name, but json extension
+            self.status(str(self.tr("Loading %s...")) % osp.basename(str(filename)))
+            label_file = osp.splitext(filename)[0] + ".json"
+            if self.output_dir:
+                label_file_without_path = osp.basename(label_file)
+                label_file = osp.join(self.output_dir, label_file_without_path)
+            if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
+                try:
+                    self.labelFile = LabelFile(label_file)
+                except LabelFileError as e:
+                    self.errorMessage(
+                        self.tr("Error opening file"),
+                        self.tr(
+                            "<p><b>%s</b></p>"
+                            "<p>Make sure <i>%s</i> is a valid label file."
+                        )
+                        % (e, label_file),
+                    )
+                    self.status(self.tr("Error reading %s") % label_file)
+                    return False
+                self.imageData = self.labelFile.imageData
+                self.imagePath = osp.join(
+                    osp.dirname(label_file),
+                    self.labelFile.imagePath,
+                )
+                self.otherData = self.labelFile.otherData
+            else:
+                self.imageData = LabelFile.load_image_file(filename)
+                if self.imageData:
+                    self.imagePath = filename
+                self.labelFile = None
+            image = QtGui.QImage.fromData(self.imageData)
+
+            if image.isNull():
+                logger.error(f"Failed to load image: {filename}")
+                formats = [
+                    "*.{}".format(fmt.data().decode())
+                    for fmt in QtGui.QImageReader.supportedImageFormats()
+                ]
                 self.errorMessage(
                     self.tr("Error opening file"),
                     self.tr(
-                        "<p><b>%s</b></p>"
-                        "<p>Make sure <i>%s</i> is a valid label file."
-                    )
-                    % (e, label_file),
+                        "<p>Make sure <i>{0}</i> is a valid image file.<br/>"
+                        "Supported image formats: {1}</p>"
+                    ).format(filename, ",".join(formats)),
                 )
-                self.status(self.tr("Error reading %s") % label_file)
+                self.status(self.tr("Error reading %s") % filename)
                 return False
-            self.imageData = self.labelFile.imageData
-            self.imagePath = osp.join(
-                osp.dirname(label_file),
-                self.labelFile.imagePath,
+            else:
+                logger.debug(f"Successfully loaded image: {filename}")
+            
+            
+            self.image = image
+            self.filename = filename
+            if self._config["keep_prev"]:
+                prev_shapes = self.canvas.shapes
+            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
+            flags = {k: False for k in self._config["flags"] or []}
+            if self.labelFile:
+                self.loadLabels(self.labelFile.shapes)
+                if self.labelFile.flags is not None:
+                    flags.update(self.labelFile.flags)
+            self.loadFlags(flags)
+            if self._config["keep_prev"] and self.noShapes():
+                self.loadShapes(prev_shapes, replace=False)
+                self.setDirty()
+            else:
+                self.setClean()
+            self.canvas.setEnabled(True)
+            
+            # set zoom values
+            is_initial_load = not self.zoom_values
+            if self.filename in self.zoom_values:
+                self.zoomMode = self.zoom_values[self.filename][0]
+                self.setZoom(self.zoom_values[self.filename][1])
+            elif is_initial_load or not self._config["keep_prev_scale"]:
+                self.adjustScale(initial=True)
+            
+            # set scroll values
+            for orientation in self.scroll_values:
+                if self.filename in self.scroll_values[orientation]:
+                    self.setScroll(
+                        orientation, self.scroll_values[orientation][self.filename]
+                    )
+            
+            # set brightness contrast values
+            dialog = BrightnessContrastDialog(
+                utils.img_data_to_pil(self.imageData),
+                self.onNewBrightnessContrast,
+                parent=self,
             )
-            self.otherData = self.labelFile.otherData
-        else:
-            self.imageData = LabelFile.load_image_file(filename)
-            if self.imageData:
-                self.imagePath = filename
-            self.labelFile = None
-        image = QtGui.QImage.fromData(self.imageData)
-
-        if image.isNull():
-            formats = [
-                "*.{}".format(fmt.data().decode())
-                for fmt in QtGui.QImageReader.supportedImageFormats()
-            ]
-            self.errorMessage(
-                self.tr("Error opening file"),
-                self.tr(
-                    "<p>Make sure <i>{0}</i> is a valid image file.<br/>"
-                    "Supported image formats: {1}</p>"
-                ).format(filename, ",".join(formats)),
+            brightness, contrast = self.brightnessContrast_values.get(
+                self.filename, (None, None)
             )
-            self.status(self.tr("Error reading %s") % filename)
-            return False
-        self.image = image
-        self.filename = filename
-        if self._config["keep_prev"]:
-            prev_shapes = self.canvas.shapes
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
-        flags = {k: False for k in self._config["flags"] or []}
-        if self.labelFile:
-            self.loadLabels(self.labelFile.shapes)
-            if self.labelFile.flags is not None:
-                flags.update(self.labelFile.flags)
-        self.loadFlags(flags)
-        if self._config["keep_prev"] and self.noShapes():
-            self.loadShapes(prev_shapes, replace=False)
-            self.setDirty()
-        else:
-            self.setClean()
-        self.canvas.setEnabled(True)
-        # set zoom values
-        is_initial_load = not self.zoom_values
-        if self.filename in self.zoom_values:
-            self.zoomMode = self.zoom_values[self.filename][0]
-            self.setZoom(self.zoom_values[self.filename][1])
-        elif is_initial_load or not self._config["keep_prev_scale"]:
-            self.adjustScale(initial=True)
-        # set scroll values
-        for orientation in self.scroll_values:
-            if self.filename in self.scroll_values[orientation]:
-                self.setScroll(
-                    orientation, self.scroll_values[orientation][self.filename]
+            if self._config["keep_prev_brightness"] and self.recentFiles:
+                brightness, _ = self.brightnessContrast_values.get(
+                    self.recentFiles[0], (None, None)
                 )
-        # set brightness contrast values
-        dialog = BrightnessContrastDialog(
-            utils.img_data_to_pil(self.imageData),
-            self.onNewBrightnessContrast,
-            parent=self,
-        )
-        brightness, contrast = self.brightnessContrast_values.get(
-            self.filename, (None, None)
-        )
-        if self._config["keep_prev_brightness"] and self.recentFiles:
-            brightness, _ = self.brightnessContrast_values.get(
-                self.recentFiles[0], (None, None)
-            )
-        if self._config["keep_prev_contrast"] and self.recentFiles:
-            _, contrast = self.brightnessContrast_values.get(
-                self.recentFiles[0], (None, None)
-            )
-        if brightness is not None:
-            dialog.slider_brightness.setValue(brightness)
-        if contrast is not None:
-            dialog.slider_contrast.setValue(contrast)
-        self.brightnessContrast_values[self.filename] = (brightness, contrast)
-        if brightness is not None or contrast is not None:
-            dialog.onNewValue(None)
-        self.paintCanvas()
-        self.addRecentFile(self.filename)
-        self.toggleActions(True)
-        self.canvas.setFocus()
-        self.status(str(self.tr("Loaded %s")) % osp.basename(str(filename)))
-        return True
+            if self._config["keep_prev_contrast"] and self.recentFiles:
+                _, contrast = self.brightnessContrast_values.get(
+                    self.recentFiles[0], (None, None)
+                )
+            if brightness is not None:
+                dialog.slider_brightness.setValue(brightness)
+            if contrast is not None:
+                dialog.slider_contrast.setValue(contrast)
+            self.brightnessContrast_values[self.filename] = (brightness, contrast)
+            if brightness is not None or contrast is not None:
+                dialog.onNewValue(None)
+            
+            self.paintCanvas()
+            self.addRecentFile(self.filename)
+            self.toggleActions(True)
+            self.canvas.setFocus()
+            self.status(str(self.tr("Loaded %s")) % osp.basename(str(filename)))
+            return True
+
+        except Exception as e:
+            logger.error(f"Error loading file: {e}")
+            return False
+        
+            
+    
+    def safe_display_image(self,image_path):
+        """Safely display an image with error handling."""
+        try:
+            if not os.path.exists(image_path):
+                logger.error(f"Image file not found: {image_path}")
+                return False
+                
+            image = QtGui.QImage(image_path)
+            if image.isNull():
+                logger.error(f"Failed to load image: {image_path}")
+                return False
+                
+            pixmap = QtGui.QPixmap.fromImage(image)
+            self.canvas.loadPixmap(pixmap)
+            self.canvas.update()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error displaying image {image_path}: {e}")
+            return False
 
     def resizeEvent(self, event):
         if (
@@ -2267,8 +2452,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def scaleFitWindow(self):
         """Figure out the size of the pixmap to fit the main widget."""
         e = 2.0  # So that no scrollbars are generated.
-        w1 = self.centralWidget().width() - e
-        h1 = self.centralWidget().height() - e
+        w1 = self.centralWidget.width() - e
+        h1 = self.centralWidget.height() - e
         a1 = w1 / h1
         # Calculate a new scale value based on the pixmap's aspect ratio.
         w2 = self.canvas.pixmap.width() - 0.0
@@ -2703,10 +2888,28 @@ class MainWindow(QtWidgets.QMainWindow):
         distance = euclidean(feature1, feature2)
         return distance < threshold  # Return True if within the threshold
 
-    def get_random_color(self):
-        """Generate a random color in the form of (R, G, B)"""
-        color= (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        return color
+    import random
+
+    def get_random_color(self, seed=None):
+        """
+        Generate a random color for track visualization.
+
+        Args:
+            seed: Optional seed for deterministic color generation.
+
+        Returns:
+            A tuple representing an RGB color (e.g., (r, g, b)).
+        """
+        if seed is not None:
+            random.seed(seed)  # Set seed for deterministic results
+
+        # Generate random RGB values
+        r = random.randint(0, 255)
+        g = random.randint(0, 255)
+        b = random.randint(0, 255)
+
+        return (r, g, b)
+
     
     
     
@@ -2905,7 +3108,141 @@ class MainWindow(QtWidgets.QMainWindow):
         """Set the cancellation flag to stop video annotation."""
         self.is_cancelled = True
         logging.info("Annotation process cancelled by user.")
+##############################################################################################################################################################################################
 
+    def annotateImages(self):
+        """Handle batch processing of loaded images."""
+        try:
+            if not self.imageList:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "No Images",
+                    "Please load images before annotating."
+                )
+                return
+
+            # Check if models are selected
+            if not self.detectionModelSelector.currentText() or not self.reidModelSelector.currentText():
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Models Required",
+                    "Please select both detection and ReID models before processing."
+                )
+                return
+
+            # Initialize models if needed
+            if not self.load_models():
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Model Initialization Error",
+                    "Failed to initialize models. Please check your model selections."
+                )
+                return
+            
+            # Initialize tracker
+            if not self.initialize_tracker():
+                logger.error("Failed to initialize tracker")
+                QtWidgets.QMessageBox.critical(self, "Tracker Error", "Could not initialize tracking.")
+                return
+            
+            
+
+            # Verify models are loaded
+            if not hasattr(self, 'detector') or self.detector is None:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    "Detection model not initialized. Please select and initialize models first."
+                )
+                return
+
+            if not hasattr(self, 'reid_model') or self.reid_model is None:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    "ReID model not initialized. Please select and initialize models first."
+                )
+                return
+
+            # Configure processing
+            config = self.dataset_processor.configure_processing()
+            if not config:
+                return
+
+            # Initialize progress dialog
+            progress = QtWidgets.QProgressDialog(
+                "Processing images...", 
+                "Cancel", 
+                0, 
+                len(self.imageList), 
+                self
+            )
+            progress.setWindowModality(Qt.WindowModal)
+
+            all_frames = []
+            all_annotations = []
+
+            # Process images in batches
+            batch_size = config.get('batch_size', 16)
+            for i in range(0, len(self.imageList), batch_size):
+                if progress.wasCanceled():
+                    break
+
+                batch = self.imageList[i:i + batch_size]
+                
+                try:
+                    frames, annotations = self.dataset_processor.process_batch(batch, config)
+                    if frames and annotations:
+                        all_frames.extend(frames)
+                        all_annotations.extend(annotations)
+                except Exception as batch_error:
+                    logger.error(f"Error processing batch: {batch_error}")
+                    continue
+
+                progress.setValue(i + len(batch))
+                QtWidgets.QApplication.processEvents()
+
+            progress.close()
+
+            # Save annotations if we have any
+            if all_annotations:
+                format_choice = self.choose_annotation_format()
+                if format_choice:
+                    try:
+                        save_path = QtWidgets.QFileDialog.getSaveFileName(
+                            self,
+                            "Save Annotations",
+                            "",
+                            f"{format_choice.upper()} Files (*.{format_choice})"
+                        )[0]
+                        
+                        if save_path:
+                            self.save_reid_annotations(
+                                all_frames,
+                                all_annotations,
+                                format_choice
+                                
+                            )
+                            QtWidgets.QMessageBox.information(
+                                self,
+                                "Success",
+                                f"Successfully processed and saved annotations for {len(all_annotations)} images."
+                            )
+                    except Exception as save_error:
+                        logger.error(f"Error saving annotations: {save_error}")
+                        QtWidgets.QMessageBox.critical(
+                            self,
+                            "Error",
+                            f"Failed to save annotations: {str(save_error)}"
+                        )
+
+        except Exception as e:
+            logger.error(f"Error in image annotation: {e}")
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Error processing images: {str(e)}"
+            )
  #################################################################################################################   
     def annotateVideo(self, video_path=None, batch_size=16):
         """
@@ -3004,6 +3341,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 format_choice = self.choose_annotation_format()
                 if format_choice:
                     self.save_reid_annotations(frames, all_annotations, format_choice)
+                    self.actions.saveReIDAnnotations.setEnabled(True)
                     logger.info(f"Annotations saved successfully in {format_choice} format.")
                 else:
                     logger.warning("Annotation saving cancelled by user.")
@@ -3076,104 +3414,204 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     ###############################################################################################################################
+    
     def extract_reid_features(self, frame, bbox_xywh, expected_feature_size):
-        """Extract ReID features from detected persons."""
-        features = []
-        height, width = frame.shape[:2]
-        expected_feature_size=self.output_feature_size
-
-        try:
-            for i, box in enumerate(bbox_xywh):
-                x_center, y_center, w, h = box
-                x1 = int(max(0, x_center - w / 2))
-                y1 = int(max(0, y_center - h / 2))
-                x2 = int(min(width, x_center + w / 2))
-                y2 = int(min(height, y_center + h / 2))
-
-                if x2 <= x1 or y2 <= y1:
-                    logger.warning(f"Invalid box dimensions for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
-                    features.append(None)
-                    continue
-
-                try:
-                    person_img = frame[y1:y2, x1:x2]
-                    if person_img.size == 0:
-                        logger.warning(f"Empty person crop for detection {i}")
-                        features.append(None)
-                        continue
-
-                    img = cv2.resize(person_img, (128, 256))
-                    img = torch.from_numpy(img).float().permute(2, 0, 1).unsqueeze(0)
-                    if torch.cuda.is_available():
-                        img = img.cuda()
-
-                    with torch.no_grad():
-                        feature = self.reid_model(img)
-                        if isinstance(feature, dict):
-                            feature = feature['features']
-                        feature = feature.cpu().numpy().flatten()
-
-                        if len(feature) != expected_feature_size:
-                            logger.warning(f"Unexpected feature size {len(feature)} for detection {i}")
-                            features.append(None)
-                            continue
-
-                        features.append(feature)
-
-                except Exception as e:
-                    logger.error(f"Error processing detection {i}: {e}")
-                    features.append(None)
-                    continue
-
-            logger.debug(f"Extracted features for {len(features)} detections")
-            return features
-
-        except Exception as e:
-            logger.error(f"Overall feature extraction error: {e}")
-            return [None] * len(bbox_xywh)
-
-    ##########################################################################################
-    def _preprocess_crop(self, frame, x1, y1, x2, y2, device):
         """
-        Preprocess the cropped region for ReID model input using PyTorch transforms.
+        Extract ReID features from detected persons with enhanced preprocessing and batch processing.
+
+        Args:
+            frame: Input video frame (numpy array).
+            bbox_xywh: List of bounding boxes in center format (x_center, y_center, width, height).
+            expected_feature_size: Expected size of feature vector.
+
+        Returns:
+            Dictionary mapping indices to extracted features or None for failed extractions.
         """
-        try:
-            # Ensure bounding box coordinates are integers
-            x1, y1, x2, y2 = map(int, (x1, y1, x2, y2))
-            
+        def get_preprocessing_transform():
+            """
+            Return a reusable preprocessing transform for input crops.
 
-            # Validate bounding box dimensions
-            if x2 <= x1 or y2 <= y1:
-                logger.warning(f"Invalid bounding box: ({x1}, {y1}, {x2}, {y2})")
-                return None
-
-            # Crop the bounding box
-            crop = frame[y1:y2, x1:x2]
-            if crop.size == 0:
-                logger.warning(f"Empty crop for bbox: ({x1}, {y1}, {x2}, {y2})")
-                return None
-
-            # Preprocess the crop
-            transform = transforms.Compose([
+            Returns:
+                A torchvision.transforms.Compose object.
+            """
+            return transforms.Compose([
                 transforms.ToPILImage(),
-                transforms.Resize((256, 128)),
+                transforms.Resize((256, 128)),  # Standard size for ReID models
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ])
-            crop_tensor = transform(crop).unsqueeze(0)  # Add batch dimension
-            return crop_tensor.to(device)
+
+        try:
+            height, width = frame.shape[:2]
+            batch_crops = []
+            valid_indices = []
+            features = {}  # Use a dictionary to manage feature indices and corresponding data
+
+            # Get the preprocessing transform
+            transform = get_preprocessing_transform()
+
+            # Process each bounding box
+            for i, box in enumerate(bbox_xywh):
+                try:
+                    # Use _get_valid_crop to extract and validate the crop
+                    crop_info = self._get_valid_crop(frame, box, width, height)
+                    if crop_info is None:
+                        logger.warning(f"Invalid crop for detection {i}")
+                        continue
+
+                    crop, quality_score = crop_info
+                    logger.debug(f"Crop quality for detection {i}: {quality_score:.2f}")
+
+                    # Preprocess the valid crop
+                    processed_crop = self._preprocess_single_crop(crop, transform)
+                    if processed_crop is not None:
+                        batch_crops.append(processed_crop)
+                        valid_indices.append(i)
+
+                except Exception as e:
+                    logger.error(f"Error processing detection {i}: {e}")
+
+        # Perform batch processing if valid crops exist
+            if batch_crops:
+                try:
+                    # Split into smaller batches to avoid memory issues
+                    batch_size = 16  # Define an optimal batch size based on system capabilities
+                    for start_idx in range(0, len(batch_crops), batch_size):
+                        small_batch = torch.cat(batch_crops[start_idx:start_idx + batch_size], dim=0)
+
+                        if torch.cuda.is_available():
+                            small_batch = small_batch.cuda()
+
+                        with torch.no_grad():
+                            batch_features = self.reid_model(small_batch)
+                            if isinstance(batch_features, dict):
+                                batch_features = batch_features.get('features')
+
+                            # Validate each feature and assign to the corresponding index
+                            for idx, feat in zip(valid_indices[start_idx:start_idx + batch_size], batch_features):
+                                try:
+                                    if not isinstance(feat, torch.Tensor):
+                                        logger.warning(f"Invalid feature format for detection {idx}: {type(feat)}")
+                                        features[idx] = None
+                                        continue
+                                    if feat is not None:
+                                        # Convert feature to numpy and flatten
+                                        feat = feat.cpu().numpy().flatten()
+
+                                        # Validate feature size
+                                        if len(feat) != expected_feature_size:
+                                            logger.warning(f"Unexpected feature size {len(feat)} for detection {idx}. Expected: {expected_feature_size}")
+                                            features[idx] = None
+                                            continue
+
+                                    # Append valid feature
+                                    features[idx] = feat
+
+                                except Exception as e:
+                                    logger.error(f"Error processing detection {idx}: {e}")
+                                    features[idx] = None
+
+                except Exception as e:
+                    logger.error(f"Batch processing error: {e}")
+
+
+            logger.debug(f"Successfully extracted features for {len(features)} detections")
+                # Convert features to list format
+            feature_list = [features.get(i) for i in range(len(bbox_xywh))]
+            return feature_list
+
 
         except Exception as e:
-            logger.warning(f"Error preprocessing crop ({x1}, {y1}, {x2}, {y2}): {e}")
+            logger.error(f"Fatal error in feature extraction: {e}")
+            return {}
+
+    # Supporting Methods
+
+    def _get_valid_crop(self, frame, box, width, height):
+        """
+        Get valid crop from frame with quality assessment.
+
+        Returns:
+            Tuple of (crop, quality_score) or None if invalid
+        """
+        try:
+            # Convert center format to corners with margin
+            x_center, y_center, w, h = box
+            margin = 0.1  # 10% margin for better person capture
+            w_margin = w * (1 + margin)
+            h_margin = h * (1 + margin)
+
+            x1 = max(0, int(x_center - w_margin / 2))
+            y1 = max(0, int(y_center - h_margin / 2))
+            x2 = min(width, int(x_center + w_margin / 2))
+            y2 = min(height, int(y_center + h_margin / 2))
+
+            # Validate dimensions
+            if x2 <= x1 or y2 <= y1 or (x2 - x1) < 20 or (y2 - y1) < 20:
+                return None
+
+            # Get crop
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                return None
+
+            # Calculate quality score
+            quality_score = self._calculate_crop_quality(crop)
+            
+
+            
+
+            return (crop, quality_score) if quality_score > 0 else None
+
+        except Exception as e:
+            logger.error(f"Error in crop validation: {e}")
             return None
 
+    def _calculate_crop_quality(self, crop):
+        """
+        Calculate quality score for a crop based on multiple factors.
 
+        Returns:
+            Float between 0 and 1 indicating crop quality
+        """
+        try:
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    
+            # Enhanced quality metrics
+            blur = cv2.Laplacian(gray, cv2.CV_64F).var()
+            brightness = np.mean(gray)
+            contrast = np.std(gray)
+            
+            # Dynamic thresholds based on image statistics
+            min_brightness = np.percentile(gray, 10)
+            max_brightness = np.percentile(gray, 90)
+            brightness_range = max_brightness - min_brightness
+            
+            quality_score = (
+                0.4 * min(blur / 500.0, 1.0) +
+                0.3 * (1.0 - abs(brightness - 128) / 128) +
+                0.3 * min(contrast / (brightness_range + 1e-6), 1.0)
+            )
 
+            return quality_score
 
+        except Exception as e:
+            logger.error(f"Error calculating crop quality: {e}")
+            return 0
 
-
-
-
+    def _preprocess_single_crop(self, crop, transform):
+        """Preprocess a single crop with error handling."""
+        try:
+            processed = transform(crop)
+            if isinstance(processed, torch.Tensor):
+                processed = processed.unsqueeze(0)  # Add batch dimension
+                return processed
+            else:
+                logger.warning(f"Transform output is not a tensor: {type(processed)}")
+                return None
+        except Exception as e:
+            logger.error(f"Preprocessing error: {e}")
+            return None
 
 
     #######################################################################################################################################
@@ -3253,24 +3691,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     ############################################################################################################################
     
-    def validate_bbox(self, bbox, frame_shape):
-        frame_height, frame_width = frame_shape[:2]
-        x1, y1, x2, y2 = bbox
-        
-        # Additional validation checks
-        if x1 < 0 or y1 < 0 or x2 > frame_width or y2 > frame_height:
-            logger.warning(f"Bbox exceeds frame dimensions: {bbox}")
-            logger.warning(f"Frame dimensions: {frame_width}x{frame_height}")
-            
-            # Clamp values to frame dimensions
+    def validate_bbox(self, bbox, frame_width, frame_height):
+        try:
+            if bbox is None:
+                return None
+            x1, y1, x2, y2 = map(float, bbox)
+            # Add bounds checking
             x1 = max(0, min(x1, frame_width))
             y1 = max(0, min(y1, frame_height))
             x2 = max(0, min(x2, frame_width))
             y2 = max(0, min(y2, frame_height))
-            
             return [x1, y1, x2, y2]
-        
-        return bbox
+        except (TypeError, ValueError) as e:
+            logger.error(f"Error validating bbox: {e}")
+            return None
 
     #########################################################################################################################
     def process_image(self, frame):
@@ -3394,82 +3828,275 @@ class MainWindow(QtWidgets.QMainWindow):
 
     ###########################################################################################################
     def process_tracks(self, frame, person_colors, tracked_objects):
-        frame_annotations = []
-        frame_height, frame_width = frame.shape[:2]
-        logger.info(f"Frame dimensions: {frame_width}x{frame_height}, Tracked objects: {len(tracked_objects)}")
-        processed_track_ids = set()
+        try:
+            frame_annotations = []
+            frame_height, frame_width = frame.shape[:2]
+            processed_track_ids = set()
+            
+            # Initialize tracking
+            self.tracks_confidence = getattr(self, 'tracks_confidence', {})
+            # Initialize or get current_tracks
+            if not hasattr(self, 'current_tracks'):
+                self.current_tracks = {}
+                
+            # Update state
+            self.current_tracks = self.manage_track_ids(tracked_objects, self.current_tracks)
+            # self.canvas.current_frame = self.current_frame
+            
+            self.canvas.shapes.clear()
+            self.labelList.clear()
 
-        for track in tracked_objects:
-            try:
-                if not self.validate_track(track):
+            for track in tracked_objects:
+                try:
+                    if not isinstance(track, dict) or 'track_id' not in track:
+                        logger.error(f"Invalid track format: {track}")
+                        continue
+                        
+                    track_id = track["track_id"]
+                    
+                    # Skip invalid tracks
+                    if not self.validate_track(track) or track_id in processed_track_ids:
+                        continue
+                        
+                    processed_track_ids.add(track_id)
+                    
+                    # Initialize track confidence
+                    if track_id not in self.tracks_confidence:
+                        self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
+                        
+                    if track_id not in person_colors:
+                        person_colors[track_id] = self.get_random_color(seed=hash(track_id))
+
+                    # Validate bbox
+                    bbox = track.get("bbox")
+                    if not bbox or not self.validate_bbox(bbox, frame_width, frame_height):
+                        logger.warning(f"Invalid bbox for track {track_id}: {bbox}")
+                        continue
+
+                    scaled_bbox = self.scale_bbox(bbox, frame_width, frame_height)
+                    if not scaled_bbox:
+                        continue
+
+                    shape_data = {
+                        "track_id": track_id,
+                        "bbox": scaled_bbox,
+                        "confidence": track.get("confidence", 1.0),
+                        "frame_number": self.current_frame,
+                        "shape_type": "rectangle",
+                        "shape_id": str(track_id),
+                        "color": person_colors[track_id]
+                    }
+
+                    # Check duplicates
+                    # Check for duplicates
+#                     # Use Canvas's duplicate detection with overlap threshold
+                    if self.canvas.is_duplicate(str(track_id), scaled_bbox, threshold=0.5):
+                        logger.debug(f"Duplicate detected for track_id={track_id}, bbox={scaled_bbox}")
+                        continue
+                    else:
+                        logger.debug(f"No duplicate for track_id={track_id}, bbox={scaled_bbox}")
+
+                    
+                    
+                    # Create shape
+                    shape = self.canvas.createShapeFromData(shape_data)
+                    if not shape or not shape.isValid():
+                        continue
+
+                    self.tracks_confidence[track_id].update(track.get("confidence", 1.0))
+
+                    if self.tracks_confidence[track_id].is_confirmed():
+                        labelme_shape = self.create_labelme_shape(
+                            track_id=track_id,
+                            x1=scaled_bbox[0], y1=scaled_bbox[1],
+                            x2=scaled_bbox[2], y2=scaled_bbox[3],
+                            color=person_colors[track_id]
+                        )
+
+                        if labelme_shape:
+                            self.canvas.addShape(labelme_shape)
+                            self.add_labels_to_UI(labelme_shape, track_id, person_colors[track_id])
+
+                            frame_annotations.append({
+                                "track_id": track_id,
+                                "bbox": scaled_bbox,
+                                "confidence": self.tracks_confidence[track_id].confidence,
+                                "frames_tracked": (
+                                    self.current_tracks[track_id]["last_seen"] - 
+                                    self.current_tracks[track_id]["first_seen"]
+                                )
+                            })
+
+                except Exception as e:
+                    logger.error(f"Error processing track {track_id}: {str(e)}")
                     continue
 
+            self.cleanup_inactive_tracks(processed_track_ids, self.current_tracks)
+            self.canvas.update()
+            return frame_annotations
+
+        except Exception as e:
+            logger.error(f"Critical error in process_tracks: {e}")
+            return []
+            
+    def convert_bbox_format(self, bbox):
+        """Convert TLBR format to XYWH format."""
+        try:
+            x1, y1, x2, y2 = map(float, bbox)
+            width = x2 - x1
+            height = y2 - y1
+            x_center = x1 + width/2
+            y_center = y1 + height/2
+            return [x_center, y_center, width, height]
+        except Exception as e:
+            logger.error(f"Error converting bbox format: {e}")
+            return None
+
+    def validate_bbox(self, bbox, frame_width, frame_height):
+        try:
+            if not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+                return False
+                
+            x1, y1, x2, y2 = map(float, bbox)
+            
+            # Allow bbox to exceed frame slightly
+            max_overflow = 0.1  # 10% overflow allowed
+            max_width = frame_width * (1 + max_overflow)
+            max_height = frame_height * (1 + max_overflow)
+            
+            if x2 <= x1 or y2 <= y1:
+                return False
+                
+            if x1 < -frame_width * max_overflow or y1 < -frame_height * max_overflow:
+                return False
+                
+            if x2 > max_width or y2 > max_height:
+                return False
+                
+            return True
+        except Exception as e:
+            logger.error(f"Error validating bbox: {e}")
+            return False
+
+
+#######################################################################################################
+    def manage_track_ids(self, tracked_objects, current_tracks, max_age=30):
+        """Manage track IDs with trajectory tracking."""
+        try:
+            active_ids = set()
+            for track in tracked_objects:
                 track_id = track["track_id"]
-                if track_id in processed_track_ids:
-                    continue
-                processed_track_ids.add(track_id)
-
-                scaled_bbox = self.scale_bbox(track["bbox"], frame_width, frame_height)
-                if not scaled_bbox:
-                    logger.error(f"Failed to scale bbox for track {track_id}: {track['bbox']}")
-                    continue
-
-                shape_data = {
-                    "bbox": scaled_bbox,
-                    "shape_type": "rectangle",
-                    "shape_id": str(track_id),
-                    "confidence": track["confidence"]
+                active_ids.add(track_id)
+                
+                bbox = track.get("bbox")
+                confidence = track.get("confidence", 1.0)
+                
+                current_frame_data = {
+                    "frame": self.current_frame,
+                    "bbox": bbox,
+                    "confidence": confidence
                 }
 
-                shape = self.canvas.createShapeFromData(shape_data)
-                if not shape or not self.validate_shape(shape, track_id):
-                    logger.warning(f"Skipping track {track_id} due to invalid shape.")
-                    continue
-
-                color = person_colors.setdefault(track_id, self.get_random_color())
-                
-                    # Create LabelMe-compatible shape
-                label_shape = self.create_labelme_shape(
-                    track_id, 
-                    *scaled_bbox, 
-                    color
-                )
-                if not label_shape:
-                    logger.warning(f"Skipping track {track_id} due to invalid LabelMe shape.")
-                    continue
-                
-                
-                
-                if not self.canvas.is_shape_duplicate(shape.id, scaled_bbox):
-                    self.canvas.addShape(shape)
-                    frame_annotations.append(shape_data)
-                    # label_shape = self.create_labelme_shape(track_id, *scaled_bbox, color)
-                    # if label_shape is None:
-                    #     logger.error(f"Failed to create LabelMe shape for track {track_id}")
-                    #     continue
-                    self.add_labels_to_UI(label_shape, track_id, color)
-                    logger.info(f"Track {track_id} processed")
+                if track_id in current_tracks:
+                    current_tracks[track_id].update({
+                        "last_seen": self.current_frame,
+                        "confidence": confidence,
+                        "bbox": bbox
+                    })
+                    current_tracks[track_id]["trajectory"].append(current_frame_data)
+                    
+                    # Limit trajectory history
+                    if len(current_tracks[track_id]["trajectory"]) > 30:
+                        current_tracks[track_id]["trajectory"] = current_tracks[track_id]["trajectory"][-30:]
                 else:
-                    logger.warning(f"Track {track_id} is a duplicate.")
+                    current_tracks[track_id] = {
+                        "first_seen": self.current_frame,
+                        "last_seen": self.current_frame,
+                        "confidence": confidence,
+                        "color": self.get_random_color(seed=track_id),
+                        "trajectory": [current_frame_data]
+                    }
 
-            except Exception as e:
-                logger.error(f"Error processing track {track.get('track_id', 'unknown')}: {e}")
+                # Validate label consistency
+                in_main = self.labelList.hasTrackID(track_id)
+                in_unique = self.uniqLabelList.hasPersonLabel(f"person{track_id}")
+                
+                if in_main != in_unique:
+                    logger.warning(f"Inconsistent ID presence: {track_id}")
+                    if in_main:
+                        self.labelList.removeTrackID(track_id)
+                    if in_unique:
+                        self.uniqLabelList.removePersonLabel(f"person{track_id}")
 
-        logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
-        return frame_annotations
+            self.cleanup_inactive_tracks(active_ids, current_tracks, max_age)
+            logger.debug(f"Active tracks: {list(current_tracks.keys())}")
+            
+            return current_tracks
+            
+        except Exception as e:
+            logger.error(f"Error managing track IDs: {e}")
+            return current_tracks
 
+######################################################################################
+    def cleanup_inactive_tracks(self, active_ids, current_tracks, max_age=30):
+        """
+        Remove inactive tracks from the current tracking dictionary.
+
+        Args:
+            active_ids: Set of currently active track IDs.
+            current_tracks: Dictionary of track information.
+            max_age: Maximum allowed age (in frames) for a track to remain active.
+        """
+        try:
+            for track_id in list(current_tracks.keys()):
+                # Check if the track is inactive
+                if track_id not in active_ids and self.current_frame - current_tracks[track_id]["last_seen"] > max_age:
+                    logger.info(f"Removing inactive track: {track_id}")
+                    
+                    # Remove from the tracking dictionary
+                    del current_tracks[track_id]
+                    
+                    # Cleanup UI and tracker if necessary
+                    self.labelList.removeTrackID(track_id)
+                    self.uniqLabelList.removePersonLabel(f"person{track_id}")
+                    if self.tracker.has_id(track_id):  # Check to avoid errors
+                        self.tracker.release_id(track_id)
+                    logger.debug(f"Track {track_id} successfully removed.")
+
+            logger.debug(f"Cleanup complete. Remaining tracks: {list(current_tracks.keys())}")
+        except Exception as e:
+            logger.error(f"Error during cleanup of inactive tracks: {e}")
+
+    
+            
+        
+##################################################################################################################
+    
+    def is_valid_bbox(self, bbox):
+        # Check if bbox has valid coordinates (non-negative, non-zero width/height)
+        if not bbox or len(bbox) != 4:
+            return False
+        x1, y1, x2, y2 = bbox
+        return x2 > x1 and y2 > y1
+
+    
+    
     def validate_track(self, track):
-        if not isinstance(track, dict) or "track_id" not in track or "bbox" not in track:
-            logger.error(f"Invalid track structure: {track}")
+        """Validate track data structure."""
+        if not isinstance(track, dict):
+            logger.error("Track must be a dictionary")
             return False
-        if not track["track_id"] or track.get("confidence", 0) <= 0:
-            logger.warning(f"Skipping invalid track: {track.get('track_id', 'unknown')}")
+        
+        required_fields = ["track_id", "bbox", "confidence"]
+        if not all(field in track for field in required_fields):
+            logger.error(f"Track missing required fields: {required_fields}")
             return False
-        if "class" in track and track["class"] != "person":
-            logger.warning(f"Skipping non-person track: {track['track_id']}")
+        
+        if not isinstance(track["bbox"], (list, tuple)) or len(track["bbox"]) != 4:
+            logger.error(f"Invalid bbox format: {track['bbox']}")
             return False
+            
         return True
-
     def validate_shape(self, shape, track_id):
         if not shape:
             logger.error(f"Failed to create shape for track {track_id}")
@@ -3513,45 +4140,37 @@ class MainWindow(QtWidgets.QMainWindow):
     def create_labelme_shape(self, track_id, x1, y1, x2, y2, color):
         """
         Create a LabelMe-compatible shape for the given track.
-
+        
         Args:
-            track_id (int): Unique track ID.
-            x1, y1, x2, y2 (float): Bounding box coordinates.
-            color (tuple): RGB color for the shape.
-
+            track_id (int): Unique track ID
+            x1, y1, x2, y2 (float): Bounding box coordinates
+            color (tuple): RGB color for the shape
+            
         Returns:
-            Shape: Configured Shape object or None if creation fails.
+            Shape: Configured Shape object or None if creation fails
         """
         try:
-            # Normalize and validate coordinates
-            x1, y1, x2, y2 = self.normalize_bbox([x1, y1, x2, y2])
-            if x1 >= x2 or y1 >= y2:
-                raise ValueError(f"Invalid bounding box coordinates: ({x1}, {y1}, {x2}, {y2})")
-
             # Create LabelMe-compatible shape
             label = f"person{track_id}"
             shape = Shape(label=label, shape_id=track_id)
-
+            
             # Define bounding points
-            bounding_points = [
+            points = [
                 QtCore.QPointF(x1, y1),
                 QtCore.QPointF(x2, y1),
                 QtCore.QPointF(x2, y2),
                 QtCore.QPointF(x1, y2)
             ]
-
-            for point in bounding_points:
+            
+            for point in points:
                 shape.addPoint(point)
-
+            
             logger.debug(f"Successfully created LabelMe shape for track {track_id}: {shape}")
             return shape
-
-        except ValueError as ve:
-            logger.error(f"Value error creating LabelMe shape for track {track_id}: {ve}")
+            
         except Exception as e:
-            logger.error(f"Unexpected error creating LabelMe shape for track {track_id}: {e}")
-
-        return None
+            logger.error(f"Error creating LabelMe shape for track {track_id}: {e}")
+            return None
 
 
 
@@ -3565,8 +4184,20 @@ class MainWindow(QtWidgets.QMainWindow):
             color (tuple): Color associated with the track.
         """
         self.addLabel(shape)
-        self.labelList.addPersonLabel(track_id, color)
-        self.uniqLabelList.addUniquePersonLabel(f"person{track_id}", color)
+         # Add label with explicit shape association
+        label_item = self.labelList.addPersonLabel(track_id, color, shape)
+        if not label_item:
+            logger.error(f"Failed to create label item for track {track_id}")
+            
+
+        # Verify shape association
+        if not label_item.shape():
+            logger.error(f"Label item missing shape after creation: {track_id}")
+        
+        
+            
+    
+        
    
 
         
@@ -3940,6 +4571,8 @@ class MainWindow(QtWidgets.QMainWindow):
             # retain currently selected file
             self.fileListWidget.setCurrentRow(self.imageList.index(current_filename))
             self.fileListWidget.repaint()
+    
+    
 
     def saveFile(self, _value=False):
         assert not self.image.isNull(), "cannot save empty image"
@@ -4133,6 +4766,12 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         )
 
+        if targetDirPath:
+            self.importDirImages(targetDirPath)
+        
+        
+        
+        
         if not targetDirPath:
             return
 
@@ -4166,6 +4805,56 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
 
+        # Use the existing Market1501Handler
+    def get_market1501_test_set(self):
+        try:
+            # Download Market-1501 if not already present
+            url = "https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view"
+            output_dir = "test_data/market1501"
+            
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                
+            # Process using the existing handler
+            handler = Market1501Handler(output_dir)
+            test_imgs = handler.get_test_images(num_persons=5, imgs_per_person=10)
+            return test_imgs
+            
+        except Exception as e:
+            logger.error(f"Error getting Market-1501 test set: {e}")
+            return []
+    
+        # In your main window class:
+    def load_test_dataset(self):
+        """Load test dataset for ReID."""
+        try:
+            # Option 1: Market-1501
+            test_imgs = self.get_market1501_test_set()
+            
+            # OR Option 2: Synthetic
+            output_dir = "test_data/synthetic_reid"
+            dataset_path = create_synthetic_dataset(
+                output_dir,
+                num_persons=5,
+                imgs_per_person=10
+            )
+            
+            if dataset_path:
+                # Import the test images to LabelMe
+                self.importDirImages(dataset_path)
+                
+                # Enable annotation buttons
+                self.actions.AnnotateVideo.setEnabled(True)
+                
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Dataset Loaded",
+                    f"Test dataset loaded with {5} persons, 10 images each"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error loading test dataset: {e}")
+    
     @property
     def imageList(self):
         lst = []
@@ -4231,22 +4920,79 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 item.setCheckState(Qt.Unchecked)
             self.fileListWidget.addItem(item)
+        if filenames and load:
+                # Select and load the first image
+            self.fileListWidget.setCurrentRow(0)
+            self.loadFile(filenames[0])
+        if len(self.imageList)>0:
+            self.actions.annotateImages.setEnabled(True)
+        
+        
+        
         self.openNextImg(load=load)
 
     def scanAllImages(self, folderPath):
-        extensions = [
-            ".%s" % fmt.data().decode().lower()
-            for fmt in QtGui.QImageReader.supportedImageFormats()
-        ]
+        """
+        Scan directory for valid image files.
+        
+        Args:
+            folderPath: Directory path to scan
+            
+        Returns:
+            List of image file paths
+        """
+        try:
+            # Get supported image formats
+            extensions = [
+                ".%s" % fmt.data().decode().lower()
+                for fmt in QtGui.QImageReader.supportedImageFormats()
+            ]
 
-        images = []
-        for root, dirs, files in os.walk(folderPath):
-            for file in files:
-                if file.lower().endswith(tuple(extensions)):
-                    relativePath = os.path.normpath(osp.join(root, file))
-                    images.append(relativePath)
-        images = natsort.os_sorted(images)
-        return images
+            # Common image extensions to check explicitly
+            common_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff'}
+            extensions = list(set(extensions + list(common_extensions)))
+
+            images = []
+            skipped = []
+
+            for root, dirs, files in os.walk(folderPath):
+                for file in files:
+                    try:
+                        # Check file extension
+                        if file.lower().endswith(tuple(extensions)):
+                            file_path = os.path.normpath(osp.join(root, file))
+                            
+                            # Verify file is readable
+                            if not os.access(file_path, os.R_OK):
+                                skipped.append((file_path, "Not readable"))
+                                continue
+                                
+                            # Check file size
+                            if os.path.getsize(file_path) == 0:
+                                skipped.append((file_path, "Empty file"))
+                                continue
+                                
+                            images.append(file_path)
+                            
+                    except Exception as e:
+                        skipped.append((file, str(e)))
+                        continue
+
+            # Sort images naturally
+            images = natsort.os_sorted(images)
+
+            # Log results
+            logger.info(f"Found {len(images)} valid images in {folderPath}")
+            if skipped:
+                logger.warning(f"Skipped {len(skipped)} files:")
+                for file, reason in skipped:
+                    logger.warning(f"  {file}: {reason}")
+
+            return images
+
+        except Exception as e:
+            logger.error(f"Error scanning directory {folderPath}: {e}")
+            return []
     
     """Update the code and the UI
     """
@@ -4412,13 +5158,29 @@ class EnhancedDeepSORT:
             reid_model: ReID model for feature extraction
             tracking_config (dict, optional): Custom tracking configuration
         """
+        
+        
+        
+        # Enable GPU acceleration if available
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Add feature caching
+        self.feature_cache = {}
+        self.cache_size = 1000  # Adjustable cache size
+        
+        
+        
         # Default configuration
         default_config = {
             'max_cosine_distance': 0.3,
             'nn_budget': 100,
             'max_iou_distance': 0.7,
             'max_age': 30,
-            'n_init': 3
+            'n_init': 3,
+            'min_confidence': 0.5,
+            'feature_cache_size': self.cache_size,
+            'device': device,
+            
         }
         
         # Merge default and custom configurations
@@ -4441,11 +5203,38 @@ class EnhancedDeepSORT:
         
         self.reid_model = reid_model
         self.tracks_confidence = {}
+        self.id_manager={}# changes done on 12/28/2024
+        self.next_id=1
+        self.recycled_ids = []  # Initialize the recycled_ids attribute
             
         logger.info("Enhanced DeepSORT tracker initialized successfully")
         
-        
+    def get_next_id(self):
+        if self.recycled_ids:
+            recycled_id = self.recycled_ids.pop(0)
+            logger.debug(f"Reusing recycled ID: {recycled_id}")
+            return recycled_id
+        id = self.next_id
+        self.next_id += 1
+        logger.debug(f"Assigning new ID: {id}")
+        return id
 
+    def release_id(self, track_id):
+        """
+        Release a track ID for recycling.
+        
+        Args:
+            track_id (str): The ID of the track to release.
+        """
+        if hasattr(self, "recycled_ids"):
+            if track_id not in self.recycled_ids:
+                self.recycled_ids.append(track_id)
+                logger.info(f"Released track ID: {track_id}")
+        else:
+            logger.error("Recycled ID list not initialized. Cannot release track ID.")
+
+
+    
     def _xywh_to_tlwh(self, bbox_xywh):
         """
         Convert [x_center, y_center, w, h] to [top_left_x, top_left_y, w, h]
@@ -4480,6 +5269,26 @@ class EnhancedDeepSORT:
         
         else:
             raise ValueError(f"Unexpected bounding box array dimension: {bbox_xywh.ndim}")
+    
+    
+    def tlbr_to_xywh(bbox):
+        """
+        Convert TLBR (top-left x, top-left y, bottom-right x, bottom-right y) 
+        to XYWH (center x, center y, width, height).
+        
+        Args:
+            bbox (list or numpy.ndarray): Bounding box in TLBR format.
+        
+        Returns:
+            list: Bounding box in XYWH format.
+        """
+        x1, y1, x2, y2 = bbox
+        width = x2 - x1
+        height = y2 - y1
+        x_center = x1 + width / 2
+        y_center = y1 + height / 2
+        return [x_center, y_center, width, height]
+
 
     def update(self, bbox_xywh, confidences, features, expected_feature_size):
         """
@@ -4518,17 +5327,30 @@ class EnhancedDeepSORT:
             detections = []
             for i, (bbox, conf, feat) in enumerate(zip(bbox_xywh, confidences, features)):
                 try:
-                    # Validate feature size
-                    if feat is not None and len(feat) == expected_feature_size:
-                        # Convert bbox to tlwh format
-                        tlwh = self._xywh_to_tlwh(np.asarray(bbox).flatten())
-                        
-                        # Create detection
-                        from deep_sort_realtime.deep_sort.detection import Detection
-                        detection = Detection(tlwh, conf, feat)
-                        detections.append(detection)
+                        # Properly validate feature type and convert if necessary
+                    if feat is not None:
+                        if isinstance(feat, (int, float)):
+                            # Convert single value to proper feature array
+                            feat = np.array([feat], dtype=np.float32)
+                        elif isinstance(feat, (list, tuple)):
+                            feat = np.array(feat, dtype=np.float32)
+                        elif isinstance(feat, torch.Tensor):
+                            feat = feat.cpu().numpy()
+                        # Validate feature size after conversion
+                        if len(feat) == expected_feature_size:
+
+                            # Convert bbox to tlwh format
+                            tlwh = self._xywh_to_tlwh(np.asarray(bbox).flatten())
+                            
+                            # Create detection
+                            from deep_sort_realtime.deep_sort.detection import Detection
+                            detection = Detection(tlwh, conf, feat)
+                            detections.append(detection)
+                        else:
+                            logger.warning(f"Invalid feature size for detection {i}. Expected: {expected_feature_size}, Got: {len(feat) if feat else 'None'}")
+                    
                     else:
-                        logger.warning(f"Invalid feature size for detection {i}. Expected: {expected_feature_size}, Got: {len(feat) if feat else 'None'}")
+                        logger.warning(f"None feature for detection {i}")
                 except Exception as detection_error:
                     logger.error(f"Error processing detection {i}: {detection_error}")
             
@@ -4545,8 +5367,17 @@ class EnhancedDeepSORT:
                     if not track.is_confirmed():
                         continue
                     
-                    bbox = track.to_tlbr()
+                    
+                    
                     track_id = track.track_id
+                    if track_id not in self.id_manager:
+                        self.id_manager[track_id] = str(self.get_next_id())
+                
+                    mapped_id = self.id_manager[track_id]
+                    bbox = track.to_tlbr()
+                    
+                   
+                 
 
                     if track_id not in self.tracks_confidence:
                         self.tracks_confidence[track_id] = ConfidenceTrack(track_id)
@@ -4556,11 +5387,12 @@ class EnhancedDeepSORT:
 
                     if self.tracks_confidence[track_id].is_confirmed():
                         outputs.append({
-                            "track_id": track_id,
+                            "track_id":  mapped_id,
                             "bbox": bbox.tolist() if isinstance(bbox, np.ndarray) else bbox,
                             "confidence": getattr(track, "confidence", 1.0),
                         })
-
+                    
+                    
                 except Exception as track_error:
                     logger.error(f"Error processing track: {track_error}")
 

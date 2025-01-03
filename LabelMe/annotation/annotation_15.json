@@ -1,0 +1,6578 @@
+[
+    {
+        "frame_number": 7,
+        "annotations": [
+            {
+                "track_id": "1",
+                "bbox": [
+                    1879.9171202226185,
+                    321.5633627821859,
+                    2975.6382902505675,
+                    2139.827744476485
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "2",
+                "bbox": [
+                    1167.9350242211708,
+                    1218.332136076977,
+                    2401.488598011063,
+                    2142.97254402553
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "3",
+                "bbox": [
+                    3341.575340400805,
+                    1225.002926981631,
+                    3840,
+                    2140.930857034188
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    606.2588903147273,
+                    1518.686320566514,
+                    1444.435096604113,
+                    2150.0202964387713
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 41,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    515.5754527878787,
+                    1571.6495052968664,
+                    1823.5286799405687,
+                    2147.2447498964357
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 45,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    715.9613801180078,
+                    1703.3407773183133,
+                    1300.9166983706941,
+                    2137.732240131795
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 52,
+        "annotations": [
+            {
+                "track_id": "6",
+                "bbox": [
+                    471.81043763974594,
+                    1362.777808568355,
+                    1798.3418394042792,
+                    2144.3439352832265
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 58,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    802.859948986859,
+                    1832.6647411487213,
+                    1202.93818524781,
+                    2129.762818939261
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 82,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    122.59009854775252,
+                    1338.7533377197171,
+                    1961.73443088444,
+                    2138.018438043606
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 162,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2995.2436943695093,
+                    970.4234808836824,
+                    3840,
+                    2149.0777569079687
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 163,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2996.31356227242,
+                    967.2242703424087,
+                    3840,
+                    2148.3436824969626
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 164,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2996.374918909896,
+                    965.4884847866044,
+                    3840,
+                    2148.073997337903
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 165,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2996.5453634153437,
+                    963.6195094629744,
+                    3840,
+                    2147.9788788588594
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 166,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2994.231201596662,
+                    961.6943553798828,
+                    3840,
+                    2147.949053601974
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 167,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2992.8337892944537,
+                    959.0777491832472,
+                    3840,
+                    2147.943168013465
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 168,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2989.2957921863613,
+                    958.1933821528493,
+                    3840,
+                    2149.2742602868207
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 169,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2985.6056084252946,
+                    954.6414954995266,
+                    3840,
+                    2149.1150981999363
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 170,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2984.3416197111887,
+                    953.3930377409384,
+                    3840,
+                    2150.3767154899865
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 171,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2982.7683177291538,
+                    951.0929285670292,
+                    3840,
+                    2150.5584006634713
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 172,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2981.195015921537,
+                    948.7928193931199,
+                    3840,
+                    2150.740085836956
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 173,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2979.6217142883397,
+                    946.4927102192106,
+                    3840,
+                    2150.921771010441
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 174,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2978.0484128295607,
+                    944.1926010453013,
+                    3840,
+                    2151.1034561839256
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 175,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2976.4751115452004,
+                    941.892491871392,
+                    3840,
+                    2151.2851413574103
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 176,
+        "annotations": [
+            {
+                "track_id": "6",
+                "bbox": [
+                    0,
+                    1408.781529355995,
+                    1300.1464876630664,
+                    2146.896908046391
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    2974.901810435259,
+                    939.5923826974828,
+                    3840,
+                    2151.466826530895
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 177,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2973.328509499737,
+                    937.2922735235735,
+                    3840,
+                    2151.64851170438
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 178,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2971.755208738633,
+                    934.9921643496642,
+                    3840,
+                    2151.8301968778646
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 179,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2970.181908151948,
+                    932.692055175755,
+                    3840,
+                    2152.0118820513494
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 180,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2968.6086077396817,
+                    930.3919460018457,
+                    3840,
+                    2152.193567224834
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 181,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2967.0353075018343,
+                    928.0918368279364,
+                    3840,
+                    2152.375252398319
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 182,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2965.4620074384056,
+                    925.7917276540271,
+                    3840,
+                    2152.5569375718037
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 183,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2963.888707549396,
+                    923.4916184801178,
+                    3840,
+                    2152.7386227452885
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 184,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2962.3154078348043,
+                    921.1915093062086,
+                    3840,
+                    2152.9203079187732
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 185,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2960.742108294632,
+                    918.8914001322993,
+                    3840,
+                    2153.101993092258
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 186,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2959.1688089288787,
+                    916.59129095839,
+                    3840,
+                    2153.2836782657428
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 187,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2957.595509737544,
+                    914.2911817844807,
+                    3840,
+                    2153.4653634392275
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 188,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2956.0222107206278,
+                    911.9910726105715,
+                    3840,
+                    2153.6470486127123
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 189,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2954.4489118781307,
+                    909.6909634366622,
+                    3840,
+                    2153.828733786197
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 190,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2952.875613210052,
+                    907.3908542627529,
+                    3840,
+                    2154.010418959682
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 191,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2951.3023147163926,
+                    905.0907450888436,
+                    3840,
+                    2154.1921041331666
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 192,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2949.7290163971516,
+                    902.7906359149343,
+                    3840,
+                    2154.3737893066514
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 193,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2948.1557182523293,
+                    900.4905267410251,
+                    3840,
+                    2154.555474480136
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 194,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2946.5824202819263,
+                    898.1904175671158,
+                    3840,
+                    2154.737159653621
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 195,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2945.0091224859416,
+                    895.8903083932065,
+                    3840,
+                    2154.9188448271057
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 196,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2943.4358248643757,
+                    893.5901992192972,
+                    3840,
+                    2155.1005300005904
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 197,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2941.8625274172286,
+                    891.290090045388,
+                    3840,
+                    2155.282215174075
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 198,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2940.2892301445004,
+                    888.9899808714787,
+                    3840,
+                    2155.46390034756
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 199,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2938.715933046191,
+                    886.6898716975694,
+                    3840,
+                    2155.6455855210447
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 200,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2937.1426361223002,
+                    884.3897625236601,
+                    3840,
+                    2155.8272706945295
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 201,
+        "annotations": [
+            {
+                "track_id": "2",
+                "bbox": [
+                    778.1915100800175,
+                    1064.7166890558492,
+                    2077.412749761502,
+                    2145.4754769701576
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1465.069137142511,
+                    957.5759329373783,
+                    2145.4127307619033
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 202,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1405.357008713106,
+                    984.8900748473536,
+                    2142.9264949148965
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 203,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1403.081976739151,
+                    997.1764048110301,
+                    2145.9592870309334
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 204,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1408.341655835883,
+                    977.5678510570656,
+                    2144.5721697725076
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 205,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1387.114522605517,
+                    968.8649089283851,
+                    2143.389165281127
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 206,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1461.263584181793,
+                    911.5064674382611,
+                    2142.958648095463
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 207,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0.4941971491336403,
+                    1508.3930684536595,
+                    876.1544468575353,
+                    2143.516839736421
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 208,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1423.125856976119,
+                    926.5813587728505,
+                    2143.735805003927
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 209,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1414.3200006017269,
+                    918.349766217931,
+                    2142.5214861002996
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 210,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1391.6149023091757,
+                    927.6554563049461,
+                    2143.350913346679
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 211,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1398.1255446281264,
+                    910.342297649484,
+                    2143.6808345320374
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 212,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1389.3269765209598,
+                    902.2994165529153,
+                    2143.165596869185
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 213,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1417.6435406275673,
+                    875.5323762135117,
+                    2143.630912196616
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 214,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1399.764282482819,
+                    873.1219858376196,
+                    2143.823825438115
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 215,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1390.6919185054999,
+                    867.3892190579804,
+                    2143.243513090081
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 216,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1392.0188053657525,
+                    856.8266190087926,
+                    2144.3347708330743
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 217,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1392.7809650142221,
+                    839.9071015204499,
+                    2141.473696129527
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 218,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1396.5796289566606,
+                    825.0541889335982,
+                    2141.7055816078773
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 219,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1400.1768313718567,
+                    809.6281757638505,
+                    2141.8061029614864
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 220,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1393.090198460601,
+                    800.6123352725913,
+                    2141.854552877555
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 221,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1392.502227376573,
+                    789.7133792741383,
+                    2143.853167508273
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 222,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1393.0699676651764,
+                    779.955392269981,
+                    2145.9372739508144
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 223,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1392.0868222580464,
+                    771.5075413599648,
+                    2146.06742394505
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 224,
+        "annotations": [
+            {
+                "track_id": "3",
+                "bbox": [
+                    3086.796433701306,
+                    1065.716715937961,
+                    3773.170411151519,
+                    2146.7838070109565
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1388.5232652051088,
+                    763.4581390481706,
+                    2146.1069690816275
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 225,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1379.3720569041582,
+                    756.5944073418441,
+                    2148.745124506939
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 226,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1379.9318449361751,
+                    746.6391990277891,
+                    2146.459684164952
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 227,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1384.8996277342624,
+                    736.6590734137042,
+                    2145.562801809758
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 228,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1390.2012186795057,
+                    726.9990131379639,
+                    2147.858895496453
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 229,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1390.950570850474,
+                    721.449298192568,
+                    2148.719623132176
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 230,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1394.580747499363,
+                    706.5227345461474,
+                    2145.7305525410834
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 231,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1405.9370700384932,
+                    694.8271999722097,
+                    2145.910511421266
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 232,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1406.2364799846864,
+                    684.4942145073198,
+                    2145.3126287496325
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 233,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1399.6907288394016,
+                    684.5990943020738,
+                    2146.415719589082
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 234,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1405.7944519137118,
+                    675.0320723146381,
+                    2146.170050195604
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 235,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1392.199811814382,
+                    673.5920002306987,
+                    2146.073071261688
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 236,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1365.4406304646288,
+                    672.9782104301844,
+                    2144.7214186253937
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 237,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1348.1922455462009,
+                    668.5604859309055,
+                    2143.5585232811873
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 238,
+        "annotations": [
+            {
+                "track_id": "1",
+                "bbox": [
+                    1535.1882913901936,
+                    219.54098021040375,
+                    2621.991118420112,
+                    2141.26827388973
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1339.072500856049,
+                    662.4527245950803,
+                    2145.7194831076113
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 239,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1329.8888130300058,
+                    649.5933407389216,
+                    2144.6035176901546
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 240,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1320.0439570774627,
+                    632.9162816652231,
+                    2142.216886656245
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 241,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1307.3497646922197,
+                    619.4628049953542,
+                    2142.613302105777
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 242,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1300.762758134662,
+                    607.1498908538348,
+                    2145.380646947332
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 243,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1297.8341201095936,
+                    589.4185183622321,
+                    2143.193175958182
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 244,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1293.7074006518114,
+                    573.5101055371103,
+                    2141.0414360885006
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 245,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1293.028414394502,
+                    556.562404026314,
+                    2140.8837182089183
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 246,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1293.6603558190307,
+                    540.9828658830565,
+                    2140.181391166716
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 247,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1296.0894396338904,
+                    526.7532413179224,
+                    2139.9278440687094
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 248,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1299.8377873804336,
+                    512.7770672706445,
+                    2141.164066137356
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 249,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1300.7564838101919,
+                    501.20591180238245,
+                    2142.9646051942364
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 250,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1300.5680302686796,
+                    491.4921357203693,
+                    2143.6511376518756
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 251,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1296.6519539032522,
+                    482.09891567858176,
+                    2143.9102404640666
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 252,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1282.7621324042584,
+                    476.51263387221775,
+                    2144.663238531485
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 253,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1268.443413015397,
+                    471.1719967581955,
+                    2145.598798880218
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 254,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1259.2001661667948,
+                    464.6242953933837,
+                    2145.9496776642504
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 255,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1252.5767741343402,
+                    455.9384086290112,
+                    2144.1133571235696
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 256,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1250.2504995926358,
+                    446.96033238333155,
+                    2143.400719575132
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 257,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1248.918997189026,
+                    436.5589268618687,
+                    2142.471004489319
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 258,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1251.895234977317,
+                    424.7376688733403,
+                    2141.4617140118025
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 259,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1247.2847776324834,
+                    413.21497574241016,
+                    2140.4242726124603
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 260,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1247.0026150531573,
+                    398.599101577454,
+                    2140.0407351570266
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 261,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1246.3937870607897,
+                    386.31820205955364,
+                    2140.565446225063
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 262,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1242.3481452017338,
+                    374.2780534588325,
+                    2140.116769253419
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 263,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1243.5730892201432,
+                    361.74653756313836,
+                    2139.955233997469
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3697.340139206548,
+                    1327.2040606249743,
+                    3790.7632026193974,
+                    2133.1728648422695
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 264,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1246.8093126849476,
+                    349.645730110596,
+                    2138.5847025022385
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3687.7628626032665,
+                    1329.615453290086,
+                    3788.7561110248016,
+                    2139.1551792126183
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 265,
+        "annotations": [
+            {
+                "track_id": "2",
+                "bbox": [
+                    320.04627391823294,
+                    1096.2857090148648,
+                    1659.7211545662794,
+                    2143.17810604283
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1250.7910665209204,
+                    336.7916588918948,
+                    2138.736672616261
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3684.0050417830475,
+                    1330.4309827433235,
+                    3789.577112396656,
+                    2117.0011876360086
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 266,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1249.7303056170683,
+                    326.96679455885834,
+                    2137.484790705459
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3678.1696876434894,
+                    1336.094287678858,
+                    3791.0013517696084,
+                    2120.9685609968187
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 267,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1252.693458858323,
+                    317.53408705617136,
+                    2137.0255497060034
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3672.989567996605,
+                    1344.1509353411911,
+                    3793.0102693223494,
+                    2127.209068975746
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 268,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1249.9000963353703,
+                    310.7678363185168,
+                    2140.1768633369174
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3666.428740917746,
+                    1349.7211320846602,
+                    3793.4908714781045,
+                    2127.560995247386
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 269,
+        "annotations": [
+            {
+                "track_id": "3",
+                "bbox": [
+                    2601.2706011126256,
+                    1069.5186435588075,
+                    3674.3374447516144,
+                    2142.3854520576897
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1258.1184852848705,
+                    296.8772459386686,
+                    2142.0316867659503
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3659.5290288281276,
+                    1352.3352434992116,
+                    3794.54201466203,
+                    2131.068097714893
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 270,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1423.5302448664102,
+                    272.7061998559981,
+                    2144.722936975134
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3650.549451870257,
+                    1353.1787632912997,
+                    3794.380913219162,
+                    2135.7188137856056
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 271,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0.3101322638237036,
+                    1496.5389759919235,
+                    258.29661484897144,
+                    2145.771634036203
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3642.018670499229,
+                    1352.7084504494317,
+                    3794.53463228591,
+                    2137.4479087895834
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 272,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1522.0138326753909,
+                    246.27512547702145,
+                    2147.519196900519
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3631.3788471646617,
+                    1347.7727365865892,
+                    3793.762838387881,
+                    2138.7353173885776
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 273,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1526.7997289813554,
+                    234.07704834897996,
+                    2148.074275324475
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3620.9130090259,
+                    1345.833691095841,
+                    3793.0082602588595,
+                    2140.512821410801
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 274,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1527.5659837164199,
+                    223.47241661554898,
+                    2148.2397160270857
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3610.432104930211,
+                    1348.344555059443,
+                    3791.685192964436,
+                    2141.8126206140287
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 275,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1538.5995620087292,
+                    210.69137669528186,
+                    2149.6399353623856
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3599.674227702598,
+                    1354.5387203496682,
+                    3789.761646545405,
+                    2142.9284026665027
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 276,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1542.4040799477857,
+                    198.5155206511384,
+                    2150.1176567934745
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3587.554157008129,
+                    1358.142424100462,
+                    3787.5510959404673,
+                    2143.972957355038
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 277,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1538.3359668946298,
+                    189.44773729928136,
+                    2150.2609383004155
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3577.878243534511,
+                    1360.7459924328916,
+                    3787.6011816629043,
+                    2144.327096092416
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 278,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1539.6854624005732,
+                    181.88985494822356,
+                    2150.2884781845582
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3567.307322158676,
+                    1362.305548459573,
+                    3787.0112916271783,
+                    2143.7593814717284
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 279,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1548.3909904267512,
+                    175.87584455843415,
+                    2149.600775273081
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3558.0769384131813,
+                    1362.8086056838688,
+                    3787.8150615333548,
+                    2143.5113842539304
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 280,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1555.8213343374423,
+                    171.08679143627353,
+                    2149.3230772910283
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3550.1837621086743,
+                    1362.919160492168,
+                    3789.6326387599106,
+                    2143.3901718955403
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 281,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1561.4657474581677,
+                    166.38138989891831,
+                    2149.206236311277
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3539.340085067255,
+                    1362.8890336408047,
+                    3789.31455377591,
+                    2144.644697860158
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 282,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1565.8085683819795,
+                    163.81400223946633,
+                    2149.824325407768
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3530.0972868061353,
+                    1362.8146708971587,
+                    3790.100789097088,
+                    2145.095166080297
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 283,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1565.0048819485182,
+                    162.92038439343622,
+                    2148.6989181551767
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3522.6708760899896,
+                    1362.0683792186028,
+                    3792.076556443044,
+                    2144.5794818328413
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 284,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1564.3668511878498,
+                    161.50513496604674,
+                    2148.2741868332746
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3513.0432102473997,
+                    1359.7536853893225,
+                    3792.7491875012747,
+                    2145.02356264285
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 285,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1567.8287454816757,
+                    159.4956734004397,
+                    2148.779382157258
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3504.670030942696,
+                    1362.8049793140722,
+                    3792.8125336428034,
+                    2145.1727799569535
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 286,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1572.8400692287705,
+                    155.74331264329632,
+                    2148.9648031602133
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3496.6230297797447,
+                    1361.9436755095262,
+                    3794.117986919475,
+                    2145.209976536031
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 287,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1579.1136192596766,
+                    153.14867778766006,
+                    2149.0291176019123
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3488.4068678607377,
+                    1359.6022329309767,
+                    3795.510799039705,
+                    2145.207746194295
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 288,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1587.8708431624927,
+                    151.07494755031507,
+                    2147.7102360900644
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3480.835115498623,
+                    1355.3919529345483,
+                    3797.5397540045374,
+                    2144.532069035602
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    10.063843455078164,
+                    1570.729799446833,
+                    103.90750550207221,
+                    2153.017874680672
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 289,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1590.8456566098232,
+                    142.32838725029086,
+                    2147.216741326095
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3473.6901321321393,
+                    1355.767590483616,
+                    3798.955188575148,
+                    2146.2427448390354
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    11.516042748662016,
+                    1570.6617096406214,
+                    105.37570131435105,
+                    2153.049029586306
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 290,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1602.3989166639203,
+                    139.61963490024064,
+                    2149.7133170235334
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3467.1751785445667,
+                    1352.6134094031245,
+                    3800.980680205177,
+                    2145.5604630473144
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    12.968242041925443,
+                    1570.5936198344098,
+                    106.84389712695031,
+                    2153.0801844919397
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 291,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1614.4740807493986,
+                    136.50744672549908,
+                    2151.986401464622
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3461.481971655976,
+                    1352.7434694301887,
+                    3802.6378183581132,
+                    2145.9477313272955
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    14.42044133486845,
+                    1570.525530028198,
+                    108.31209293987001,
+                    2153.111339397574
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 292,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1619.311540362365,
+                    132.7202372103436,
+                    2153.487828045465
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3453.675855145219,
+                    1353.4664008155232,
+                    3802.609833383504,
+                    2147.4030960554264
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    15.87264062749103,
+                    1570.4574402219864,
+                    109.78028875311011,
+                    2153.1424943032075
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 293,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1630.8611836828306,
+                    127.28431695515579,
+                    2153.351052131482
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3446.586469929388,
+                    1353.7505779952792,
+                    3801.7351341202634,
+                    2144.64145557132
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    17.324839919793178,
+                    1570.3893504157747,
+                    111.24848456667065,
+                    2153.1736492088417
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 294,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1638.5890344503289,
+                    124.15192761927005,
+                    2153.841561698271
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3436.3134250785206,
+                    1351.2209207856,
+                    3801.3513270096396,
+                    2146.887889011195
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    18.777039211774905,
+                    1570.321260609563,
+                    112.71668038055162,
+                    2153.2048041144753
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 295,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1646.3168852178271,
+                    121.01986016598761,
+                    2154.3320712650607
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3427.7524200501502,
+                    1348.2998459017067,
+                    3801.554617833632,
+                    2146.4097469774515
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    20.229238503436214,
+                    1570.2531708033514,
+                    114.184876194753,
+                    2153.2359590201095
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 296,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1654.0447359853256,
+                    117.88811459530845,
+                    2154.8225808318502
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3418.0971953884764,
+                    1347.2103587146785,
+                    3799.7695740738764,
+                    2144.898696661346
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    21.681437794777096,
+                    1570.1850809971397,
+                    115.65307200927482,
+                    2153.267113925743
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 297,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1661.7725867528238,
+                    114.7566909072326,
+                    2155.31309039864
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3408.3488273276216,
+                    1348.8046159297057,
+                    3797.5700352930044,
+                    2144.318510613066
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    23.133637085797552,
+                    1570.116991190928,
+                    117.12126782411707,
+                    2153.2982688313773
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 298,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1669.9626518644634,
+                    102.440467372757,
+                    2149.5086486355194
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3398.76507265179,
+                    1348.773041910793,
+                    3797.011766376961,
+                    2145.41990590028
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    24.58583637649759,
+                    1570.0489013847164,
+                    118.58946363927973,
+                    2153.329423737011
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "7",
+                "bbox": [
+                    0,
+                    1431.3796356685086,
+                    101.8597757090368,
+                    2147.7661307835097
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 299,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1680.0347388473824,
+                    94.50443230712511,
+                    2148.4105530549027
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3390.2355298592615,
+                    1350.7587851233957,
+                    3796.098527055895,
+                    2145.1748661378433
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    26.0380356668772,
+                    1569.9808115785047,
+                    120.05765945476281,
+                    2153.360578642645
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 300,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1688.067454928187,
+                    90.65505797260946,
+                    2148.1798599919075
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3380.829690398155,
+                    1354.169468772004,
+                    3795.6680920750814,
+                    2149.045701634637
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    27.49023495693639,
+                    1569.912721772293,
+                    121.52585527056631,
+                    2153.391733548279
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 301,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1696.100171008992,
+                    86.80606861509139,
+                    2147.9491669289123
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3373.66411439828,
+                    1359.4212464326397,
+                    3794.835657071004,
+                    2149.1773606746888
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    28.94243424667515,
+                    1569.8446319660814,
+                    122.99405108669025,
+                    2153.422888453913
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 302,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1704.1328870897967,
+                    82.95746423457092,
+                    2147.7184738659166
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3366.042992199328,
+                    1361.39429617443,
+                    3793.171416416808,
+                    2144.5709441693384
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    30.394633536093487,
+                    1569.7765421598697,
+                    124.4622469031346,
+                    2153.4540433595466
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 303,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1712.1656031706016,
+                    79.10924483104807,
+                    2147.4877808029214
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3358.064607792293,
+                    1366.0863802527356,
+                    3793.364679430237,
+                    2147.469839825895
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    31.8468328251914,
+                    1569.708452353658,
+                    125.93044271989939,
+                    2153.4851982651808
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 304,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1720.1983192514062,
+                    75.26141040452283,
+                    2147.257087739926
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3349.2454060214923,
+                    1367.8061721295687,
+                    3793.634571732631,
+                    2149.220088112891
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    33.29903211396889,
+                    1569.6403625474463,
+                    127.39863853698459,
+                    2153.5163531708145
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 305,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1728.2310353322111,
+                    71.41396095499519,
+                    2147.026394676931
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3338.165704889804,
+                    1368.4014278082523,
+                    3791.9029544799287,
+                    2149.2060997456774
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    34.75123140242596,
+                    1569.5722727412347,
+                    128.86683435439022,
+                    2153.5475080764486
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 306,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1736.2637514130158,
+                    67.56689648246517,
+                    2146.7957016139353
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3328.4182197618316,
+                    1370.5589409401075,
+                    3789.222783127106,
+                    2145.213841636672
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    36.2034306905626,
+                    1569.504182935023,
+                    130.33503017211626,
+                    2153.5786629820823
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 307,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1744.2964674938207,
+                    63.72021698693275,
+                    2146.56500855094
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3318.846564408479,
+                    1375.3022549058455,
+                    3787.848662939202,
+                    2145.6884766300254
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    37.65562997837881,
+                    1569.4360931288113,
+                    131.80322599016276,
+                    2153.6098178877164
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 308,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1752.3291835746254,
+                    59.873922468397936,
+                    2146.334315487945
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3309.4890333395256,
+                    1382.334569721106,
+                    3786.8363594061884,
+                    2148.5268853261123
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    39.10782926587461,
+                    1569.3680033225996,
+                    133.27142180852965,
+                    2153.64097279335
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 309,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1760.3618996554303,
+                    56.02801292686073,
+                    2146.1036224249497
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3301.1481211613864,
+                    1386.8904708124317,
+                    3787.0208059111765,
+                    2149.5916296510454
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    40.560028553049975,
+                    1569.299913516388,
+                    134.739617627217,
+                    2153.6721276989842
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 310,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1768.394615736235,
+                    52.18248836232114,
+                    2145.872929361954
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3295.279053865412,
+                    1393.8170527161956,
+                    3787.5562195532357,
+                    2149.980003896583
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    42.012227839904924,
+                    1569.2318237101763,
+                    136.20781344622475,
+                    2153.703282604618
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 311,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1776.4273318170399,
+                    48.33734877477915,
+                    2145.642236298959
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3289.4734866969225,
+                    1400.9642712124705,
+                    3787.7551828768787,
+                    2150.1115729260437
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    43.46442712643944,
+                    1569.1637339039646,
+                    137.67600926555292,
+                    2153.734437510252
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 312,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1784.4600478978446,
+                    44.492594164234774,
+                    2145.4115432359636
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3282.9532676168633,
+                    1404.8420881407785,
+                    3788.544825745899,
+                    2149.480826065943
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    44.916626412653535,
+                    1569.095644097753,
+                    139.14420508520152,
+                    2153.7655924158857
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 313,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1792.4927639786495,
+                    40.64822453068801,
+                    2145.1808501729683
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3276.600556427393,
+                    1410.1442684759138,
+                    3789.1007881532187,
+                    2149.8992358109126
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    46.36882569854721,
+                    1569.0275542915413,
+                    140.61240090517055,
+                    2153.79674732152
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 314,
+        "annotations": [
+            {
+                "track_id": "3",
+                "bbox": [
+                    2348.574801880414,
+                    1172.3648676825026,
+                    3320.352741949519,
+                    2144.6380661341473
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1800.5254800594541,
+                    36.804239874138844,
+                    2144.9501571099727
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3268.989195141137,
+                    1411.3167654477384,
+                    3790.214513850756,
+                    2149.381107951677
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    47.821024984120456,
+                    1568.9594644853296,
+                    142.08059672546,
+                    2153.8279022271536
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "7",
+                "bbox": [
+                    0,
+                    1515.2228494700473,
+                    54.836831218738936,
+                    2147.1673172392375
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 315,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1808.558196140259,
+                    32.96064019458729,
+                    2144.7194640469775
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3262.9692804897713,
+                    1415.6008505271104,
+                    3788.7969854883586,
+                    2145.8557234732943
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "6",
+                "bbox": [
+                    49.27322426937328,
+                    1568.891374679118,
+                    143.54879254606985,
+                    2153.8590571327877
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 316,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1816.5909122210637,
+                    29.117425492033348,
+                    2144.4887709839822
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3256.9710725412365,
+                    1418.3949305725487,
+                    3789.66825502778,
+                    2144.5289021963026
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 317,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1824.6236283018686,
+                    25.274595766477013,
+                    2144.258077920987
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3249.9494927240494,
+                    1419.2988977469379,
+                    3791.0834526342464,
+                    2144.0459752051056
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 318,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1832.6563443826733,
+                    21.432151017918287,
+                    2144.0273848579914
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3242.0395305652396,
+                    1418.84130526535,
+                    3792.5319688643885,
+                    2143.880690124818
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 319,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1840.6890604634782,
+                    17.59009124635716,
+                    2143.796691794996
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3233.228876168484,
+                    1420.543193467608,
+                    3794.5552335401107,
+                    2148.4798470799706
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 320,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1848.7217765442829,
+                    13.748416451793645,
+                    2143.565998732001
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3225.877572913677,
+                    1422.4036397925784,
+                    3795.655974010695,
+                    2150.2137793221355
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 321,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1995.0448991470466,
+                    10,
+                    2005.0448991470466
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3217.703231367852,
+                    1421.6761781607256,
+                    3796.4560332532187,
+                    2150.1959446371375
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 322,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    1998.9459106559511,
+                    10,
+                    2008.9459106559511
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3208.039043991134,
+                    1417.336475645192,
+                    3798.3201445984528,
+                    2150.175643478616
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 323,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2002.846922164856,
+                    10,
+                    2012.846922164856
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3198.276821904522,
+                    1410.3488216589299,
+                    3801.445981902176,
+                    2150.1565811657238
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "7",
+                "bbox": [
+                    0,
+                    1562.3846572334128,
+                    28.38643875590249,
+                    2146.8304846205847
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 324,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2006.7479336737608,
+                    10,
+                    2016.7479336737608
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3187.546743693612,
+                    1403.0562854341497,
+                    3804.001999769057,
+                    2150.79795140988
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 325,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2010.6489451826656,
+                    10,
+                    2020.6489451826656
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3178.125285418733,
+                    1392.39231756781,
+                    3808.6127482189804,
+                    2150.3742758427798
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 326,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2014.5499566915705,
+                    10,
+                    2024.5499566915705
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3167.6896405176835,
+                    1375.9056273012955,
+                    3813.5415346643017,
+                    2146.9253567336036
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 327,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2018.450968200475,
+                    10,
+                    2028.450968200475
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3158.542837505826,
+                    1359.8821464362902,
+                    3820.17728536059,
+                    2146.2610027414994
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 328,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2022.35197970938,
+                    10,
+                    2032.35197970938
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3149.560308367876,
+                    1340.8312166832313,
+                    3826.4741320323747,
+                    2143.405565513656
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "7",
+                "bbox": [
+                    0,
+                    1588.5856615463938,
+                    13.691780573913022,
+                    2146.6433553879997
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 329,
+        "annotations": [
+            {
+                "track_id": "5",
+                "bbox": [
+                    0,
+                    2026.2529912182845,
+                    10,
+                    2036.2529912182845
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3141.234158375216,
+                    1319.3668094917286,
+                    3837.239134129381,
+                    2146.2227148956135
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 330,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3132.246452570532,
+                    1296.4360603164905,
+                    3840,
+                    2147.9641027737994
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 331,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3122.2500485839164,
+                    1271.0220246221324,
+                    3840,
+                    2148.6427183378946
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 332,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3116.103939101669,
+                    1250.502702279247,
+                    3840,
+                    2143.750888411295
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 333,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3110.9965688196507,
+                    1231.8940192071486,
+                    3840,
+                    2141.1924684292453
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 334,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3106.9253211122405,
+                    1218.612352790783,
+                    3840,
+                    2140.861584121623
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 335,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3107.5619436989336,
+                    1210.0070497617392,
+                    3840,
+                    2142.696439734637
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 336,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3107.3942309703452,
+                    1201.2742751433962,
+                    3840,
+                    2144.0738228448654
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 337,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3105.852060246027,
+                    1194.4268036755484,
+                    3840,
+                    2143.9667602050877
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 338,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3096.9124652299956,
+                    1187.6520315262992,
+                    3840,
+                    2146.5348190772584
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 339,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3091.0161845902267,
+                    1183.4849018586538,
+                    3840,
+                    2147.525468029895
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 340,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3093.9332456908996,
+                    1180.3200375472354,
+                    3840,
+                    2145.945422712927
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 341,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3088.8475360190773,
+                    1178.8287827421445,
+                    3840,
+                    2145.332522113855
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 342,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3084.287467775257,
+                    1177.9498612958025,
+                    3840,
+                    2145.0979875574544
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 343,
+        "annotations": [
+            {
+                "track_id": "2",
+                "bbox": [
+                    0,
+                    1206.8568169585392,
+                    1224.1412771346697,
+                    2141.4379585107154
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3081.960920875451,
+                    1175.3072653181107,
+                    3840,
+                    2145.0104404506274
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 344,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3077.8065917619338,
+                    1174.5846945248554,
+                    3839.6690786447125,
+                    2144.979616469397
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 345,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3074.981639193124,
+                    1172.6102435682158,
+                    3838.4462509567256,
+                    2144.970503811793
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 346,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3072.135534900212,
+                    1170.1298047503124,
+                    3837.3161981604735,
+                    2144.3122472093623
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 347,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3072.3807696856447,
+                    1168.098167423005,
+                    3839.0358045600274,
+                    2144.7221445730065
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 348,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3068.3039543070336,
+                    1166.8795049069215,
+                    3836.8051116528995,
+                    2144.882145445915
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 349,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3067.052610276611,
+                    1165.2990487226202,
+                    3837.7940809976826,
+                    2146.261429903472
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 350,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3066.530000611463,
+                    1164.2201976571985,
+                    3838.378510150906,
+                    2146.7853208165657
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 351,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3063.1224552085737,
+                    1163.979649936196,
+                    3836.033411182325,
+                    2146.9798107520123
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 352,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3071.4421320905158,
+                    1162.726370144583,
+                    3840,
+                    2148.3651575476965
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 353,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3099.6265282584623,
+                    1159.0958352865555,
+                    3840,
+                    2147.56620556934
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 354,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3122.3092355006956,
+                    1155.2152457846742,
+                    3840,
+                    2148.56968760472
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 355,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3140.3933432020312,
+                    1153.2144821963502,
+                    3840,
+                    2150.9164855024474
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 356,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3154.820596078961,
+                    1145.350316254114,
+                    3840,
+                    2148.5078343266437
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 357,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3166.3868970331137,
+                    1138.547591505652,
+                    3840,
+                    2147.5773002019896
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 358,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3177.2819245049923,
+                    1133.4784582769203,
+                    3840,
+                    2147.8749454792114
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 359,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3190.7648273775008,
+                    1129.7351596939236,
+                    3840,
+                    2148.642794336847
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 360,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3203.0377642617473,
+                    1128.4702782881334,
+                    3840,
+                    2148.2741288486986
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 361,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3212.226669294272,
+                    1128.1487858520295,
+                    3840,
+                    2148.128167066499
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 362,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3219.960224762227,
+                    1126.854847687253,
+                    3840,
+                    2149.386319677226
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 363,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3225.540728168831,
+                    1126.4929168451345,
+                    3840,
+                    2149.8591773132534
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 364,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3227.147224244397,
+                    1126.478279739004,
+                    3840,
+                    2149.37188496777
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 365,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3227.862089005611,
+                    1127.2433232408132,
+                    3840,
+                    2147.860114422915
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 366,
+        "annotations": [
+            {
+                "track_id": "1",
+                "bbox": [
+                    1129.1810094258767,
+                    302.0973208226468,
+                    2306.4074727039438,
+                    2137.8398304424422
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    3227.429533457559,
+                    1128.9529699132715,
+                    3840,
+                    2146.6228535749324
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 367,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3222.0155048292595,
+                    1130.3444895748744,
+                    3840,
+                    2146.1572358542953
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 368,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3216.0682632027024,
+                    1134.902223933935,
+                    3840,
+                    2145.987877485415
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 369,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3211.802455803415,
+                    1140.6484787487036,
+                    3840,
+                    2145.931525367001
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 370,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3205.2160206155345,
+                    1148.1413538667039,
+                    3831.341526278586,
+                    2145.2550420828
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 371,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3195.739118942514,
+                    1156.9322794619843,
+                    3820.983793413422,
+                    2145.0079344685155
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 372,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3186.169087166718,
+                    1164.1823948577344,
+                    3813.258716243968,
+                    2145.5891934121496
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 373,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3177.8903230191463,
+                    1169.4848954892677,
+                    3808.6061101741752,
+                    2145.8151035516985
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 374,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3167.663784646973,
+                    1171.3778953751055,
+                    3804.92710667076,
+                    2146.56941254879
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 375,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3159.31759612546,
+                    1173.9777660665536,
+                    3801.696177414906,
+                    2144.8640575780573
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 376,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3148.5078328348363,
+                    1177.509172748525,
+                    3797.1721396576345,
+                    2144.224558201738
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 377,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3138.777314731726,
+                    1180.7248548844727,
+                    3794.832338547097,
+                    2144.656922728317
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 378,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3129.984699016076,
+                    1183.8179031260772,
+                    3792.8087807219194,
+                    2143.5002713700756
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 379,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3123.4498971132593,
+                    1188.1912536770558,
+                    3792.9935528693786,
+                    2143.737712449498
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 380,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3113.838364263401,
+                    1195.698592951326,
+                    3789.299459003252,
+                    2144.5014470778997
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 381,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3106.9883591873795,
+                    1203.0473174288834,
+                    3788.2006818265454,
+                    2144.79605236925
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 382,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3100.6751863088602,
+                    1208.9835938848116,
+                    3787.924251869467,
+                    2144.2449348739415
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 383,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3092.263562808742,
+                    1216.3712017100916,
+                    3786.918157951718,
+                    2146.7040655930205
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 384,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3082.953946218496,
+                    1222.9589341968428,
+                    3784.413018015134,
+                    2146.9599451279246
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 385,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3071.0876109986184,
+                    1229.9018610015466,
+                    3780.2410063173597,
+                    2147.7142986676286
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 386,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3067.3037903406753,
+                    1234.9697679734497,
+                    3783.7362539581686,
+                    2148.6542112508064
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 387,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3048.7594996657417,
+                    1241.9908739463806,
+                    3773.9469658727435,
+                    2148.9947965094416
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 388,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3037.1669942197714,
+                    1251.0749570248324,
+                    3767.3238849083323,
+                    2145.778956065782
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 389,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3034.5597220694976,
+                    1258.925049283697,
+                    3770.275389645568,
+                    2144.565052505005
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 390,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3027.9658234347526,
+                    1264.2869906988526,
+                    3770.7817270430746,
+                    2143.450331436636
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 391,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3028.0457714098,
+                    1269.38542094232,
+                    3776.8569138020202,
+                    2143.712313862736
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 392,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3025.167384798583,
+                    1276.3890246608,
+                    3781.0724949317037,
+                    2148.4889883193764
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 393,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3021.844413193337,
+                    1289.4276556919374,
+                    3777.210474698319,
+                    2149.60817184819
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 394,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3016.3707741032013,
+                    1299.400271507493,
+                    3772.944840000955,
+                    2150.0124409292303
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 395,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3008.4900116729023,
+                    1306.8426346214576,
+                    3768.1351584904396,
+                    2150.1454972229258
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 396,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    3001.8972529393654,
+                    1311.9974032513448,
+                    3765.6362244445345,
+                    2150.178416841345
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 397,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2992.7158820530412,
+                    1315.637726808267,
+                    3762.409295706492,
+                    2150.1757045127456
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 398,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2987.5055166827365,
+                    1318.059608084066,
+                    3764.6549473971986,
+                    2150.1614024437317
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 399,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2982.9084269297414,
+                    1319.3787456240782,
+                    3767.8105801561064,
+                    2149.478493169393
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 400,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2976.9438441068646,
+                    1320.9710590393447,
+                    3768.883477599505,
+                    2149.2137709646195
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 401,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2964.9091629478785,
+                    1322.0209697324883,
+                    3762.080601972552,
+                    2149.108939013897
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 402,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2954.897080960591,
+                    1321.5584935562836,
+                    3757.350685675742,
+                    2149.065624109317
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 403,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2950.2252499399838,
+                    1320.552156852355,
+                    3758.812628407642,
+                    2149.0462403378006
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 404,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2952.31281722918,
+                    1319.363330627717,
+                    3769.112921887918,
+                    2149.0363196358676
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 405,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2950.945689951244,
+                    1318.127033611511,
+                    3776.761326111937,
+                    2149.692476269807
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 406,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2949.2508499040555,
+                    1316.893509735479,
+                    3783.021078617789,
+                    2149.2752513655155
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 407,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2944.1181792374523,
+                    1316.3372704137187,
+                    3786.076721176551,
+                    2149.775287307592
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 408,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2942.972256632928,
+                    1316.7131954591268,
+                    3791.866354234474,
+                    2149.299823478963
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 409,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2942.044728877418,
+                    1319.4338824224221,
+                    3795.3349265646225,
+                    2149.11672475995
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 410,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2939.7647105553096,
+                    1319.7328462527498,
+                    3799.9940138825987,
+                    2149.708424451858
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 411,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2935.830950111223,
+                    1319.7818220937063,
+                    3802.2465101896173,
+                    2149.9294640704125
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 412,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2930.8594657379135,
+                    1319.080092769428,
+                    3803.9974969521386,
+                    2150.0094451720797
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 413,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2926.874119235744,
+                    1319.4252566833923,
+                    3805.5072360539325,
+                    2150.035868282118
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 414,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2925.3061450134887,
+                    1321.4947618225856,
+                    3807.531212639543,
+                    2150.042182290652
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 415,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2922.4523595863534,
+                    1322.232217014109,
+                    3809.3021384844315,
+                    2150.041173866686
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 416,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2917.1576869611563,
+                    1320.479997876516,
+                    3810.940071253035,
+                    2150.0378436828632
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 417,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2912.4693915181792,
+                    1318.4589561419684,
+                    3812.9884735650467,
+                    2150.034027057418
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 418,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2908.5460693032182,
+                    1316.3469237781749,
+                    3814.66158068058,
+                    2149.3698701484423
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 419,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2903.2632465874667,
+                    1316.192290092674,
+                    3812.561686386005,
+                    2147.7968111428804
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 420,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2898.9485465761095,
+                    1317.447765167368,
+                    3811.5193493930988,
+                    2147.865404376482
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 421,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2895.279742752808,
+                    1317.252129682493,
+                    3812.605001332731,
+                    2147.8984753274262
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 422,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2891.239099778714,
+                    1316.5067217385679,
+                    3813.1343364272843,
+                    2147.256055023255
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 423,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2887.450142866257,
+                    1315.5561818896736,
+                    3813.722742442129,
+                    2146.358675958623
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 424,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2883.6361316448065,
+                    1315.8542646009046,
+                    3813.7952567740977,
+                    2146.0282625355576
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 425,
+        "annotations": [
+            {
+                "track_id": "3",
+                "bbox": [
+                    2044.5816225897622,
+                    1204.901192571553,
+                    3000.279017720686,
+                    2145.9384605659147
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            },
+            {
+                "track_id": "4",
+                "bbox": [
+                    2880.9426342688585,
+                    1315.3048696147027,
+                    3815.1891323759564,
+                    2145.2531072287866
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 426,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2879.2580493798905,
+                    1314.43543008771,
+                    3813.1911186101643,
+                    2139.6835807837842
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 427,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2875.3514089710998,
+                    1314.7710116025094,
+                    3815.820336536945,
+                    2142.235006306091
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 428,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2870.999426144136,
+                    1315.561437092123,
+                    3815.8311744170633,
+                    2143.222011712846
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 429,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2865.9828021386047,
+                    1317.1837496489086,
+                    3814.687857739908,
+                    2144.2749583155446
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 430,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2862.2683040439024,
+                    1317.793454145563,
+                    3814.2088246945214,
+                    2143.3625973649496
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 431,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2855.447396971806,
+                    1318.0150817357026,
+                    3812.297852949791,
+                    2143.026991670371
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 432,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2844.0548143811952,
+                    1314.781982072551,
+                    3809.290222273255,
+                    2141.588577331455
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 433,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2835.417932637022,
+                    1315.539939704378,
+                    3806.7143497408642,
+                    2141.71919946227
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 434,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2828.1916186079966,
+                    1316.4920883394143,
+                    3803.9581348587776,
+                    2139.800973492581
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 435,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2818.640879983048,
+                    1318.176043403339,
+                    3800.705369274425,
+                    2139.754179034662
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 436,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2813.2817564650654,
+                    1323.4389495738053,
+                    3797.5192791284944,
+                    2139.0944556463483
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 437,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2808.7330029256923,
+                    1330.052786042,
+                    3795.149139484293,
+                    2139.5284283515193
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 438,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2802.7344053955258,
+                    1333.8271071530894,
+                    3794.1839622120556,
+                    2139.710133639635
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 439,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2797.496847046238,
+                    1337.8379737625728,
+                    3793.767337153861,
+                    2139.79265958849
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 440,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2787.336349342498,
+                    1338.6094915517083,
+                    3794.7796192768865,
+                    2142.492174113297
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 441,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2784.5232655637665,
+                    1342.800515445329,
+                    3794.4240731213144,
+                    2140.8612305435804
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 442,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2778.808760254576,
+                    1344.9681648246828,
+                    3794.5895804366733,
+                    2140.244570557732
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 443,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2766.756092584808,
+                    1342.3808532663331,
+                    3797.519724765053,
+                    2143.3377456272374
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 444,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2757.9141121591265,
+                    1340.0218265480366,
+                    3800.5386137372248,
+                    2144.49846767717
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 445,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2750.08445684205,
+                    1339.0733167002359,
+                    3801.807816820662,
+                    2144.9291823724125
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 446,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2742.7542783092617,
+                    1338.0116680428982,
+                    3802.295102510292,
+                    2144.419933112386
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 447,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2736.243305091927,
+                    1337.5775764045652,
+                    3803.177226919838,
+                    2144.2164823276707
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 448,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2729.4814421250708,
+                    1338.0490688237733,
+                    3803.4463832749593,
+                    2144.7924807210848
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 449,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2721.060110230077,
+                    1340.18778320942,
+                    3800.4195844991327,
+                    2145.0029458627555
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 450,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2713.7341784398186,
+                    1340.9723017198812,
+                    3799.05502526035,
+                    2144.412528304975
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 451,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2709.0464065025,
+                    1342.5629221780293,
+                    3799.4205755147195,
+                    2144.182534210794
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 452,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2703.553292196794,
+                    1345.780342170371,
+                    3797.6088876736794,
+                    2144.0912743654044
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 453,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2696.7499919455286,
+                    1347.620442733623,
+                    3793.322295246559,
+                    2140.741257837372
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 454,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2687.54511634346,
+                    1351.5859564396492,
+                    3788.6848488675273,
+                    2140.80768642757
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 455,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2683.5194524206945,
+                    1357.670323210542,
+                    3789.139264700813,
+                    2143.4984785813276
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 456,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2678.589039539178,
+                    1361.2187321131873,
+                    3789.7255876520844,
+                    2144.516083619254
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 457,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2674.314973619849,
+                    1363.7980600899618,
+                    3790.0094029489783,
+                    2144.231170558347
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 458,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2667.799075637135,
+                    1365.3445976236903,
+                    3789.336902603194,
+                    2144.117909861252
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 459,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2662.5870015928913,
+                    1367.8295854868531,
+                    3788.138678921651,
+                    2144.071035957697
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 460,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2654.1375234527204,
+                    1368.6788658983205,
+                    3785.826893699983,
+                    2144.049902750379
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 461,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2641.7283058664552,
+                    1367.5896343594522,
+                    3780.543772170719,
+                    2142.0505176919364
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 462,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2616.5439736158946,
+                    1371.0804312716505,
+                    3766.8983058983217,
+                    2145.274250277117
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 463,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2584.0993365220384,
+                    1371.6644740137351,
+                    3752.6435427905744,
+                    2148.4765156221947
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 464,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2571.6080245318785,
+                    1371.1542343735327,
+                    3752.678719772659,
+                    2149.008628050003
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 465,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2549.9415048458086,
+                    1368.913195609491,
+                    3747.111642866542,
+                    2149.1883345448
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 466,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2526.519396611624,
+                    1366.6948767906651,
+                    3738.3998499810114,
+                    2148.575526336628
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 467,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2528.6509074123323,
+                    1362.5169788607295,
+                    3747.229121990533,
+                    2143.7035162481193
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 468,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2515.8821482764365,
+                    1358.9310650435123,
+                    3745.668660009115,
+                    2142.5120353715997
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 469,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2492.2422227604147,
+                    1356.256564140148,
+                    3737.408254707494,
+                    2144.051039513879
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 470,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2478.786795567351,
+                    1353.938991511894,
+                    3735.430144444743,
+                    2144.641907800371
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 471,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2461.270926279912,
+                    1353.0814535084942,
+                    3727.9686832031857,
+                    2144.8690518921103
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 472,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2450.0949847441575,
+                    1353.4429930089796,
+                    3720.439048449638,
+                    2143.636969347125
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 473,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2455.2878491896563,
+                    1351.6257383465882,
+                    3745.8394177428468,
+                    2146.4735685745904
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 474,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2422.6657372306213,
+                    1350.3047691120967,
+                    3711.527712537591,
+                    2144.2506363081075
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 475,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2393.676532005141,
+                    1349.1727625896401,
+                    3676.7020252239254,
+                    2142.080907069628
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 476,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2408.804006711327,
+                    1349.43626476233,
+                    3682.4530398248285,
+                    2139.9444617011563
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 477,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2466.8199812857083,
+                    1347.5837856092817,
+                    3752.205988914209,
+                    2141.795305672412
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 478,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2425.9419632802797,
+                    1349.551287948713,
+                    3696.599846252461,
+                    2139.8694751136604
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 479,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2378.182554529574,
+                    1347.6837070624929,
+                    3649.70986002354,
+                    2142.457797006102
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 480,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2423.1829977799716,
+                    1347.6612720581336,
+                    3711.44049409534,
+                    2143.4425481790836
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 481,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2438.1544337598907,
+                    1347.018682879158,
+                    3744.255934117586,
+                    2143.8185161635547
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 482,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2437.137945392161,
+                    1348.1186638854365,
+                    3758.9689474874403,
+                    2145.2793378172328
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 483,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2301.976609489269,
+                    1349.8767852444598,
+                    3590.423716410548,
+                    2143.8478417406004
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 484,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2229.9208808812227,
+                    1353.2025144790705,
+                    3481.014959834449,
+                    2144.621744707817
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 485,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2197.074920030811,
+                    1357.10651554807,
+                    3413.1386202412327,
+                    2146.8963874892943
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 486,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2192.708012788168,
+                    1359.8890964344978,
+                    3378.202808688167,
+                    2149.0699619029483
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 487,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2196.9708627738096,
+                    1363.557789093568,
+                    3350.6395097424343,
+                    2149.2120715447145
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 488,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2194.136804520541,
+                    1364.243525018041,
+                    3321.6067175417174,
+                    2149.243905067174
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    },
+    {
+        "frame_number": 489,
+        "annotations": [
+            {
+                "track_id": "4",
+                "bbox": [
+                    2193.843030394908,
+                    1365.7815270460057,
+                    3289.951800936358,
+                    2145.265973329197
+                ],
+                "confidence": 1.0,
+                "frames_tracked": 1
+            }
+        ]
+    }
+]

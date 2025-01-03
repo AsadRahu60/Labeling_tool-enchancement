@@ -49,7 +49,7 @@ class Shape(object):
     point_size = 8
     scale = 1.0
 
-    def __init__(
+    def __init__ (
         self,
         label=None,
         line_color=None,
@@ -61,7 +61,8 @@ class Shape(object):
         mask=None,
         rect=None,
         confidence=None,
-        bbox=None
+        bbox=None,
+        frame_number=None
         
         
     ):
@@ -94,7 +95,8 @@ class Shape(object):
         self.description = description
         self.other_data = {}
         self.mask = mask
-        self._bbox = bbox  # Ensure this is set
+        self._bbox = None  # Ensure this is set
+        self.frame_number = frame_number  # Store frame number
 
         self._highlightIndex = None
         self._highlightMode = self.NEAR_VERTEX
@@ -111,13 +113,36 @@ class Shape(object):
             # is used for drawing the pending line a different color.
             self.line_color = line_color
     
-    def isValid(self):
-        """Check if the shape is valid."""
-        valid =len(self.points) == 4 and not self.boundingRect().isEmpty() 
-        if not valid :
-            logger.warning(f"Invalid shape: points={len(self.points)}, bbox={self._boundingRect}")
-        return valid
+    # def isValid(self):
+    #     """Check if the shape is valid."""
+    #     valid =len(self.points) == 4 and not self.boundingRect().isEmpty() 
+    #     if not valid :
+    #         logger.warning(f"Invalid shape: points={len(self.points)}, bbox={self._boundingRect}")
+    #     return valid
 
+    
+    @property
+    def frame_number(self):
+        return self._frame_number
+
+    @frame_number.setter 
+    def frame_number(self, value):
+        self._frame_number = value
+    
+    
+    
+    def isValid(self):
+        """Check if shape has valid points and bounding box."""
+        if len(self.points) < 2:
+            return False
+            
+        rect = self.boundingRect()
+        if rect.isEmpty() or rect.isNull():
+            return False
+            
+        return True
+    
+    
     def setShapeRefined(self, shape_type, points, point_labels, mask=None):
         self._shape_raw = (self.shape_type, self.points, self.point_labels)
         self.shape_type = shape_type
@@ -131,16 +156,57 @@ class Shape(object):
         self.shape_type, self.points, self.point_labels = self._shape_raw
         self._shape_raw = None
 
+    # In shape.py, modify boundingBox() method:
     def boundingBox(self):
-        if self.rect and not self.rect.isEmpty():
-            logging.debug(f"Bounding box valid: {self.rect}")
-            return self.rect
-        logging.warning("Bounding box is invalid or empty.")
-        return None
+        if not self.points:
+            logging.warning(f"Shape ID {self.shape_id} has no points")
+            return None
+            
+        try:
+            x_coords = [p.x() for p in self.points]
+            y_coords = [p.y() for p in self.points]
+            
+            if not x_coords or not y_coords:
+                logging.warning(f"Shape ID {self.shape_id} has invalid coordinates")
+                return None
+                
+            rect = QtCore.QRectF(
+                min(x_coords), min(y_coords),
+                max(x_coords) - min(x_coords),
+                max(y_coords) - min(y_coords)
+            )
+            
+            if rect.isEmpty():
+                logging.warning(f"Shape ID {self.shape_id} generated empty bounding box")
+                return None
+                
+            return rect
+            
+        except Exception as e:
+            logging.error(f"Error generating bounding box for shape {self.shape_id}: {e}")
+            return None
     
     @property
     def bbox(self):
+        """Get the bounding box coordinates"""
+        if self._bbox is None and self.points:
+            # Calculate bbox from points if not set
+            x_coords = [p.x() for p in self.points]
+            y_coords = [p.y() for p in self.points]
+            self._bbox = [
+                min(x_coords),
+                min(y_coords),
+                max(x_coords),
+                max(y_coords)
+            ]
         return self._bbox
+    @bbox.setter
+    def bbox(self, value):
+        """Set the bounding box coordinates"""
+        if value is not None and len(value) == 4:
+            self._bbox = value
+    
+    
     @property
     def shape_type(self):
         return self._shape_type
@@ -162,6 +228,27 @@ class Shape(object):
             raise ValueError("Unexpected shape_type: {}".format(value))
         self._shape_type = value
 
+    
+    
+    def intersectionArea(self, other_shape):
+        """Calculate intersection area between two shapes"""
+        rect1 = self.boundingRect()
+        rect2 = other_shape.boundingRect()
+        
+        x1 = max(rect1.left(), rect2.left())
+        y1 = max(rect1.top(), rect2.top())
+        x2 = min(rect1.right(), rect2.right())
+        y2 = min(rect1.bottom(), rect2.bottom())
+        
+        if x2 <= x1 or y2 <= y1:
+            return 0
+            
+        return (x2 - x1) * (y2 - y1)
+
+    def area(self):
+        """Calculate area of shape"""
+        rect = self.boundingRect()
+        return rect.width() * rect.height()
     
     
     
@@ -450,15 +537,22 @@ class Shape(object):
         Returns:
             QRectF: The bounding rectangle of the shape, or None if invalid.
         """
-        path = self.makePath()
-        if path.isEmpty():
-            logging.error(f"BoundingRect is empty for shape ID {self.shape_id}.")
-            return QtCore.QRectF()  # Return an empty QRectF
+        try:
+            path = self.makePath()
+            if path.isEmpty():
+                logging.error(f"BoundingRect is empty for shape ID {self.shape_id}.")
+                return QtCore.QRectF()  # Return an empty QRectF
 
-        rect = path.boundingRect()
-        if rect.isEmpty():
-            logging.error(f"Generated QRectF is empty for shape ID {self.shape_id}.")
-        return rect
+            rect = path.boundingRect()
+            if rect.isEmpty():
+                logging.error(f"Generated QRectF is empty for shape ID {self.shape_id}.")
+            else:
+                logging.debug(f"Generated QRectF for shape ID {self.shape_id}: {rect}")
+            return rect
+        except Exception as e:
+            logging.error(f"Error in boundingRect for shape ID {self.shape_id}: {e}")
+            return QtCore.QRectF()  # Fallback to an empty QRectF
+
 
     
     

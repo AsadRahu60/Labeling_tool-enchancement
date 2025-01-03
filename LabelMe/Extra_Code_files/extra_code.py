@@ -3799,3 +3799,360 @@
 #         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
 #         return frame_annotations
 
+
+
+# def process_tracks(self, frame, person_colors, tracked_objects):
+#         frame_annotations = []
+#         frame_height, frame_width = frame.shape[:2]
+#         logger.info(f"Frame dimensions: {frame_width}x{frame_height}, Tracked objects: {len(tracked_objects)}")
+#         processed_track_ids = set()
+
+#         for track in tracked_objects:
+#             try:
+#                 if not self.validate_track(track):
+#                     continue
+
+#                 track_id = track["track_id"]
+#                 if track_id in processed_track_ids:
+#                     logger.debug(f"Skipping already processed track {track_id}")
+#                     continue
+                
+#                 processed_track_ids.add(track_id)
+#                 bbox = track.get("bbox")
+                
+#                 # Additional bbox validation
+#                 if not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+#                     logger.error(f"Invalid bbox format for track {track_id}: {bbox}")
+#                     continue
+
+#                 # Scale bbox and validate result
+#                 scaled_bbox = self.scale_bbox(bbox, frame_width, frame_height)
+#                 if scaled_bbox is None:
+#                     logger.error(f"Failed to scale bbox for track {track_id}")
+#                     continue
+
+#                 # Create shape data
+#                 shape_data = {
+#                     "bbox": scaled_bbox,
+#                     "shape_type": "rectangle",
+#                     "shape_id": str(track_id),
+#                     "confidence": track.get("confidence", 1.0)
+#                 }
+
+#                 # Create shape
+#                 shape = self.canvas.createShapeFromData(shape_data)
+#                 if not shape:
+#                     logger.error(f"Failed to create shape for track {track_id}")
+#                     continue
+
+#                 # Get color for track
+#                 color = person_colors.setdefault(track_id, self.get_random_color())
+                
+#                 # Add to unique label list first
+#                 self.uniqLabelList.addUniquePersonLabel(track_id, color)
+
+#                 # Create LabelMe shape with explicit parameter passing
+#                 label_shape = self.create_labelme_shape(
+#                     track_id=track_id,
+#                     x1=scaled_bbox[0],
+#                     y1=scaled_bbox[1],
+#                     x2=scaled_bbox[2],
+#                     y2=scaled_bbox[3],
+#                     color=color
+#                 )
+
+#                 if not label_shape:
+#                     logger.error(f"Failed to create LabelMe shape for track {track_id}")
+#                     continue
+
+#                 if not self.canvas.is_shape_duplicate(shape.id, scaled_bbox):
+#                     self.canvas.addShape(shape)
+#                     frame_annotations.append(shape_data)
+#                     self.add_labels_to_UI(label_shape, track_id, color)
+#                     logger.info(f"Successfully processed track {track_id}")
+
+#             except Exception as e:
+#                 logger.error(f"Error processing track {track_id}: {e}")
+#                 logger.debug(f"Track data: {track}", exc_info=True)
+#                 continue
+
+#         logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
+#         self.labelList.validateItems()
+#         return frame_annotations
+
+
+
+# def extract_reid_features(self, frame, bbox_xywh, expected_feature_size):
+#         """Extract ReID features from detected persons."""
+#         features = []
+#         height, width = frame.shape[:2]
+#         # expected_feature_size=self.output_feature_size
+
+#         try:
+#             for i, box in enumerate(bbox_xywh):
+#                 x_center, y_center, w, h = box
+#                 x1 = int(max(0, x_center - w / 2))
+#                 y1 = int(max(0, y_center - h / 2))
+#                 x2 = int(min(width, x_center + w / 2))
+#                 y2 = int(min(height, y_center + h / 2))
+
+#                 if x2 <= x1 or y2 <= y1:
+#                     logger.warning(f"Invalid box dimensions for detection {i}: [{x1}, {y1}, {x2}, {y2}]")
+#                     features.append(None)
+#                     continue
+
+#                 try:
+#                     person_img = frame[y1:y2, x1:x2]
+#                     if person_img.size == 0:
+#                         logger.warning(f"Empty person crop for detection {i}")
+#                         features.append(None)
+#                         continue
+
+#                     img = cv2.resize(person_img, (128, 256))
+#                     img = torch.from_numpy(img).float().permute(2, 0, 1).unsqueeze(0)
+#                     if torch.cuda.is_available():
+#                         img = img.cuda()
+
+#                     with torch.no_grad():
+#                         feature = self.reid_model(img)
+#                         if isinstance(feature, dict):
+#                             feature = feature['features']
+#                         feature = feature.cpu().numpy().flatten()
+
+#                         if len(feature) != expected_feature_size:
+#                             logger.warning(f"Unexpected feature size {len(feature)} for detection {i}")
+#                             features.append(None)
+#                             continue
+
+#                         features.append(feature)
+
+#                 except Exception as e:
+#                     logger.error(f"Error processing detection {i}: {e}")
+#                     features.append(None)
+#                     continue
+
+#             logger.debug(f"Extracted features for {len(features)} detections")
+#             return features
+
+#         except Exception as e:
+#             logger.error(f"Overall feature extraction error: {e}")
+#             return [None] * len(bbox_xywh)
+
+#     ##########################################################################################
+#     def _preprocess_crop(self, frame, x1, y1, x2, y2, device):
+#         """
+#         Preprocess the cropped region for ReID model input using PyTorch transforms.
+#         """
+#         try:
+#             # Ensure bounding box coordinates are integers
+#             x1, y1, x2, y2 = map(int, (x1, y1, x2, y2))
+            
+
+#             # Validate bounding box dimensions
+#             if x2 <= x1 or y2 <= y1:
+#                 logger.warning(f"Invalid bounding box: ({x1}, {y1}, {x2}, {y2})")
+#                 return None
+
+#             # Crop the bounding box
+#             crop = frame[y1:y2, x1:x2]
+#             if crop.size == 0:
+#                 logger.warning(f"Empty crop for bbox: ({x1}, {y1}, {x2}, {y2})")
+#                 return None
+
+#             # Preprocess the crop
+#             transform = transforms.Compose([
+#                 transforms.ToPILImage(),
+#                 transforms.Resize((256, 128)),
+#                 transforms.ToTensor(),
+#                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+#             ])
+#             crop_tensor = transform(crop).unsqueeze(0)  # Add batch dimension
+#             return crop_tensor.to(device)
+
+#         except Exception as e:
+#             logger.warning(f"Error preprocessing crop ({x1}, {y1}, {x2}, {y2}): {e}")
+#             return None
+
+
+
+
+
+
+
+
+
+# def cleanup_inactive_tracks(self, active_ids, current_tracks):
+#         """
+#         Remove tracks that are no longer active.
+        
+#         Args:
+#             active_ids: Set of currently active track IDs
+#             current_tracks: Dictionary of track information
+#         """
+#         try:
+#             # Get existing tracks from UI
+#             ui_track_ids = set()
+#             for i in range(self.labelList.count()):
+#                 item = self.labelList.model().item(i)  # Access items via the model
+#                 if item and item.shape():
+#                     ui_track_ids.add(item.shape().shape_id)
+            
+#             # Find inactive tracks
+#             inactive_ids = ui_track_ids - active_ids
+            
+#             # Remove inactive tracks
+#             for track_id in inactive_ids:
+#                 # Remove from UI
+#                 self.labelList.removeTrackID(track_id)
+#                 self.uniqLabelList.removePersonLabel(f"person{track_id}")
+#                 self.tracker.release_id(track_id)
+#                 logger.info(f"Released track ID: {track_id}")
+                
+#                 # Remove from tracking
+#                 if track_id in current_tracks:
+#                     current_tracks.pop(track_id)
+                    
+#             if inactive_ids:
+#                 logger.debug(f"Removed inactive tracks: {inactive_ids}")
+#                 # Validate all shapes
+#             for shape in self.canvas.shapes:
+#                 if not self.is_valid_bbox(shape.bbox):
+#                     self.canvas.removeShape(shape)
+            
+#             logger.debug(f"Cleanup complete. Remaining tracks: {list(current_tracks.keys())}")
+                    
+            
+                
+#         except Exception as e:
+#             logger.error(f"Error cleaning up inactive tracks: {e}")
+
+
+# def process_tracks(self, frame, person_colors, tracked_objects):
+#         """
+#         Process tracked objects to create shapes, manage IDs, and update UI.
+
+#         Args:
+#             frame (ndarray): Current video frame.
+#             person_colors (dict): Mapping of track IDs to colors.
+#             tracked_objects (list): List of detected objects with track info.
+
+#         Returns:
+#             list: Annotations for the current frame.
+#         """
+#         frame_annotations = []
+#         frame_height, frame_width = frame.shape[:2]
+#         logger.info(f"Frame dimensions: {frame_width}x{frame_height}, Tracked objects: {len(tracked_objects)}")
+#         processed_track_ids = set()
+
+#         try:
+#             # Initialize or get current_tracks
+#             if not hasattr(self, 'current_tracks'):
+#                 self.current_tracks = {}
+
+#             # Manage track IDs and update current_tracks
+#             self.current_tracks = self.manage_track_ids(tracked_objects, self.current_tracks)
+            
+#             # Clear existing shapes for new frame
+#             self.canvas.shapes.clear()
+#             self.labelList.clear()
+
+#             for track in tracked_objects:
+#                 try:
+#                     if not self.validate_track(track):
+#                         logger.debug(f"Skipping invalid track: {track}")
+#                         continue
+
+#                     # Get managed track ID
+#                     track_id = track["track_id"]
+#                     if track_id in processed_track_ids:
+#                         logger.debug(f"Skipping already processed track {track_id} (duplicate).")
+#                         continue
+
+#                     processed_track_ids.add(track_id)
+
+#                     # Extract bbox and validate
+#                     bbox = track.get("bbox")
+#                     if not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+#                         logger.error(f"Invalid bbox format for track {track_id}: {bbox}")
+#                         continue
+                    
+#                     # Convert TLBR format to XYWH format for scaling
+#                     x1, y1, x2, y2 = bbox
+#                     width = x2 - x1
+#                     height = y2 - y1
+#                     x_center = x1 + width/2
+#                     y_center = y1 + height/2
+                    
+#                     xywh_bbox = [x_center, y_center, width, height]
+                    
+#                     # Scale bbox
+#                     scaled_bbox = self.scale_bbox(xywh_bbox, frame_width, frame_height)
+#                     if scaled_bbox is None or not self.is_valid_bbox(scaled_bbox):
+#                         logger.warning(f"Invalid scaled bbox for track {track_id}: {scaled_bbox}")
+#                         continue
+#                     # Check for duplicates
+#                     # Use Canvas's duplicate detection with overlap threshold
+#                     if self.canvas.is_shape_duplicate(str(track_id), scaled_bbox, threshold=0.5):
+#                         logger.debug(f"Track {track_id} has overlapping bounding box - skipping")
+#                         continue
+
+#                     # Use tracked info
+#                     track_info = self.current_tracks.get(track_id, {})
+#                     color = track_info.get("color", person_colors.get(track_id, (255, 255, 255)))  # Default to white if no color found
+
+                    
+
+#                     # Create shape
+#                     shape_data = {
+#                         "bbox": scaled_bbox,
+#                         "shape_type": "rectangle",
+#                         "shape_id": str(track_id),
+#                         "confidence": track.get("confidence", 1.0)
+#                     }
+#                     shape = self.canvas.createShapeFromData(shape_data)
+#                     if not shape:
+#                         logger.error(f"Failed to create shape for track {track_id}")
+#                         continue
+
+#                     # Create LabelMe shape
+#                     label_shape = self.create_labelme_shape(
+#                         track_id=track_id,
+#                         x1=scaled_bbox[0],
+#                         y1=scaled_bbox[1],
+#                         x2=scaled_bbox[2],
+#                         y2=scaled_bbox[3],
+#                         color=color
+#                     )
+#                     if not label_shape:
+#                         logger.error(f"Failed to create LabelMe shape for track {track_id}")
+#                         continue
+
+#                     # Add shape if not duplicate
+#                     if shape:
+#                         self.canvas.addShape(shape)
+#                         self.canvas.selectedShape = shape  # Set current shape
+#                         self.canvas.selectedShapes = [shape]  # Update selected shapes
+#                         frame_annotations.append({
+#                             "track_id": track_id,
+#                             "bbox": scaled_bbox,
+#                             "confidence": track.get("confidence", 1.0),
+#                             "frames_tracked": track_info.get("last_seen", 0) - track_info.get("first_seen", 0) + 1
+#                         })
+#                         self.add_labels_to_UI(label_shape, track_id, color)
+#                         logger.info(f"Successfully processed track {track_id}")
+#                     else:
+#                         logger.debug(f"Track {track_id} is a duplicate.")
+
+#                 except Exception as e:
+#                     logger.error(f"Error processing track {track.get('track_id', 'UNKNOWN')}: {e}")
+#                     logger.debug(f"Track data: {track}", exc_info=True)
+#                     continue
+
+#             # Clean up old tracks
+#             self.cleanup_inactive_tracks(processed_track_ids, self.current_tracks,max_age=30)
+#             logger.info(f"Processed {len(processed_track_ids)} tracks successfully")
+#             return frame_annotations
+
+#         except Exception as e:
+#             logger.error(f"Error in process_tracks: {e}", exc_info=True)
+#             return frame_annotations

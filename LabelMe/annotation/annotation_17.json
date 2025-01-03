@@ -1,0 +1,751 @@
+[
+    {
+        "frame_number": 7,
+        "annotations": [
+            {
+                "bbox": [
+                    1879.9171202226185,
+                    321.5633627821859,
+                    2975.6382902505675,
+                    2139.827744476485
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "1",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    1167.9350242211708,
+                    1218.332136076977,
+                    2401.488598011063,
+                    2142.97254402553
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    3341.575340400805,
+                    1225.002926981631,
+                    3840,
+                    2140.930857034188
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    606.2588903147273,
+                    1518.686320566514,
+                    1444.435096604113,
+                    2150.0202964387713
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "4",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 41,
+        "annotations": [
+            {
+                "bbox": [
+                    515.5754527878787,
+                    1571.6495052968664,
+                    1823.5286799405687,
+                    2147.2447498964357
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "8",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 45,
+        "annotations": [
+            {
+                "bbox": [
+                    715.9613801180078,
+                    1703.3407773183133,
+                    1300.9166983706941,
+                    2137.732240131795
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "4",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 52,
+        "annotations": [
+            {
+                "bbox": [
+                    471.81043763974594,
+                    1362.777808568355,
+                    1798.3418394042792,
+                    2144.3439352832265
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "9",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 58,
+        "annotations": [
+            {
+                "bbox": [
+                    802.859948986859,
+                    1832.6647411487213,
+                    1202.93818524781,
+                    2129.762818939261
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "4",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 82,
+        "annotations": [
+            {
+                "bbox": [
+                    122.59009854775252,
+                    1338.7533377197171,
+                    1961.73443088444,
+                    2138.018438043606
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "8",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 162,
+        "annotations": [
+            {
+                "bbox": [
+                    2995.2436943695093,
+                    970.4234808836824,
+                    3840,
+                    2149.0777569079687
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "10",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 176,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1408.781529355995,
+                    1300.1464876630664,
+                    2146.896908046391
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "9",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 201,
+        "annotations": [
+            {
+                "bbox": [
+                    778.1915100800175,
+                    1064.7166890558492,
+                    2077.412749761502,
+                    2145.4754769701576
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    0,
+                    1465.069137142511,
+                    957.5759329373783,
+                    2145.4127307619033
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 224,
+        "annotations": [
+            {
+                "bbox": [
+                    3086.796433701306,
+                    1065.716715937961,
+                    3773.170411151519,
+                    2146.7838070109565
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 238,
+        "annotations": [
+            {
+                "bbox": [
+                    1535.1882913901936,
+                    219.54098021040375,
+                    2621.991118420112,
+                    2141.26827388973
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "1",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 246,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1293.6603558190307,
+                    540.9828658830565,
+                    2140.181391166716
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 263,
+        "annotations": [
+            {
+                "bbox": [
+                    3697.340139206548,
+                    1327.2040606249743,
+                    3790.7632026193974,
+                    2133.1728648422695
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 265,
+        "annotations": [
+            {
+                "bbox": [
+                    320.04627391823294,
+                    1096.2857090148648,
+                    1659.7211545662794,
+                    2143.17810604283
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 269,
+        "annotations": [
+            {
+                "bbox": [
+                    2601.2706011126256,
+                    1069.5186435588075,
+                    3674.3374447516144,
+                    2142.3854520576897
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 270,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1423.5302448664102,
+                    272.7061998559981,
+                    2144.722936975134
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 275,
+        "annotations": [
+            {
+                "bbox": [
+                    3599.674227702598,
+                    1354.5387203496682,
+                    3789.761646545405,
+                    2142.9284026665027
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 281,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1561.4657474581677,
+                    166.38138989891831,
+                    2149.206236311277
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 288,
+        "annotations": [
+            {
+                "bbox": [
+                    10.063843455078164,
+                    1570.729799446833,
+                    103.90750550207221,
+                    2153.017874680672
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "17",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 296,
+        "annotations": [
+            {
+                "bbox": [
+                    3418.0971953884764,
+                    1347.2103587146785,
+                    3799.7695740738764,
+                    2144.898696661346
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 298,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1431.3796356685086,
+                    101.8597757090368,
+                    2147.7661307835097
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "19",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 299,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1680.0347388473824,
+                    94.50443230712511,
+                    2148.4105530549027
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 309,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1760.3618996554303,
+                    56.02801292686073,
+                    2146.1036224249497
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 310,
+        "annotations": [
+            {
+                "bbox": [
+                    42.012227839904924,
+                    1569.2318237101763,
+                    136.20781344622475,
+                    2153.703282604618
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "17",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 314,
+        "annotations": [
+            {
+                "bbox": [
+                    2348.574801880414,
+                    1172.3648676825026,
+                    3320.352741949519,
+                    2144.6380661341473
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    0,
+                    1515.2228494700473,
+                    54.836831218738936,
+                    2147.1673172392375
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "19",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 316,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1816.5909122210637,
+                    29.117425492033348,
+                    2144.4887709839822
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 320,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1848.7217765442829,
+                    13.748416451793645,
+                    2143.565998732001
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 321,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1995.0448991470466,
+                    10,
+                    2005.0448991470466
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 322,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1998.9459106559511,
+                    10,
+                    2008.9459106559511
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 323,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2002.846922164856,
+                    10,
+                    2012.846922164856
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    0,
+                    1562.3846572334128,
+                    28.38643875590249,
+                    2146.8304846205847
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "19",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 324,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2006.7479336737608,
+                    10,
+                    2016.7479336737608
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 325,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2010.6489451826656,
+                    10,
+                    2020.6489451826656
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 326,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2014.5499566915705,
+                    10,
+                    2024.5499566915705
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 327,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2018.450968200475,
+                    10,
+                    2028.450968200475
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 328,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2022.35197970938,
+                    10,
+                    2032.35197970938
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            },
+            {
+                "bbox": [
+                    0,
+                    1588.5856615463938,
+                    13.691780573913022,
+                    2146.6433553879997
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "19",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 329,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    2026.2529912182845,
+                    10,
+                    2036.2529912182845
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "13",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 331,
+        "annotations": [
+            {
+                "bbox": [
+                    3122.2500485839164,
+                    1271.0220246221324,
+                    3840,
+                    2148.6427183378946
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 343,
+        "annotations": [
+            {
+                "bbox": [
+                    0,
+                    1206.8568169585392,
+                    1224.1412771346697,
+                    2141.4379585107154
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "2",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 366,
+        "annotations": [
+            {
+                "bbox": [
+                    1129.1810094258767,
+                    302.0973208226468,
+                    2306.4074727039438,
+                    2137.8398304424422
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "1",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 425,
+        "annotations": [
+            {
+                "bbox": [
+                    2044.5816225897622,
+                    1204.901192571553,
+                    3000.279017720686,
+                    2145.9384605659147
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "3",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 462,
+        "annotations": [
+            {
+                "bbox": [
+                    2616.5439736158946,
+                    1371.0804312716505,
+                    3766.8983058983217,
+                    2145.274250277117
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    },
+    {
+        "frame_number": 485,
+        "annotations": [
+            {
+                "bbox": [
+                    2197.074920030811,
+                    1357.10651554807,
+                    3413.1386202412327,
+                    2146.8963874892943
+                ],
+                "shape_type": "rectangle",
+                "shape_id": "15",
+                "confidence": 1.0
+            }
+        ]
+    }
+]
